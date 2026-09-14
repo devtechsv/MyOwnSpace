@@ -14,6 +14,28 @@ describe('users.api.list', () => {
   });
 });
 
+describe('users.api.create', () => {
+  it('delega al mock y crea el usuario en estado Pendiente', async () => {
+    const nuevo = await usersApi.create({
+      nombre: 'Nuevo Empleado',
+      correo: 'nuevo.empleado@devtch.com',
+      rol: 'Empleado',
+    });
+
+    expect(nuevo.estado).toBe('Pendiente');
+  });
+
+  it('rechaza si el correo ya existe', async () => {
+    await expect(
+      usersApi.create({
+        nombre: 'Otro',
+        correo: 'julio.perez@devtch.com',
+        rol: 'Empleado',
+      }),
+    ).rejects.toThrow('Ya existe un usuario con ese correo.');
+  });
+});
+
 describe('users.api.resetPassword', () => {
   it('deja al usuario en estado Pendiente', async () => {
     await usersApi.resetPassword('u1'); // Julio Pérez, Activo en los fixtures

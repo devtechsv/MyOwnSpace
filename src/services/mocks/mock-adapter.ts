@@ -152,6 +152,12 @@ export const mockUsersAdapter = {
   },
 
   async create(payload: CreateUserPayload): Promise<User> {
+    const yaExiste = users.some(
+      (u) => u.correo.toLowerCase() === payload.correo.toLowerCase(),
+    );
+    if (yaExiste) {
+      throw new Error('Ya existe un usuario con ese correo.');
+    }
     const nuevo: User = {
       id: nextId('u', users),
       nombre: payload.nombre,

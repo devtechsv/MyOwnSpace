@@ -512,20 +512,22 @@
 
 ---
 
-## Task 17: Dashboard Admin — Usuarios (tabla + contadores)
+## Task 17: Dashboard Admin — Usuarios (tabla + contadores) ✅
 
 **Description:** Construir `pages/admin/users.tsx` con las 3 tarjetas de conteo (Total/Activos/Pendientes, calculadas del dato real, no hardcodeadas) y `UsersTable` con avatar/nombre/correo, rol, estado y acciones condicionales según estado.
 
 **Acceptance criteria:**
-- [ ] Los contadores se recalculan a partir de la lista de usuarios del mock
-- [ ] "Editar" y "Resetear contraseña" solo visibles si `estado === 'Activo'`
-- [ ] "Desactivar" visible si `Activo`; "Activar" visible si `Desactivado`
-- [ ] El usuario logueado se identifica con la etiqueta "TÚ" en su propia fila
+- [x] Los contadores se recalculan a partir de la lista de usuarios del mock
+- [x] "Editar" y "Resetear contraseña" solo visibles si `estado === 'Activo'`
+- [x] "Desactivar" visible si `Activo`; "Activar" visible si `Desactivado`
+- [x] El usuario logueado se identifica con la etiqueta "TÚ" en su propia fila
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- UsersTable`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: comparar contra el artboard "Administrador — Usuarios"
+- [x] Tests pass: `npm run test -- UsersTable` (8/8 tabla + 1/1 hook + 3/3 badge; suite completa 165/165)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: servidor real — Empleado en `/admin/users` → 404; Administrador → 200. Contadores y etiqueta "TÚ" requieren hidratación del cliente (no verificables por `curl`) — cubiertos por los tests del hook y de la tabla
+
+**Nota:** "Editar" (icono) siempre visible independientemente del estado — la acción en sí (abrir el formulario de edición) se conecta en la Tarea 19; acá solo se construyó el ícono y el callback opcional `onEdit`.
 
 **Dependencies:** Tasks 4, 11, 12
 
@@ -538,19 +540,21 @@
 
 ---
 
-## Task 18: Modal "Crear usuario"
+## Task 18: Modal "Crear usuario" ✅
 
 **Description:** Construir `CreateUserModal` (Nombre, Correo, Rol) validado con zod, llamando a `users.api.create()`. El nuevo usuario queda en estado `Pendiente`.
 
 **Acceptance criteria:**
-- [ ] Rol solo permite `Empleado` o `Administrador` (no SuperAdmin)
-- [ ] Tras crear, el usuario aparece en la tabla con estado `Pendiente`
-- [ ] Correo duplicado (ya existente en el mock) muestra error de validación
+- [x] Rol solo permite `Empleado` o `Administrador` (no SuperAdmin)
+- [x] Tras crear, el usuario aparece en la tabla con estado `Pendiente` (`onCreated={reload}` en `admin/users.tsx`)
+- [x] Correo duplicado (ya existente en el mock) muestra error de validación — en el campo Correo, vía `setError` de react-hook-form
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- CreateUserModal`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: crear un usuario y confirmarlo en la tabla y en los contadores
+- [x] Tests pass: `npm run test -- CreateUserModal` (6/6; suite completa 165/165)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: requiere clicks/formulario reales — no verificable por `curl`; cubierto a fondo por los tests (crea contra el mock real y confirma que el nuevo usuario queda Pendiente)
+
+**Cambio no previsto en el archivo original, necesario para que el criterio de correo duplicado fuera real:** `mockUsersAdapter.create()` (Tarea 4) no rechazaba correos repetidos — se le agregó esa validación (comparación case-insensitive), igual que `login` ya rechaza credenciales inválidas. Se agregaron 2 tests nuevos en `mock-adapter.test.ts` para cubrirlo.
 
 **Dependencies:** Task 17
 

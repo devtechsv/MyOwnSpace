@@ -51,8 +51,8 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 - [x] Tarea 14: Modal "Crear solicitud"
 - [x] Tarea 15: Dashboard Admin — Solicitudes pendientes
 - [x] Tarea 16: Acciones Aprobar/Denegar
-- [ ] Tarea 17: Dashboard Admin — Usuarios (tabla + contadores)
-- [ ] Tarea 18: Modal "Crear usuario"
+- [x] Tarea 17: Dashboard Admin — Usuarios (tabla + contadores)
+- [x] Tarea 18: Modal "Crear usuario"
 - [ ] Tarea 19: Editar usuario
 - [ ] Tarea 20: Resetear contraseña + Activar/Desactivar
 

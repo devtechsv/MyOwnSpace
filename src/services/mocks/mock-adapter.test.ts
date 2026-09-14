@@ -152,6 +152,26 @@ describe('mockUsersAdapter', () => {
     expect(list).toHaveLength(mockUsers.length + 1);
   });
 
+  it('create rechaza si ya existe un usuario con ese correo', async () => {
+    await expect(
+      mockUsersAdapter.create({
+        nombre: 'Otro Nombre',
+        correo: 'ana.martinez@devtch.com', // ya existe en los fixtures
+        rol: 'Empleado',
+      }),
+    ).rejects.toThrow('Ya existe un usuario con ese correo.');
+  });
+
+  it('create rechaza el correo duplicado sin importar mayúsculas/minúsculas', async () => {
+    await expect(
+      mockUsersAdapter.create({
+        nombre: 'Otro Nombre',
+        correo: 'ANA.MARTINEZ@DEVTCH.COM',
+        rol: 'Empleado',
+      }),
+    ).rejects.toThrow();
+  });
+
   it('update modifica los campos indicados sin tocar el resto', async () => {
     const updated = await mockUsersAdapter.update('u3', {
       nombre: 'Ana M. Martínez',
