@@ -429,19 +429,26 @@
 
 ---
 
-## Task 14: Modal "Crear solicitud"
+## Task 14: Modal "Crear solicitud" ✅
 
 **Description:** Construir `CreateRequestModal` con los campos Tipo (los 4 valores exactos), Fecha desde/hasta, Motivo, validados con zod, llamando a `requests.api.create()`. Al confirmar, la tabla del dashboard se actualiza con la nueva solicitud en estado `Pendiente`.
 
 **Acceptance criteria:**
-- [ ] Los 4 tipos de solicitud disponibles son exactamente: Emergencia, Enfermedad, Permiso personal, Otro
-- [ ] Fecha "hasta" no puede ser anterior a "desde" (validación de formulario)
-- [ ] Tras crear, la nueva solicitud aparece en la tabla sin recargar la página
+- [x] Los 4 tipos de solicitud disponibles son exactamente: Emergencia, Enfermedad, Permiso personal, Otro
+- [x] Fecha "hasta" no puede ser anterior a "desde" (validación de formulario)
+- [x] Tras crear, la nueva solicitud aparece en la tabla sin recargar la página (`onCreated={reload}` en `index.tsx`)
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- CreateRequestModal`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: crear una solicitud de cada tipo y confirmar que aparece correctamente
+- [x] Tests pass: `npm run test -- CreateRequestModal` (6/6 modal + 3/3 select; suite completa 129/129)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: crear una solicitud requiere clicks/formulario reales (abrir desde el Sidebar, tipear, enviar) — no verificable por `curl`; cubierto a fondo por los tests de `CreateRequestModal` con interacciones reales de DOM (incluye probar los 4 tipos, la validación de fechas, y que la nueva solicitud realmente queda en el mock en estado Pendiente)
+
+**Decisiones de estructura (compartidas y aprobadas antes de escribir):**
+- `Select` nuevo en `components/common/form/` (mismo patrón visual que `TextInput`) — la Tarea 18 lo va a reusar para el campo "Rol".
+- El hook `useCreateRequestForm` no tiene test propio — sigue el mismo patrón que `useLoginForm`/`useForgotPasswordForm`/`useSetPasswordForm`: se prueba a través del componente (`react-hook-form` necesita inputs reales del DOM para el modelo no controlado).
+- `index.tsx` conecta `onCreateRequest` del `Sidebar` (dejado listo en la Tarea 11) para abrir el modal, y pasa `reload` de `useEmployeeRequests` (Tarea 13) como `onCreated`.
+
+**Nota de test:** Carlos Rivas (`u4`, usado en los tests) ya tiene una solicitud pre-cargada en los fixtures del mock (`r6`) — las aserciones comparan contra la cantidad inicial en vez de un número fijo, para no acoplarse a los datos de ejemplo.
 
 **Dependencies:** Task 13
 
@@ -449,7 +456,7 @@
 - `src/components/pages/employee/CreateRequestModal.tsx`
 - `src/services/requests/requests.api.ts`
 
-**Estimated scope:** Medium: 3-5 files
+**Estimated scope:** Medium: 3-5 files (terminó tocando 4, sin contar `index.tsx` ya modificado en la Tarea 13)
 
 ---
 
