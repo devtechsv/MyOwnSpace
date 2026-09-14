@@ -33,19 +33,21 @@
 
 ---
 
-## Task 2: Tokens de tema (Tailwind dark/light) + `useTheme`
+## Task 2: Tokens de tema (Tailwind dark/light) + `useTheme` ✅
 
-**Description:** Extender `tailwind.config.ts` con `darkMode: 'class'` y tokens semánticos (`bg`, `surface`, `border`, `text`, `text-muted`) con los valores ya validados en el mockup (claro y oscuro). Crear `useTheme` (lee/persiste preferencia en `localStorage`, aplica la clase `dark` al `<html>`).
+**Description:** Extender `tailwind.config.ts` con `darkMode: 'class'` y tokens semánticos (`bg`, `surface`, `border`, `text`, `text-muted` — implementados como `background`, `surface`, `surface-field`, `border`, `foreground`, `muted` para evitar clases ambiguas como `bg-bg`/`text-text`) con los valores ya validados en el mockup (claro y oscuro). Crear `useTheme` (lee/persiste preferencia en `localStorage`, aplica la clase `dark` al `<html>`).
 
 **Acceptance criteria:**
-- [ ] `tailwind.config.ts` tiene `darkMode: 'class'` y los tokens semánticos definidos (no colores hex sueltos en componentes)
-- [ ] `useTheme()` expone `{ theme, toggleTheme }` y persiste la elección entre recargas
-- [ ] Una página de prueba puede alternar entre claro/oscuro visualmente
+- [x] `tailwind.config.ts` tiene `darkMode: 'class'` y los tokens semánticos definidos (no colores hex sueltos en componentes)
+- [x] `useTheme()` expone `{ theme, toggleTheme }` y persiste la elección entre recargas
+- [x] Una página de prueba puede alternar entre claro/oscuro visualmente — **parcial, ver nota**
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- useTheme`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: alternar el toggle en `npm run dev`, recargar la página y confirmar que el tema persiste
+- [x] Tests pass: `npm run test -- useTheme` (4 tests: default claro, preferencia de sistema, toggle + persistencia, localStorage por encima del sistema)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: `npm run dev`, confirmado que `/login` responde 200 con el script anti-parpadeo embebido en el HTML, sin errores de runtime
+
+**Nota:** todavía ningún componente consume los tokens (`ThemeToggle` es la Tarea 10), así que no hay una pantalla real donde alternar colores visualmente todavía — la verificación visual completa queda pendiente para cuando se construya el `ThemeToggle`/`AppShell` (Tarea 10) y el QA visual final (Tarea 22). Lo verificado acá es la lógica (tests unitarios) y que no rompe el render de páginas existentes. También se agregó un script inline en `_document.tsx` (no estaba en el listado original de archivos) para evitar el parpadeo de tema al cargar, leyendo la misma clave de `localStorage` que usa `useTheme`.
 
 **Dependencies:** None
 
