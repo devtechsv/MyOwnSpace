@@ -47,7 +47,7 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 - [x] "Cambiar contraseña" desde el dropdown dispara el mismo flujo de confirmación que "Resetear contraseña"
 
 ### Fase 3 — Módulos de negocio (paralelizables entre sí)
-- [ ] Tarea 13: Dashboard Empleado — tabla de solicitudes propias
+- [x] Tarea 13: Dashboard Empleado — tabla de solicitudes propias
 - [ ] Tarea 14: Modal "Crear solicitud"
 - [ ] Tarea 15: Dashboard Admin — Solicitudes pendientes
 - [ ] Tarea 16: Acciones Aprobar/Denegar

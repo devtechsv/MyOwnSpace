@@ -398,19 +398,25 @@
 
 *Tareas 13-14, 15-16 y 17-20 son paralelizables entre sí (no entre ellas mismas) una vez completado el checkpoint de `shell`.*
 
-## Task 13: Dashboard Empleado — tabla de solicitudes
+## Task 13: Dashboard Empleado — tabla de solicitudes ✅
 
 **Description:** Reescribir `pages/index.tsx` para mostrar `RequestsTable` con las solicitudes del usuario logueado (filtradas por `employeeId` en el servicio), igualando el mockup: columnas Tipo/Fecha/Motivo/Estado con badges de color por estado.
 
 **Acceptance criteria:**
-- [ ] La tabla solo muestra solicitudes del `userId` de la sesión actual
-- [ ] Cada estado (`Pendiente`/`Aprobada`/`Denegada`) tiene el color de badge correspondiente al mockup
-- [ ] Estado vacío (sin solicitudes) muestra un mensaje, no una tabla en blanco
+- [x] La tabla solo muestra solicitudes del `userId` de la sesión actual
+- [x] Cada estado (`Pendiente`/`Aprobada`/`Denegada`) tiene el color de badge correspondiente al mockup
+- [x] Estado vacío (sin solicitudes) muestra un mensaje, no una tabla en blanco
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- RequestsTable`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: comparar contra el artboard "Empleado — Dashboard"
+- [x] Tests pass: `npm run test -- RequestsTable` (4/4 tabla + 3/3 hook; suite completa 120/120)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: servidor real — Empleado en `/` → 200 con "Mis solicitudes" y el estado de carga inicial (los datos se resuelven client-side después de la hidratación, `curl` no puede verlos poblados — cubierto por los tests del hook); Administrador en `/` → **404**, primera vez que la restricción por rol de la Tarea 9 protege una ruta real
+
+**Decisiones de estructura (compartidas y aprobadas antes de escribir):**
+- `requests.api.ts` se construyó completo (5 funciones) de una sola vez, ya que el mock las tenía todas listas desde la Tarea 4 — evita ir agregando función por función en las Tareas 14-16.
+- `StatusBadge` como componente compartido en `components/common/` — lo va a reusar también la tabla del Administrador (Tarea 15).
+- Carga de datos separada de la tabla: `useEmployeeRequests` (hook) vs `RequestsTable` (presentacional) — así la Tarea 14 solo necesita llamar `reload()` sin tocar la tabla.
+- Se agregó `{ roles: ['Empleado'] }` a `withAuth` en `index.tsx` (no estaba en la lista original), para que un Administrador que navegue a `/` a mano reciba 404 en vez del dashboard equivocado.
 
 **Dependencies:** Tasks 4, 11, 12
 
@@ -419,7 +425,7 @@
 - `src/components/pages/employee/RequestsTable.tsx`
 - `src/services/requests/requests.api.ts`
 
-**Estimated scope:** Medium: 3-5 files
+**Estimated scope:** Medium: 3-5 files (terminó tocando 6 por `StatusBadge` y `useEmployeeRequests`)
 
 ---
 
