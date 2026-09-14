@@ -19,7 +19,7 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 ### Fase 0 — Fundaciones
 - [x] Tarea 1: Test runner (Jest + RTL) y script `typecheck`
 - [x] Tarea 2: Tokens de tema (Tailwind dark/light) + `useTheme`
-- [ ] Tarea 3: Contratos de datos (`User`, `LeaveRequest`, `Session`, endpoints)
+- [x] Tarea 3: Contratos de datos (`User`, `LeaveRequest`, `Session`, endpoints)
 - [ ] Tarea 4: Capa de mocks tipada (`mock-data.ts`, `mock-adapter.ts`)
 
 ### Checkpoint: Fundaciones

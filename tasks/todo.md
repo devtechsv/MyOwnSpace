@@ -60,19 +60,21 @@
 
 ---
 
-## Task 3: Contratos de datos
+## Task 3: Contratos de datos ✅
 
 **Description:** Crear las interfaces y enums de dominio descritos en `SPEC.md` (`User`, `UserRole`, `UserStatus`, `LeaveRequest`, `RequestType`, `RequestStatus`, `Session`, `LoginPayload`, `SetPasswordPayload`) y los enums de endpoints para solicitudes y usuarios.
 
 **Acceptance criteria:**
-- [ ] `UserRole` es exactamente `'Empleado' | 'Administrador'` (SuperAdmin no incluido)
-- [ ] `RequestType` es exactamente `'Emergencia' | 'Enfermedad' | 'Permiso personal' | 'Otro'`
-- [ ] Ningún tipo usa `any`
+- [x] `UserRole` es exactamente `'Empleado' | 'Administrador'` (SuperAdmin no incluido)
+- [x] `RequestType` es exactamente `'Emergencia' | 'Enfermedad' | 'Permiso personal' | 'Otro'`
+- [x] Ningún tipo usa `any`
 
 **Verification:**
-- [ ] Tests pass: N/A (solo tipos, cubierto por `typecheck`)
-- [ ] Build succeeds: `npm run typecheck`
-- [ ] Manual check: revisar que los nombres de campo coincidan con los usados en el mockup (`estado`, `correo`, `rol`, etc.) para no traducir innecesariamente
+- [x] Tests pass: N/A (solo tipos, cubierto por `typecheck`) — suite completa sigue en 5/5
+- [x] Build succeeds: `npm run typecheck` y `npm run build`
+- [x] Manual check: nombres de campo revisados contra el mockup (`estado`, `correo`, `rol`, `nombre`) — coinciden
+
+**Nota:** además de `LoginPayload`/`Session`/`SetPasswordPayload` (los del ejemplo de `SPEC.md`), se agregó `ForgotPasswordPayload` en `auth.ts` — necesario para la Tarea 7 y trivial, no un contrato nuevo fuera de lo ya acordado. Se eliminó `src/contracts/interfaces/.gitkeep`, ya innecesario con archivos reales en la carpeta.
 
 **Dependencies:** None
 
