@@ -238,19 +238,40 @@
 
 ---
 
-## Task 9: Expiración de sesión (2h) + página 404
+## Task 9: Expiración de sesión (2h) + página 404 ✅
 
 **Description:** Extender `with-auth.tsx` para expirar la sesión tras 2 horas de inactividad (redirigiendo a `/login?expired=1`) y para devolver 404 (no un mensaje de "sin permiso") cuando la ruta no existe o el rol no alcanza. Conectar el banner de "sesión expirada" en Login al query param. Crear `pages/404.tsx` con el diseño del mockup.
 
 **Acceptance criteria:**
-- [ ] Sin token válido, cualquier ruta protegida redirige a `/login`
-- [ ] Con token expirado (simulado), redirige a `/login?expired=1` y el banner correspondiente se muestra
-- [ ] Ruta inexistente, o ruta que el rol actual no puede ver, siempre renderiza `404.tsx` con mensaje genérico — nunca un mensaje que confirme "existe pero no tenés acceso"
+- [x] Sin token válido, cualquier ruta protegida redirige a `/login`
+- [x] Con token expirado (simulado), redirige a `/login?expired=1` y el banner correspondiente se muestra
+- [x] Ruta inexistente, o ruta que el rol actual no puede ver, siempre renderiza `404.tsx` con mensaje genérico — nunca un mensaje que confirme "existe pero no tenés acceso"
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- with-auth`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: navegar a una ruta de Administrador logueado como Empleado y confirmar que se ve el 404, no un error distinto
+- [x] Tests pass: `npm run test -- with-auth` (8/8; suite completa 81/81, incluyendo `session-cookie` y `404`/`NotFoundPage`)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: servidor real —
+  - Sin cookie: `/` → 307 a `/login`.
+  - Cookie con `expiresAt` vencido: `/` → 307 a `/login?expired=1`, y esa URL efectivamente muestra el aviso amarillo.
+  - Cookie válida: `/` → 200, y la respuesta trae `Set-Cookie` renovando `expiresAt` +2h (sesión por inactividad, no por plazo fijo).
+  - Ruta inexistente (`/ruta-que-no-existe`) → 404 con el contenido esperado.
+  - **No verificado a mano:** "ruta de Administrador logueado como Empleado → 404 por rol" — no existe todavía ninguna ruta que pase `{roles:['Administrador']}` a `withAuth` (eso es la Tarea 15). La lógica está implementada y cubierta por 2 de los 8 tests de `with-auth.test.ts`; la verificación en navegador real queda pendiente para cuando esa ruta exista.
+
+**Cambios más profundos de lo previsto, todos necesarios:**
+- **`refresh-session.ts` reescrito de nuevo**: antes devolvía `Session | null`, lo cual no alcanza para distinguir "nunca inició sesión" de "sesión vencida por inactividad" — ambos casos lucían iguales. Ahora devuelve un resultado de 3 estados (`'none' | 'expired' | 'valid'`) y, en cada verificación válida, **renueva** la cookie (+2h desde ahora) — así es una expiración por inactividad real, no un plazo fijo.
+- **`session-cookie.ts` (nuevo módulo)**: centraliza el nombre de la cookie, el TTL de la sesión (2h), el maxAge técnico del cookie (30 días — mucho mayor al TTL funcional, a propósito: si el navegador lo borrara a las 2h justas, perderíamos la forma de distinguir "vencida" de "nunca existió") y el encode/decode del JSON con `expiresAt`. Lo usan tanto `auth.api.ts` (al loguear) como `refresh-session.ts` (al verificar y renovar).
+- **`with-auth.tsx`**: agregó la opción `roles?: UserRole[]` — cualquier página puede ahora restringirse por rol devolviendo `{ notFound: true }` (el mecanismo nativo de Next.js para 404, no un redirect a una URL `/404`).
+- **`pages/404.tsx` reestructurado**: originalmente escribí el contenido directo ahí, pero **Next.js trata cualquier archivo dentro de `pages/` como una ruta** — mi primer intento de test (`pages/404.test.tsx`) rompió `npm run build` (`ReferenceError: describe is not defined`, porque Next.js intentó compilarlo como página `/404.test`). Se corrigió moviendo el contenido a `components/pages/not-found/NotFoundPage.tsx` (con su test al lado, fuera de `pages/`), dejando `pages/404.tsx` como wrapper delgado — igual al resto de páginas del proyecto. **Lección para tareas futuras: nunca poner archivos `.test.tsx` dentro de `src/pages/`.**
+- Como en la Tarea 8, hubo que reiniciar el servidor de dev y borrar `.next` una vez más por correr `build` con `dev` activo en simultáneo.
+
+**Dependencies:** Tasks 4, 6
+
+**Files likely touched:**
+- `src/middlewares/with-auth.tsx`
+- `src/pages/404.tsx`
+- `src/components/pages/login/LoginForm.tsx`
+
+**Estimated scope:** Medium: 3-5 files (terminó tocando 11 por las razones de arriba)
 
 **Dependencies:** Tasks 4, 6
 

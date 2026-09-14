@@ -18,7 +18,12 @@ describe('auth.api.login', () => {
 
     const cookieValue = getCookie(SESSION_COOKIE);
     expect(cookieValue).toBeTruthy();
-    expect(JSON.parse(String(cookieValue))).toEqual(session);
+    // La cookie guarda la sesión más un expiresAt propio (ver
+    // session-cookie.ts) — no es un match exacto contra `session`.
+    expect(JSON.parse(String(cookieValue))).toMatchObject(session);
+    expect(JSON.parse(String(cookieValue)).expiresAt).toEqual(
+      expect.any(Number),
+    );
   });
 
   it('rechaza con credenciales inválidas y no deja cookie', async () => {

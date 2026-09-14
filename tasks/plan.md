@@ -31,11 +31,11 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 - [x] Tarea 6: Login (formulario real + integración con mocks)
 - [x] Tarea 7: Olvidé mi contraseña (formulario + confirmación genérica)
 - [x] Tarea 8: Definir nueva contraseña (checklist en vivo)
-- [ ] Tarea 9: Expiración de sesión (2h) + página 404 genérica
+- [x] Tarea 9: Expiración de sesión (2h) + página 404 genérica
 
 ### Checkpoint: `auth` completo
-- [ ] Flujo completo probado a mano: login válido/ inválido, olvidé mi contraseña, definir contraseña, sesión expirada, ruta inexistente → 404
-- [ ] `npm run lint`, `npm run typecheck`, `npm run test` sin errores
+- [x] Flujo completo probado a mano: login válido/ inválido, olvidé mi contraseña, definir contraseña, sesión expirada, ruta inexistente → 404 (la variante "por rol" queda pendiente de navegador real hasta la Tarea 15 — sí está cubierta por tests)
+- [x] `npm run lint`, `npm run typecheck`, `npm run test` sin errores (81/81)
 
 ### Fase 2 — Módulo `shell`
 - [ ] Tarea 10: `AppShell` + `Topbar` (logo, toggle de tema, dropdown de perfil)

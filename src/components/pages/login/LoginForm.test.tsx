@@ -5,9 +5,10 @@ import { resetMockState } from '@/services/mocks/mock-adapter';
 import { SESSION_COOKIE } from '@/services/auth/auth.api';
 
 const pushMock = jest.fn();
+const useRouterMock = jest.fn();
 
 jest.mock('next/router', () => ({
-  useRouter: () => ({ push: pushMock }),
+  useRouter: () => useRouterMock(),
 }));
 
 function fillAndSubmit(correo: string, password: string) {
@@ -24,6 +25,7 @@ beforeEach(() => {
   resetMockState();
   deleteCookie(SESSION_COOKIE);
   pushMock.mockClear();
+  useRouterMock.mockReturnValue({ push: pushMock, query: {} });
 });
 
 describe('LoginForm', () => {
@@ -101,5 +103,26 @@ describe('LoginForm', () => {
     expect(
       screen.getByRole('link', { name: /olvidaste tu contraseña/i }),
     ).toHaveAttribute('href', '/forgot-password');
+  });
+
+  it('con ?expired=1, muestra el aviso de sesión vencida por inactividad', () => {
+    useRouterMock.mockReturnValue({
+      push: pushMock,
+      query: { expired: '1' },
+    });
+
+    render(<LoginForm />);
+
+    expect(
+      screen.getByText(/tu sesión expiró por inactividad/i),
+    ).toBeInTheDocument();
+  });
+
+  it('sin ?expired=1, no muestra el aviso de sesión vencida', () => {
+    render(<LoginForm />);
+
+    expect(
+      screen.queryByText(/tu sesión expiró por inactividad/i),
+    ).not.toBeInTheDocument();
   });
 });

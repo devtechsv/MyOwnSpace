@@ -6,8 +6,15 @@ import { TextInput } from '@/components/common/form/TextInput';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 const LoginForm = () => {
-  const { register, handleSubmit, onSubmit, errors, serverError, isSubmitting } =
-    useLoginForm();
+  const {
+    register,
+    handleSubmit,
+    onSubmit,
+    errors,
+    serverError,
+    isSubmitting,
+    sessionExpired,
+  } = useLoginForm();
 
   return (
     <section className='min-h-screen relative bg-background px-5 grid place-content-center'>
@@ -29,6 +36,29 @@ const LoginForm = () => {
         <p className='text-center text-sm text-muted mt-1.5 mb-7'>
           Iniciá sesión para continuar
         </p>
+
+        {sessionExpired && (
+          <div className='mb-5 flex items-start gap-2.5 rounded-[10px] bg-amber-50 dark:bg-amber-950/20 px-4 py-3'>
+            <svg
+              width='16'
+              height='16'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              className='shrink-0 mt-0.5 text-amber-700 dark:text-amber-400'
+            >
+              <circle cx='12' cy='12' r='10' />
+              <polyline points='12 6 12 12 16 14' />
+            </svg>
+            <span className='text-[12.5px] leading-relaxed text-amber-800 dark:text-amber-300'>
+              Tu sesión expiró por inactividad. Iniciá sesión nuevamente
+              para continuar.
+            </span>
+          </div>
+        )}
 
         {serverError && (
           <div className='mb-5 rounded-[10px] bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600 dark:text-red-400'>

@@ -25,6 +25,8 @@ const useLoginForm = () => {
     resolver: zodResolver(schema),
   });
 
+  const sessionExpired = router.query.expired === '1';
+
   const onSubmit: SubmitHandler<LoginInputs> = async (data) => {
     setServerError(null);
     setIsSubmitting(true);
@@ -52,6 +54,7 @@ const useLoginForm = () => {
     errors,
     serverError,
     isSubmitting,
+    sessionExpired,
   };
 };
 

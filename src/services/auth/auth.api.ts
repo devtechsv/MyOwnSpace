@@ -7,20 +7,18 @@ import {
 } from '@/contracts/interfaces/auth';
 import { mockAuthAdapter } from '@/services/mocks/mock-adapter';
 import refreshSession from './refresh-session';
+import {
+  COOKIE_MAX_AGE_SECONDS,
+  encodeSession,
+  SESSION_COOKIE,
+} from './session-cookie';
 
-// Mientras no exista backend real, la sesión completa (no un JWT
-// opaco) viaja como JSON en esta cookie — ver refresh-session.ts, que
-// la lee del lado del servidor en cada getServerSideProps protegido.
-export const SESSION_COOKIE = 'accessToken';
-
-// 2 horas, según la regla de expiración de sesión de OwnSpace.md. La
-// Tarea 9 se encarga de expirar por inactividad; acá se fija el máximo.
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 2;
+export { SESSION_COOKIE };
 
 async function login(payload: LoginPayload): Promise<Session> {
   const session = await mockAuthAdapter.login(payload);
-  setCookie(SESSION_COOKIE, JSON.stringify(session), {
-    maxAge: SESSION_MAX_AGE_SECONDS,
+  setCookie(SESSION_COOKIE, encodeSession(session), {
+    maxAge: COOKIE_MAX_AGE_SECONDS,
     path: '/',
   });
   return session;
