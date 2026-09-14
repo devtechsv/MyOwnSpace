@@ -122,19 +122,21 @@
 
 ## Fase 1 — Módulo `auth`
 
-## Task 5: `lib/password-rules.ts`
+## Task 5: `lib/password-rules.ts` ✅
 
 **Description:** Implementar los 6 requisitos de contraseña definidos en `OwnSpace.md` y el mockup: mínimo 10 caracteres, mayúscula, minúscula, número, carácter especial, y no ser una contraseña genérica/la temporal recibida. Exportar como lista de reglas evaluables (para reusar tanto en el checklist visual como en la validación zod).
 
 **Acceptance criteria:**
-- [ ] Cada regla es una función pura `(password: string) => boolean`
-- [ ] La regla "no genérica" compara contra una lista mínima de contraseñas comunes bloqueadas (ej. `Password123!`) y, cuando se provee, contra la contraseña temporal/actual del usuario
-- [ ] `npm run test -- password-rules` cubre cada regla individualmente (casos que pasan y que fallan)
+- [x] Cada regla es una función pura `(password: string, context?: PasswordRuleContext) => boolean`
+- [x] La regla "no genérica" compara contra una lista mínima de contraseñas comunes bloqueadas (ej. `Password123!`) y, cuando se provee, contra la contraseña temporal/actual del usuario (`context.passwordActual`)
+- [x] `npm run test -- password-rules` cubre cada regla individualmente (casos que pasan y que fallan)
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- password-rules`
-- [ ] Build succeeds: `npm run typecheck`
-- [ ] Manual check: N/A (cubierto por unit tests)
+- [x] Tests pass: `npm run test -- password-rules` (11/11; suite completa 32/32)
+- [x] Build succeeds: `npm run typecheck`, `npm run build`
+- [x] Manual check: N/A (cubierto por unit tests)
+
+**Nota:** además de `passwordRules` y `isPasswordValid`, se agregó `evaluatePasswordRules()` (devuelve `{id, label, met}[]`) — es exactamente lo que va a consumir el checklist visual de la Tarea 8, evita que ese componente reimplemente el mapeo.
 
 **Dependencies:** Task 1
 

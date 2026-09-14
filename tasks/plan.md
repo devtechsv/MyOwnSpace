@@ -27,7 +27,7 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 - [ ] Una página de prueba puede alternar modo oscuro/claro y leer datos mockeados tipados — pendiente hasta que exista una UI que los consuma (Fase 1-3); la lógica de ambos ya está probada por unidad
 
 ### Fase 1 — Módulo `auth`
-- [ ] Tarea 5: `lib/password-rules.ts` + tests unitarios
+- [x] Tarea 5: `lib/password-rules.ts` + tests unitarios
 - [ ] Tarea 6: Login (formulario real + integración con mocks)
 - [ ] Tarea 7: Olvidé mi contraseña (formulario + confirmación genérica)
 - [ ] Tarea 8: Definir nueva contraseña (checklist en vivo)
