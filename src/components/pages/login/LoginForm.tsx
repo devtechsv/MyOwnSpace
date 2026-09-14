@@ -66,7 +66,7 @@ const LoginForm = () => {
             </Link>
           </div>
 
-          <Button type='submit' className='w-full py-3 mt-1' loading={isSubmitting}>
+          <Button type='submit' className='w-full mt-1' loading={isSubmitting}>
             Ingresar
           </Button>
         </form>

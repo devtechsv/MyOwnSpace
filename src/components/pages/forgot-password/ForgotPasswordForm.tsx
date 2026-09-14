@@ -63,11 +63,7 @@ const ForgotPasswordForm = () => {
             {...register('email')}
           />
 
-          <Button
-            type='submit'
-            className='w-full py-3 mt-1'
-            loading={isSubmitting}
-          >
+          <Button type='submit' className='w-full mt-1' loading={isSubmitting}>
             Enviar instrucciones
           </Button>
         </form>

@@ -16,6 +16,8 @@ interface ITextInput
   label: string;
 }
 
+// Label chico fijo arriba del campo (no floating label) — coincide con
+// el mockup validado y evita la fragilidad del patrón peer-*.
 export const TextInput = forwardRef<HTMLInputElement, ITextInput>(
   (props, ref) => {
     const { className, classNames, error, type, name, label, ...rest } =
@@ -24,15 +26,22 @@ export const TextInput = forwardRef<HTMLInputElement, ITextInput>(
     const [isShowingPassword, setShowPassword] = useState(false);
 
     return (
-      <div className={cx('relative', classNames?.container)}>
+      <div className={cx('flex flex-col gap-1.5 w-full', classNames?.container)}>
+        <label
+          htmlFor={name}
+          className={cx('text-xs font-semibold text-muted', classNames?.label)}
+        >
+          {label}
+        </label>
+
         <div className='relative'>
           <input
             ref={ref}
             name={name}
             id={name}
-            placeholder=' '
             className={cx(
-              'px-3 pb-2.5 pt-4 border appearance-none border-border focus:border-turquoise-blue-400 focus:outline-none peer block w-full h-[52px] focus:ring-2 focus:ring-turquoise-blue-400/40 bg-surface-field rounded-[10px] text-foreground placeholder-transparent',
+              'w-full px-3.5 py-3 border border-border rounded-[10px] bg-surface-field text-sm text-foreground appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40',
+              type === 'password' && 'pr-10',
               classNames?.input,
               className,
             )}
@@ -42,28 +51,19 @@ export const TextInput = forwardRef<HTMLInputElement, ITextInput>(
           {type === 'password' && (
             <button
               type='button'
+              tabIndex={-1}
               className='absolute transform -translate-y-1/2 top-1/2 right-3 text-muted'
               onClick={() => setShowPassword(!isShowingPassword)}
             >
               {isShowingPassword ? <FaEye /> : <FaEyeSlash />}
             </button>
           )}
-
-          <label
-            htmlFor={name}
-            className={cx(
-              'absolute peer-placeholder-shown:text-muted duration-300 transform -translate-y-4 top-[-15px] z-10 origin-[0] bg-transparent px-2 peer-focus:px-2 peer-focus:text-turquoise-blue-400 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-[-15px] peer-focus:-translate-y-4 left-1 text-muted',
-              classNames?.label,
-            )}
-          >
-            {label}
-          </label>
         </div>
 
         {error && (
           <span
             className={cx(
-              'flex ps-3 gap-x-1 items-center mt-2 text-center text-sm text-red-400',
+              'flex gap-x-1 items-center text-xs text-red-400',
               classNames?.error,
             )}
           >

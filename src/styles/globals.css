@@ -24,3 +24,17 @@
   --color-foreground: 230 237 245; /* #e6edf5 */
   --color-muted: 143 161 184; /* #8fa1b8 */
 }
+
+/*
+ * El navegador pinta los campos autocompletados con su propio fondo
+ * (amarillo en Chrome/Edge), pisando bg-surface-field. Se neutraliza
+ * con un box-shadow inset del mismo color que el campo.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: rgb(var(--color-foreground));
+  -webkit-box-shadow: 0 0 0px 1000px rgb(var(--color-surface-field)) inset;
+  box-shadow: 0 0 0px 1000px rgb(var(--color-surface-field)) inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
