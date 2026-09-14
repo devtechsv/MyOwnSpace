@@ -1,4 +1,4 @@
-import { setCookie } from 'cookies-next';
+import { setCookie, deleteCookie } from 'cookies-next';
 import {
   ForgotPasswordPayload,
   LoginPayload,
@@ -24,6 +24,10 @@ async function login(payload: LoginPayload): Promise<Session> {
   return session;
 }
 
+function logout(): void {
+  deleteCookie(SESSION_COOKIE, { path: '/' });
+}
+
 async function forgotPassword(payload: ForgotPasswordPayload): Promise<void> {
   return mockAuthAdapter.forgotPassword(payload);
 }
@@ -35,6 +39,7 @@ async function setPassword(payload: SetPasswordPayload): Promise<void> {
 const auth = {
   refreshSession,
   login,
+  logout,
   forgotPassword,
   setPassword,
 };

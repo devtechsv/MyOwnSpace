@@ -38,7 +38,7 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 - [x] `npm run lint`, `npm run typecheck`, `npm run test` sin errores (81/81)
 
 ### Fase 2 — Módulo `shell`
-- [ ] Tarea 10: `AppShell` + `Topbar` (logo, toggle de tema, dropdown de perfil)
+- [x] Tarea 10: `AppShell` + `Topbar` (logo, toggle de tema, dropdown de perfil)
 - [ ] Tarea 11: `Sidebar` por rol
 - [x] Tarea 12: `useSession` (usuario/rol actual) — hecha antes que 10/11, ver nota en tasks/todo.md
 

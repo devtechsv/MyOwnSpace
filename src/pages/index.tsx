@@ -1,19 +1,16 @@
 import { withAuth } from '@/middlewares/with-auth';
 import { GetServerSideProps, NextPage } from 'next';
-import Link from 'next/link';
+import { AppShell } from '@/components/layout/AppShell';
 
 interface Props {}
 
-const Home: NextPage<Props> = ({}) => {
+const Home: NextPage<Props> = () => {
   return (
-    <div
-      className={`flex min-h-screen flex-col items-center justify-between p-24`}
+    <AppShell
+      sidebar={<div className='text-sm text-muted'>Sidebar (Tarea 11)</div>}
     >
-      <div>
-        Dashboard
-        <br /> <Link href='/login'>go to login</Link>
-      </div>
-    </div>
+      Dashboard
+    </AppShell>
   );
 };
 

@@ -35,6 +35,20 @@ describe('auth.api.login', () => {
   });
 });
 
+describe('auth.api.logout', () => {
+  it('borra la cookie de sesión', async () => {
+    await authApi.login({
+      correo: 'ana.martinez@devtch.com',
+      password: 'cualquiera',
+    });
+    expect(getCookie(SESSION_COOKIE)).toBeTruthy();
+
+    authApi.logout();
+
+    expect(getCookie(SESSION_COOKIE)).toBeUndefined();
+  });
+});
+
 describe('auth.api.forgotPassword / setPassword', () => {
   it('forgotPassword resuelve sin lanzar, exista o no el correo', async () => {
     await expect(

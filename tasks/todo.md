@@ -293,28 +293,30 @@
 
 ## Fase 2 — Módulo `shell`
 
-## Task 10: `AppShell` + `Topbar`
+## Task 10: `AppShell` + `Topbar` ✅
 
 **Description:** Construir el armazón de las pantallas autenticadas: `AppShell` (envuelve topbar + sidebar + contenido) y `Topbar` (logo, `ThemeToggle`, dropdown con Perfil / Cambiar contraseña / Cerrar sesión), igualando el mockup.
 
 **Acceptance criteria:**
-- [ ] "Cambiar contraseña" en el dropdown dispara el mismo flujo/modal de confirmación que "Resetear contraseña" del admin, aplicado a la propia cuenta
-- [ ] "Cerrar sesión" limpia la sesión y redirige a `/login`
-- [ ] El nombre y rol mostrados en el topbar vienen de `useSession`, no hardcodeados
+- [x] "Cambiar contraseña" en el dropdown dispara el mismo flujo/modal de confirmación que "Resetear contraseña" del admin, aplicado a la propia cuenta
+- [x] "Cerrar sesión" limpia la sesión y redirige a `/login`
+- [x] El nombre y rol mostrados en el topbar vienen de `useSession`, no hardcodeados
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- Topbar`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: comparar contra el topbar de los artboards de dashboard del mockup
+- [x] Tests pass: `npm run test -- Topbar` (6/6; suite completa 100/100)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: servidor real — `/` con cookie de sesión válida responde 200 y muestra "MyOwnSpace" y el nombre real del usuario en el topbar. Comparación pixel-a-pixel contra el mockup pendiente para el QA visual de la Tarea 22 (sin herramienta de navegador en este entorno)
 
-**Dependencies:** Tasks 2, 6
+**Cambios acordados con el usuario antes de escribirse** (compartí el código completo, él aplicó 5 de los 7 archivos directamente, yo completé `auth.api.ts` — le faltaba `logout()` — y `pages/index.tsx` — todavía no envolvía el placeholder en `AppShell`):
+- `src/services/auth/auth.api.ts` (modificado) — se agregó `logout()`
+- `src/services/users/users.api.ts` (nuevo) — solo `resetPassword()` por ahora; `list/create/update/toggleStatus` llegan en la Fase 3
+- `src/services/api-services.ts` (modificado) — registra `users`
+- `src/components/common/ResetPasswordConfirmModal.tsx` (nuevo) — compartido entre autoservicio (esta tarea) y admin-sobre-otros (Tarea 20)
+- `src/components/layout/Topbar.tsx` (nuevo)
+- `src/components/layout/AppShell.tsx` (nuevo) — recibe `sidebar` como prop (no importa `Sidebar` directamente), así queda como layout puro sin lógica de rol
+- `src/pages/index.tsx` (modificado) — envuelto en `AppShell` con un placeholder de texto donde va el sidebar, solo para verlo en el navegador ya; el contenido real del dashboard sigue siendo la Tarea 13
 
-**Files likely touched:**
-- `src/components/layout/AppShell.tsx`
-- `src/components/layout/Topbar.tsx`
-- `src/components/layout/ThemeToggle.tsx`
-
-**Estimated scope:** Medium: 3-5 files
+**Decisión de diseño:** el modal de "Cambiar contraseña" en modo autoservicio no muestra el correo explícito (dice "tu dirección registrada") porque `useSession()` no expone `correo` — agregarlo hubiera implicado tocar el contrato `Session` y ~6 archivos de test por un beneficio cosmético menor. En el modo admin-sobre-otro (Tarea 20) sí se muestra el correo real, porque ahí se tiene el `User` completo.
 
 ---
 
