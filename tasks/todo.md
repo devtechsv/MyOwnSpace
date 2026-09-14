@@ -6,19 +6,21 @@
 
 ## Fase 0 — Fundaciones
 
-## Task 1: Test runner (Jest + React Testing Library) y `typecheck`
+## Task 1: Test runner (Jest + React Testing Library) y `typecheck` ✅
 
 **Description:** El proyecto no tiene test runner. Se agrega Jest vía `next/jest` (soporte oficial de Next.js, sin config manual de babel/webpack) + React Testing Library, y el script `typecheck`.
 
 **Acceptance criteria:**
-- [ ] `npm run test` ejecuta Jest y pasa (aunque sea con un test trivial de humo)
-- [ ] `npm run test:watch` corre Jest en modo watch
-- [ ] `npm run typecheck` ejecuta `tsc --noEmit` sin errores
+- [x] `npm run test` ejecuta Jest y pasa (aunque sea con un test trivial de humo)
+- [x] `npm run test:watch` corre Jest en modo watch
+- [x] `npm run typecheck` ejecuta `tsc --noEmit` sin errores
 
 **Verification:**
-- [ ] Tests pass: `npm run test`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: correr `npm run typecheck` en un branch limpio y confirmar exit code 0
+- [x] Tests pass: `npm run test`
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: `npm run typecheck` (exit 0) y `npm run lint` (sin warnings)
+
+**Nota:** `typecheck` reveló un bug preexistente en `TextInput.tsx` (usaba `Field`/`ErrorMessage`/`floatingLabel`, nunca definidos — no compilaba). Se corrigió como parte de esta tarea porque bloqueaba la verificación: `Field` → `input`, se agregó el prop `label` que faltaba en la interfaz, y se quitó el bloque `<ErrorMessage>` duplicado (el manejo de error manual ya existente cubre lo mismo).
 
 **Dependencies:** None
 

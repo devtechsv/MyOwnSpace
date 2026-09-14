@@ -13,19 +13,28 @@ interface ITextInput
   error?: string;
   name: string;
   type?: string;
+  label: string;
 }
 
 export const TextInput = forwardRef<HTMLInputElement, ITextInput>(
   (props, ref) => {
-    const { className, classNames, error, type, name, onChange, ...rest } =
-      props;
+    const {
+      className,
+      classNames,
+      error,
+      type,
+      name,
+      onChange,
+      label,
+      ...rest
+    } = props;
 
     const [isShowingPassword, setShowPassword] = useState(false);
 
     return (
       <div className={cx('relative', classNames?.container)}>
         <div className='relative'>
-          <Field
+          <input
             ref={ref}
             name={name}
             id={name}
@@ -52,26 +61,9 @@ export const TextInput = forwardRef<HTMLInputElement, ITextInput>(
             htmlFor={name}
             className='absolute peer-placeholder-shown:text-[#4C4C4C] duration-300 transform -translate-y-4 top-[-15px] z-10 origin-[0] bg-transparent px-2 peer-focus:px-2 peer-focus:text-light-50  peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-[-15px] peer-focus:-translate-y-4 left-1'
           >
-            {floatingLabel}
+            {label}
           </label>
         </div>
-
-        <ErrorMessage
-          name={name}
-          render={(error) => {
-            return (
-              <span
-                className={cx(
-                  'flex ps-3 gap-x-1 items-center mt-2 text-center text-sm text-red-400',
-                  classNames?.error,
-                )}
-              >
-                <FaExclamationCircle />
-                {error}
-              </span>
-            );
-          }}
-        />
 
         {error && (
           <span

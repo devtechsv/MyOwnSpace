@@ -17,7 +17,7 @@ Construir el frontend de MyOwnSpace (Next.js + TypeScript) según `SPEC.md`, con
 Ver detalle completo, criterios de aceptación y verificación de cada tarea en `tasks/todo.md`.
 
 ### Fase 0 — Fundaciones
-- [ ] Tarea 1: Test runner (Jest + RTL) y script `typecheck`
+- [x] Tarea 1: Test runner (Jest + RTL) y script `typecheck`
 - [ ] Tarea 2: Tokens de tema (Tailwind dark/light) + `useTheme`
 - [ ] Tarea 3: Contratos de datos (`User`, `LeaveRequest`, `Session`, endpoints)
 - [ ] Tarea 4: Capa de mocks tipada (`mock-data.ts`, `mock-adapter.ts`)
