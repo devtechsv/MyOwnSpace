@@ -320,18 +320,27 @@
 
 ---
 
-## Task 11: `Sidebar` por rol
+## Task 11: `Sidebar` por rol ✅
 
 **Description:** Construir `Sidebar`, cuyo contenido depende del rol de la sesión: Empleado ve "Crear solicitud" + "Cerrar sesión"; Administrador ve navegación "Solicitudes" / "Usuarios" + "Cerrar sesión".
 
 **Acceptance criteria:**
-- [ ] El contenido del sidebar cambia correctamente según `Session.rol`
-- [ ] El ítem activo (según la ruta actual) se resalta visualmente, igual que en el mockup
+- [x] El contenido del sidebar cambia correctamente según `Session.rol`
+- [x] El ítem activo (según la ruta actual) se resalta visualmente, igual que en el mockup
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- Sidebar`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: entrar como Empleado y como Administrador (mock) y confirmar que cada uno ve su propio sidebar
+- [x] Tests pass: `npm run test -- Sidebar` (6/6; suite completa 106/106)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: servidor real — `/` con cookie de Empleado muestra "Crear solicitud"; con cookie de Administrador muestra "Solicitudes"/"Usuarios"
+
+**Compartí el código antes de escribirlo; el usuario aplicó ambos archivos directamente** (`Sidebar.tsx` y el `index.tsx` actualizado), coincidiendo exactamente con lo acordado. Yo agregué los tests.
+
+**Decisiones de diseño:**
+- `onCreateRequest?: () => void` — prop opcional para que el botón "Crear solicitud" quede listo visualmente sin adelantar el modal de la Tarea 14.
+- Los links "Solicitudes"/"Usuarios" apuntan a `/admin/requests` y `/admin/users`, que todavía no existen (Tareas 15/17) — clickearlos hoy cae en el 404, comportamiento esperado.
+- "Cerrar sesión" queda tanto en el Sidebar como en el dropdown del Topbar (redundante a propósito, así lo pedía el criterio de aceptación original y así estaba en el mockup).
+
+**Bug propio detectado y corregido en el camino:** el helper de test `renderSidebar` infería el tipo de `rol` como el literal `'Empleado'` (por el primer objeto de sesión usado), lo cual hacía que TypeScript rechazara pasarle una sesión de Administrador — `npm run test` no lo detectó (los tests igual pasaban en runtime), pero `npm run typecheck` sí. Se corrigió tipando explícitamente el parámetro como `Session | null`.
 
 **Dependencies:** Task 10
 

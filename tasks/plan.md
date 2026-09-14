@@ -39,12 +39,12 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 
 ### Fase 2 — Módulo `shell`
 - [x] Tarea 10: `AppShell` + `Topbar` (logo, toggle de tema, dropdown de perfil)
-- [ ] Tarea 11: `Sidebar` por rol
+- [x] Tarea 11: `Sidebar` por rol
 - [x] Tarea 12: `useSession` (usuario/rol actual) — hecha antes que 10/11, ver nota en tasks/todo.md
 
 ### Checkpoint: `shell` completo
-- [ ] Empleado ve sidebar de Empleado; Administrador ve sidebar de Administrador
-- [ ] "Cambiar contraseña" desde el dropdown dispara el mismo flujo de confirmación que "Resetear contraseña"
+- [x] Empleado ve sidebar de Empleado; Administrador ve sidebar de Administrador (verificado con servidor real)
+- [x] "Cambiar contraseña" desde el dropdown dispara el mismo flujo de confirmación que "Resetear contraseña"
 
 ### Fase 3 — Módulos de negocio (paralelizables entre sí)
 - [ ] Tarea 13: Dashboard Empleado — tabla de solicitudes propias
