@@ -89,19 +89,26 @@
 
 ---
 
-## Task 4: Capa de mocks tipada
+## Task 4: Capa de mocks tipada ✅
 
 **Description:** Crear fixtures en memoria (usuarios y solicitudes de ejemplo, coherentes con los del mockup: Julio Pérez y Laura Sánchez como Administradores, Ana Martínez/Carlos Rivas/Sofía Nuñez/Marta Gómez como Empleados) y un adaptador que implementa las mismas firmas que tendrán `auth.api.ts`, `requests.api.ts` y `users.api.ts`, con latencia simulada.
 
 **Acceptance criteria:**
-- [ ] `mock-data.ts` exporta arrays tipados de `User[]` y `LeaveRequest[]`
-- [ ] `mock-adapter.ts` expone funciones con la misma forma que las futuras llamadas reales (mismo nombre, mismos parámetros, misma promesa de retorno)
-- [ ] Ningún componente importa `mocks/` directamente (solo los `*.api.ts` lo hacen)
+- [x] `mock-data.ts` exporta arrays tipados de `User[]` y `LeaveRequest[]`
+- [x] `mock-adapter.ts` expone funciones con la misma forma que las futuras llamadas reales (mismo nombre, mismos parámetros, misma promesa de retorno)
+- [x] Ningún componente importa `mocks/` directamente (nada la importa todavía — se conectará desde los `*.api.ts` en las tareas 6-20)
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- mocks`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: revisar que los datos de ejemplo coincidan con los usados en el mockup de Claude Design, para que la demo se sienta consistente
+- [x] Tests pass: `npm run test -- mocks` (16/16; suite completa 21/21)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: usuarios y solicitudes de ejemplo revisados contra el mockup (mismos nombres/correos/roles/motivos)
+
+**Contrato definido** (queda como la firma a implementar en las tareas 6-20):
+- `mockAuthAdapter`: `login`, `forgotPassword`, `setPassword`
+- `mockRequestsAdapter`: `listByEmployee`, `listPending`, `create`, `approve`, `deny`
+- `mockUsersAdapter`: `list`, `create`, `update`, `resetPassword`, `toggleStatus`
+
+**Nota:** se agregaron `CreateUserPayload`/`UpdateUserPayload` a `contracts/interfaces/user.ts` y `CreateLeaveRequestPayload` a `request.ts` — necesarios para tipar el adaptador, dentro del mismo alcance que la Tarea 3 ("contratos de datos"). También se agregó `resetMockState()`, exportado solo para que los tests partan de un estado limpio (el store en memoria es mutable entre llamadas, a propósito, para simular persistencia dentro de una sesión).
 
 **Dependencies:** Task 3
 

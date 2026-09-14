@@ -20,11 +20,11 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 - [x] Tarea 1: Test runner (Jest + RTL) y script `typecheck`
 - [x] Tarea 2: Tokens de tema (Tailwind dark/light) + `useTheme`
 - [x] Tarea 3: Contratos de datos (`User`, `LeaveRequest`, `Session`, endpoints)
-- [ ] Tarea 4: Capa de mocks tipada (`mock-data.ts`, `mock-adapter.ts`)
+- [x] Tarea 4: Capa de mocks tipada (`mock-data.ts`, `mock-adapter.ts`)
 
 ### Checkpoint: Fundaciones
-- [ ] `npm run typecheck` y `npm run test` corren sin errores (aunque los tests iniciales sean triviales)
-- [ ] Una página de prueba puede alternar modo oscuro/claro y leer datos mockeados tipados
+- [x] `npm run typecheck` y `npm run test` corren sin errores (21/21 tests, incluyendo 16 del adaptador de mocks)
+- [ ] Una página de prueba puede alternar modo oscuro/claro y leer datos mockeados tipados — pendiente hasta que exista una UI que los consuma (Fase 1-3); la lógica de ambos ya está probada por unidad
 
 ### Fase 1 — Módulo `auth`
 - [ ] Tarea 5: `lib/password-rules.ts` + tests unitarios

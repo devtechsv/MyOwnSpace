@@ -20,3 +20,11 @@ export interface LeaveRequest {
   reviewedBy?: User['id'];
   reviewedAt?: string; // ISO 8601
 }
+
+export interface CreateLeaveRequestPayload {
+  employeeId: User['id'];
+  tipo: RequestType;
+  fechaInicio: string; // ISO 8601
+  fechaFin: string; // ISO 8601
+  motivo: string;
+}

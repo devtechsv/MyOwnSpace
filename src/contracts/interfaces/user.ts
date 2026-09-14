@@ -9,3 +9,13 @@ export interface User {
   rol: UserRole;
   estado: UserStatus;
 }
+
+export interface CreateUserPayload {
+  nombre: string;
+  correo: string;
+  rol: UserRole;
+}
+
+export type UpdateUserPayload = Partial<
+  Pick<User, 'nombre' | 'correo' | 'rol'>
+>;
