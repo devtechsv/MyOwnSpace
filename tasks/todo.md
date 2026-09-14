@@ -340,18 +340,32 @@
 
 ---
 
-## Task 12: `useSession`
+## Task 12: `useSession` ✅
 
 **Description:** Hook que expone el usuario/rol actual a partir de la sesión resuelta server-side por `with-auth.tsx`, para que `Topbar`/`Sidebar`/páginas lo consuman sin prop-drilling manual.
 
 **Acceptance criteria:**
-- [ ] `useSession()` devuelve `{ userId, nombre, rol, estado }` tipado como `Session`
-- [ ] No hace ninguna llamada de red propia — solo lee lo que `getServerSideProps` ya resolvió
+- [x] `useSession()` devuelve `Session | null` (`{ userId, nombre, rol, estado }` o `null` si no hay sesión)
+- [x] No hace ninguna llamada de red propia — solo lee lo que `getServerSideProps` ya resolvió
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- useSession`
-- [ ] Build succeeds: `npm run typecheck`
-- [ ] Manual check: N/A
+- [x] Tests pass: `npm run test -- useSession` (2/2; suite completa 86/86)
+- [x] Build succeeds: `npm run typecheck`, `npm run build`
+- [x] Manual check: N/A (sin UI todavía que lo consuma — llega con la Tarea 10)
+
+**Se hizo en orden distinto al listado del plan, a propósito** (ver discusión en el chat): esta tarea se ejecutó **antes** que la 10 y la 11, porque ambas necesitan saber quién está logueado. Se resolvió con una decisión de arquitectura que no estaba en el spec original: **`with-auth.tsx` ahora inyecta automáticamente `session` en el `props` de cualquier página que envuelve** (función `withSessionProp`), en vez de que cada página tenga que acordarse de devolverla a mano. `_app.tsx` toma `pageProps.session` y lo expone vía `SessionContext`; `useSession()` lo lee.
+
+**Archivos, todos co-diseñados y aprobados por el usuario antes de escribirse** (pidió ver el código primero):
+- `src/hooks/useSession.ts` (nuevo) — el usuario lo aplicó directamente
+- `src/pages/_app.tsx` (modificado) — el usuario lo aplicó directamente
+- `src/middlewares/with-auth.tsx` (modificado, `withSessionProp`) — aplicado acá, con tests nuevos
+
+**Dependencies:** Tasks 3, 9
+
+**Files likely touched:**
+- `src/hooks/useSession.ts`
+
+**Estimated scope:** Small: 1-2 files (terminó tocando 3, por la decisión de inyección automática)
 
 **Dependencies:** Tasks 3, 9
 

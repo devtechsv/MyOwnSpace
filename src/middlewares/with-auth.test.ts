@@ -98,6 +98,36 @@ describe('withAuth (rutas protegidas)', () => {
       expect.objectContaining({ user: adminSession }),
     );
   });
+
+  it('inyecta la sesión en `props` sin pisar el resto de los props que devuelve fn', async () => {
+    refreshSessionMock.mockResolvedValue({
+      status: 'valid',
+      session: empleadoSession,
+    });
+    const fn = jest.fn().mockResolvedValue({ props: { titulo: 'Mis solicitudes' } });
+
+    const result = await withAuth(fn)(createContext());
+
+    expect(result).toEqual({
+      props: { titulo: 'Mis solicitudes', session: empleadoSession },
+    });
+  });
+
+  it('no toca un resultado de redirect ni de notFound (no tienen `props`)', async () => {
+    refreshSessionMock.mockResolvedValue({
+      status: 'valid',
+      session: empleadoSession,
+    });
+    const fn = jest
+      .fn()
+      .mockResolvedValue({ redirect: { destination: '/otro-lado', permanent: false } });
+
+    const result = await withAuth(fn)(createContext());
+
+    expect(result).toEqual({
+      redirect: { destination: '/otro-lado', permanent: false },
+    });
+  });
 });
 
 describe('withAuth({ public: true })', () => {
@@ -138,5 +168,14 @@ describe('withAuth({ public: true })', () => {
       expect.anything(),
       expect.objectContaining({ user: empleadoSession }),
     );
+  });
+
+  it('también inyecta `session` (null o la sesión real) en props', async () => {
+    refreshSessionMock.mockResolvedValue({ status: 'none' });
+    const fn = jest.fn().mockResolvedValue({ props: {} });
+
+    const result = await withAuth(fn, { public: true })(createContext());
+
+    expect(result).toEqual({ props: { session: null } });
   });
 });

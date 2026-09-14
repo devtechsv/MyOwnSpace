@@ -2,6 +2,7 @@
 import API from '@/services/api-services';
 import { GetServerSidePropsContext, GetServerSidePropsResult } from 'next';
 import { UserRole } from '@/contracts/interfaces/user';
+import { Session } from '@/contracts/interfaces/auth';
 
 type WithAuthOptions = {
   public?: boolean;
@@ -11,6 +12,23 @@ type WithAuthOptions = {
   // OwnSpace.md).
   roles?: UserRole[];
 };
+
+// Agrega `session` al `props` de lo que devuelva `fn`, para que
+// cualquier página envuelta por withAuth llegue al cliente con la
+// sesión ya resuelta (useSession la lee desde ahí vía _app.tsx), sin
+// que cada página tenga que acordarse de pasarla a mano.
+function withSessionProp<P extends { [key: string]: any }>(
+  result: GetServerSidePropsResult<P>,
+  session: Session | null,
+): GetServerSidePropsResult<P & { session: Session | null }> {
+  if ('props' in result) {
+    return {
+      ...result,
+      props: { ...(result.props as P), session },
+    };
+  }
+  return result;
+}
 
 // Verifica la sesión antes de renderizar. Sin sesión válida -> /login;
 // con sesión vencida por inactividad -> /login?expired=1 (banner
@@ -25,7 +43,7 @@ export function withAuth<P extends { [key: string]: any }>(
 ) {
   return async (
     ctx: GetServerSidePropsContext,
-  ): Promise<GetServerSidePropsResult<P>> => {
+  ): Promise<GetServerSidePropsResult<P & { session: Session | null }>> => {
     const { req, res } = ctx;
     const { accessToken } = req.cookies;
     const { refreshToken } = req.cookies;
@@ -44,7 +62,8 @@ export function withAuth<P extends { [key: string]: any }>(
 
     if (options?.public) {
       const user = result.status === 'valid' ? result.session : null;
-      return await fn(ctx, { user, tokens });
+      const pageResult = await fn(ctx, { user, tokens });
+      return withSessionProp(pageResult, user);
     }
 
     if (result.status === 'none') {
@@ -69,6 +88,7 @@ export function withAuth<P extends { [key: string]: any }>(
       return { notFound: true };
     }
 
-    return await fn(ctx, { user: result.session, tokens });
+    const pageResult = await fn(ctx, { user: result.session, tokens });
+    return withSessionProp(pageResult, result.session);
   };
 }
