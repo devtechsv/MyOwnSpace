@@ -460,18 +460,20 @@
 
 ---
 
-## Task 15: Dashboard Admin — Solicitudes pendientes
+## Task 15: Dashboard Admin — Solicitudes pendientes ✅
 
 **Description:** Construir `pages/admin/requests.tsx` con `RequestsTable` (variante admin: columna Empleado + acciones), mostrando por defecto las solicitudes en estado `Pendiente` de todo el equipo.
 
 **Acceptance criteria:**
-- [ ] Por defecto se listan solo las solicitudes `Pendiente`
-- [ ] Los tabs "Aprobadas/Denegadas/Todas" se renderizan visualmente pero no filtran todavía (documentado como fuera de alcance funcional en `SPEC.md`)
+- [x] Por defecto se listan solo las solicitudes `Pendiente`
+- [x] Los tabs "Aprobadas/Denegadas/Todas" se renderizan visualmente pero no filtran todavía (documentado como fuera de alcance funcional en `SPEC.md`)
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- admin/RequestsTable`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: comparar contra el artboard "Administrador — Solicitudes"
+- [x] Tests pass: `npm run test -- admin/RequestsTable` (5/5 tabla + 3/3 hook; suite completa 143/143)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: servidor real — Empleado en `/admin/requests` → **404** (primera vez que la restricción por rol protege una segunda ruta real); Administrador → 200 con "Solicitudes del equipo" y "Pendientes"
+
+**Decisión de estructura no prevista originalmente:** la columna "Empleado" necesita el nombre real, no solo el `employeeId` que trae `LeaveRequest`. Esto adelantó `users.api.ts` → `list()` (estaba planeada para la Tarea 17) — wrapper trivial, el mock ya la tenía lista desde la Tarea 4. De paso extraje `getInitials` (antes función local de `Topbar.tsx`) a `src/helpers/get-initials.ts`, compartido entre el Topbar y esta tabla.
 
 **Dependencies:** Tasks 4, 11, 12
 
@@ -480,23 +482,25 @@
 - `src/components/pages/admin/RequestsTable.tsx`
 - `src/services/requests/requests.api.ts`
 
-**Estimated scope:** Medium: 3-5 files
+**Estimated scope:** Medium: 3-5 files (terminó tocando 7 por `users.api.ts`, `get-initials.ts` y `useAdminRequests.ts`)
 
 ---
 
-## Task 16: Acciones Aprobar/Denegar
+## Task 16: Acciones Aprobar/Denegar ✅
 
 **Description:** Conectar los botones "Aprobar"/"Denegar" de cada fila a `requests.api.approve()` / `requests.api.deny()`. Al confirmar, la fila desaparece de la vista de Pendientes (o cambia de estado) sin recargar la página.
 
 **Acceptance criteria:**
-- [ ] "Aprobar" cambia el estado a `Aprobada` y registra `reviewedBy`/`reviewedAt`
-- [ ] "Denegar" cambia el estado a `Denegada` con el mismo registro
-- [ ] La fila se retira de la lista de Pendientes tras la acción
+- [x] "Aprobar" cambia el estado a `Aprobada` y registra `reviewedBy`/`reviewedAt`
+- [x] "Denegar" cambia el estado a `Denegada` con el mismo registro
+- [x] La fila se retira de la lista de Pendientes tras la acción (filtrado local en `useAdminRequests`, sin recargar)
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- admin/RequestsTable`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: aprobar una solicitud y denegar otra, confirmar que ambas salen de Pendientes
+- [x] Tests pass: `npm run test -- admin/RequestsTable` (incluido en la Tarea 15; suite completa 143/143)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: cubierto por los tests del hook (`approve`/`deny` verificados contra el mock real: sacan la fila de la lista y dejan `estado`/`reviewedBy` correctos) — la interacción de clicks reales queda en los tests de `RequestsTable`, no verificable por `curl`
+
+**Nota:** se implementó junto con la Tarea 15 (mismo hook, mismo archivo) ya que "conectar los botones" no tiene sentido como paso separado de construir la tabla que los contiene.
 
 **Dependencies:** Task 15
 

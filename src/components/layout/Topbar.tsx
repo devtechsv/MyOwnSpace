@@ -2,18 +2,10 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useSession } from '@/hooks/useSession';
+import { getInitials } from '@/helpers/get-initials';
 import { ThemeToggle } from './ThemeToggle';
 import { ResetPasswordConfirmModal } from '@/components/common/ResetPasswordConfirmModal';
 import API from '@/services/api-services';
-
-function getInitials(nombre: string): string {
-  return nombre
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
-}
 
 export function Topbar() {
   const session = useSession();

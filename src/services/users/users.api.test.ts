@@ -5,6 +5,15 @@ beforeEach(() => {
   resetMockState();
 });
 
+describe('users.api.list', () => {
+  it('delega al mock y devuelve todos los usuarios', async () => {
+    const usuarios = await usersApi.list();
+    const fixtures = await mockUsersAdapter.list();
+
+    expect(usuarios).toEqual(fixtures);
+  });
+});
+
 describe('users.api.resetPassword', () => {
   it('deja al usuario en estado Pendiente', async () => {
     await usersApi.resetPassword('u1'); // Julio Pérez, Activo en los fixtures

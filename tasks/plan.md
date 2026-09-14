@@ -49,8 +49,8 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 ### Fase 3 — Módulos de negocio (paralelizables entre sí)
 - [x] Tarea 13: Dashboard Empleado — tabla de solicitudes propias
 - [x] Tarea 14: Modal "Crear solicitud"
-- [ ] Tarea 15: Dashboard Admin — Solicitudes pendientes
-- [ ] Tarea 16: Acciones Aprobar/Denegar
+- [x] Tarea 15: Dashboard Admin — Solicitudes pendientes
+- [x] Tarea 16: Acciones Aprobar/Denegar
 - [ ] Tarea 17: Dashboard Admin — Usuarios (tabla + contadores)
 - [ ] Tarea 18: Modal "Crear usuario"
 - [ ] Tarea 19: Editar usuario
