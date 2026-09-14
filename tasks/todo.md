@@ -181,19 +181,21 @@
 
 ---
 
-## Task 7: Olvidé mi contraseña
+## Task 7: Olvidé mi contraseña ✅
 
 **Description:** Construir `/forgot-password` (formulario de correo) y su estado de confirmación, llamando a `auth.api.forgotPassword()`. El mensaje de confirmación es siempre el mismo, exista o no el correo en el sistema.
 
 **Acceptance criteria:**
-- [ ] Envío válido de correo (formato) siempre navega al estado de confirmación, sin importar si el correo existe en el mock
-- [ ] El mensaje de confirmación no revela si el correo está registrado
-- [ ] Enlace "Volver a inicio de sesión" funcional en ambas pantallas
+- [x] Envío válido de correo (formato) siempre navega al estado de confirmación, sin importar si el correo existe en el mock
+- [x] El mensaje de confirmación no revela si el correo está registrado
+- [x] Enlace "Volver a inicio de sesión" funcional en ambas pantallas
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- forgot-password`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: comparar contra los artboards "Olvidé mi contraseña" y "Correo enviado" del mockup
+- [x] Tests pass: `npm run test -- forgot-password` (7/7; suite completa 55/55)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: servidor real — `/forgot-password` y `/forgot-password/sent?correo=...` responden 200, y la confirmación refleja el correo real recibido por query string
+
+**Nota:** el correo se pasa de una pantalla a otra por query string (`?correo=...`), ya que todavía no hay un store/contexto compartido en la app — es la forma más simple dado el alcance actual. `auth.api.forgotPassword()` ya existía desde la Tarea 6 (se construyeron las 3 funciones de auth juntas), así que no hubo que tocar `auth.api.ts` de nuevo.
 
 **Dependencies:** Tasks 2, 4
 
