@@ -52,13 +52,26 @@ describe('mockAuthAdapter', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('setPassword resuelve sin lanzar error', async () => {
+  it('setPassword deja Activo al usuario cuyo id coincide con el token', async () => {
     await expect(
       mockAuthAdapter.setPassword({
-        token: 'token-simulado',
+        token: 'u5', // Sofía Nuñez, Pendiente en los fixtures
         nuevaPassword: 'Dt#2026reto',
       }),
     ).resolves.toBeUndefined();
+
+    const usuarios = await mockUsersAdapter.list();
+    const sofia = usuarios.find((u) => u.id === 'u5');
+    expect(sofia?.estado).toBe('Activo');
+  });
+
+  it('setPassword rechaza si el token no coincide con ningún usuario', async () => {
+    await expect(
+      mockAuthAdapter.setPassword({
+        token: 'no-existe',
+        nuevaPassword: 'Dt#2026reto',
+      }),
+    ).rejects.toThrow();
   });
 });
 

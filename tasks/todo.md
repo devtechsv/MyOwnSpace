@@ -208,20 +208,24 @@
 
 ---
 
-## Task 8: Definir nueva contraseña
+## Task 8: Definir nueva contraseña ✅
 
 **Description:** Construir `/set-password` (recibe un token por query param, simulado contra el mock) con los dos campos de contraseña y el checklist en vivo de `lib/password-rules.ts`. El botón "Guardar contraseña" queda deshabilitado hasta que los 6 requisitos se cumplan y ambos campos coincidan.
 
 **Acceptance criteria:**
-- [ ] El checklist refleja en tiempo real cada requisito mientras se escribe
-- [ ] "Guardar contraseña" está deshabilitado si falta algún requisito o si las contraseñas no coinciden
-- [ ] Al guardar exitosamente, el usuario queda en estado `Activo` en el mock y es redirigido al login (o auto-logueado, a decidir en la implementación)
-- [ ] Aplica igual para usuarios con rol Empleado o Administrador (sin lógica condicional por rol)
+- [x] El checklist refleja en tiempo real cada requisito mientras se escribe
+- [x] "Guardar contraseña" está deshabilitado si falta algún requisito o si las contraseñas no coinciden
+- [x] Al guardar exitosamente, el usuario queda en estado `Activo` en el mock y es redirigido al login — se decidió: siempre redirige a `/login` sin auto-loguear (patrón más seguro/estándar tras un cambio de contraseña)
+- [x] Aplica igual para usuarios con rol Empleado o Administrador (sin lógica condicional por rol — el formulario no consulta el rol en ningún momento)
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- set-password`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: comparar contra el artboard "Definir nueva contraseña" del mockup, probando ambos estados del switch `passwordValid`
+- [x] Tests pass: `npm run test -- SetPasswordForm` (7/7; suite completa 63/63)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: servidor real — `/set-password?token=u5` responde 200 y renderiza el formulario correctamente; `/login` sigue funcionando sin romperse
+
+**Nota importante:** `mockAuthAdapter.setPassword` era un stub que no hacía nada (Tarea 4). Para que "el usuario queda Activo" fuera real, se le agregó lógica: sin backend, el mock trata el `token` directamente como el id del usuario (`/set-password?token=u5` = Sofía Nuñez). Esto actualizó dos tests preexistentes en `mock-adapter.test.ts` y `auth.api.test.ts` que usaban tokens inventados — ahora usan `'u5'` y verifican el cambio de estado real. La regla "no debe ser la contraseña actual/temporal" de `password-rules.ts` no se aplica en este mock (no hay dónde consultar la contraseña temporal real de un usuario sin backend) — sí se aplica el bloqueo contra la lista de contraseñas genéricas conocidas.
+
+**Incidente aparte, no relacionado al código:** al correr `npm run build` con el servidor de `npm run dev` todavía activo, ambos escribieron sobre la misma carpeta `.next` y la corrompieron (error 500 "Cannot find module"). Se resolvió matando el proceso y borrando `.next` antes de reiniciar — no es un bug de la app, pero vale tenerlo presente: no correr build y dev en simultáneo sobre el mismo `.next`.
 
 **Dependencies:** Tasks 2, 4, 5
 

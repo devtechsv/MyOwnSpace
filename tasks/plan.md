@@ -30,7 +30,7 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 - [x] Tarea 5: `lib/password-rules.ts` + tests unitarios
 - [x] Tarea 6: Login (formulario real + integración con mocks)
 - [x] Tarea 7: Olvidé mi contraseña (formulario + confirmación genérica)
-- [ ] Tarea 8: Definir nueva contraseña (checklist en vivo)
+- [x] Tarea 8: Definir nueva contraseña (checklist en vivo)
 - [ ] Tarea 9: Expiración de sesión (2h) + página 404 genérica
 
 ### Checkpoint: `auth` completo

@@ -98,9 +98,17 @@ export const mockAuthAdapter = {
     return delay(undefined);
   },
 
-  async setPassword(_payload: SetPasswordPayload): Promise<void> {
-    // El mock no valida el token contra un backend real; solo simula
-    // que la operación se completó.
+  async setPassword(payload: SetPasswordPayload): Promise<void> {
+    // Sin backend real no hay un JWT/token opaco que resolver: el mock
+    // trata `token` directamente como el id del usuario (así el flujo
+    // de "definir contraseña" es probable de punta a punta). Cuando
+    // exista la API real, el token identificará al usuario del lado
+    // del servidor y esta función solo cambiará de implementación acá.
+    const user = users.find((u) => u.id === payload.token);
+    if (!user) {
+      throw new Error('El enlace no es válido o ya expiró.');
+    }
+    user.estado = 'Activo';
     return delay(undefined);
   },
 };

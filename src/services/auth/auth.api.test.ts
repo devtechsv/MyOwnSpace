@@ -40,9 +40,9 @@ describe('auth.api.forgotPassword / setPassword', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('setPassword resuelve sin lanzar', async () => {
+  it('setPassword resuelve sin lanzar cuando el token es un id de usuario válido', async () => {
     await expect(
-      authApi.setPassword({ token: 't', nuevaPassword: 'Dt#2026reto' }),
+      authApi.setPassword({ token: 'u5', nuevaPassword: 'Dt#2026reto' }),
     ).resolves.toBeUndefined();
   });
 });
