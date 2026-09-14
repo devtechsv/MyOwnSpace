@@ -148,20 +148,26 @@
 
 ---
 
-## Task 6: Login
+## Task 6: Login ✅
 
 **Description:** Reescribir `LoginForm`/`useLoginForm`/`login.tsx` para que validen con zod, llamen a `auth.api.login()` (mock-backed), muestren error de credenciales inválidas, incluyan el toggle de modo oscuro/claro y el enlace "¿Olvidaste tu contraseña?", igualando el mockup validado (logo, tarjeta centrada, inputs con borde/foco, botón turquesa, copyright "© DevTech 2026" al pie).
 
 **Acceptance criteria:**
-- [ ] Envío con datos inválidos (email mal formado, campos vacíos) muestra error de validación sin llamar al servicio
-- [ ] Login exitoso contra un usuario del mock redirige a `/` (Empleado) o `/admin/requests` (Administrador) según el rol devuelto
-- [ ] Login con credenciales que no existen en el mock muestra un mensaje de error genérico (no confirma si el correo existe)
-- [ ] El toggle de tema y el footer de copyright están presentes
+- [x] Envío con datos inválidos (email mal formado, campos vacíos) muestra error de validación sin llamar al servicio
+- [x] Login exitoso contra un usuario del mock redirige a `/` (Empleado) o `/admin/requests` (Administrador) según el rol devuelto
+- [x] Login con credenciales que no existen en el mock muestra un mensaje de error genérico (no confirma si el correo existe)
+- [x] El toggle de tema y el footer de copyright están presentes
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- LoginForm`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: comparar visualmente contra el artboard "Inicio de sesión" del mockup publicado, en ambos temas
+- [x] Tests pass: `npm run test -- LoginForm` (8/8; suite completa 48/48)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: servidor real + `curl` con cookie de sesión simulada — confirmado que sin sesión `/` rebota a `/login` (307) y con sesión `/` responde 200 y `/login` redirige a `/`. No se pudo comparar visualmente pixel a pixel contra el artboard (sin herramienta de navegador en este entorno) — queda para el QA visual de la Tarea 22.
+
+**Notas / desvíos del alcance original, todos necesarios para que el criterio de aceptación fuera real y no solo aparente:**
+- **`refresh-session.ts` reescrito** (no estaba en la lista de archivos): antes llamaba a un backend real inexistente vía axios, lo que habría hecho que el "redirige a /" nunca funcionara de verdad (rebote infinito a login). Ahora lee la sesión directamente de la cookie `accessToken` (JSON), que es la que `auth.api.login()` graba. `with-auth.tsx` no cambió — sigue recibiendo `Session | null` igual que antes.
+- **`ThemeToggle.tsx` construido ahora** (era de la Tarea 10): el login necesitaba un control de tema real y funcional ya (regla de `OwnSpace.md`: "modo oscuro desde el inicio de sesión"), no solo el tweak del mockup. Queda en `components/layout/` para que la Tarea 10 lo reuse en el Topbar en vez de duplicarlo.
+- **`TextInput.tsx` corregido**: además del fix de compilación de la Tarea 1, tenía colores rotos (`bg-dark-50`/`text-light-50`, inexistentes) y un `onChange` que se destructuraba y se tiraba (nunca llegaba al `<input>` real). Se migró a los tokens semánticos de la Tarea 2 y se dejó que `onChange` fluya con el resto de props.
+- **`jest.setup.ts`**: se agregó un polyfill global de `window.matchMedia` (jsdom no lo implementa) para que cualquier test que renderice un componente con `useTheme` funcione sin mockearlo caso por caso.
 
 **Dependencies:** Tasks 2, 4, 5
 
@@ -171,7 +177,7 @@
 - `src/components/pages/login/useLoginForm.ts`
 - `src/services/auth/auth.api.ts`
 
-**Estimated scope:** Medium: 3-5 files
+**Estimated scope:** Medium: 3-5 files (terminó tocando 9 por las razones de arriba)
 
 ---
 
