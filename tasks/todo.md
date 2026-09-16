@@ -637,44 +637,63 @@
 
 ## Fase 4 — Limpieza
 
-## Task 21: Eliminar scaffolding sin uso
+## Task 21: Eliminar scaffolding sin uso ✅
 
 **Description:** Quitar `pages/api/hello.ts` y cualquier otro archivo de plantilla sin uso real (revisar `TextInput.tsx` si terminó sin consumidores, `.gitkeep` ya reemplazados por archivos reales). Pase final de `lint` + `typecheck` sobre todo el proyecto.
 
 **Acceptance criteria:**
-- [ ] `npm run lint` y `npm run typecheck` sin errores ni warnings nuevos
-- [ ] No quedan archivos de ejemplo de `create-next-app` sin uso
+- [x] `npm run lint` y `npm run typecheck` sin errores ni warnings nuevos
+- [x] No quedan archivos de ejemplo de `create-next-app` sin uso
 
 **Verification:**
-- [ ] Tests pass: `npm run test`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: `git status` limpio, sin archivos huérfanos
+- [x] Tests pass: `npm run test` (174/174)
+- [x] Build succeeds: `npm run build` (confirma que `/api/hello` ya no aparece en las rutas generadas)
+- [x] Manual check: `git status` limpio — solo los 2 cambios esperados (`README.md` modificado, `src/pages/api/hello.ts` eliminado)
+
+**Hallazgos:**
+- `src/pages/api/hello.ts`: endpoint de ejemplo de `create-next-app`, sin consumidores (confirmado por grep) — eliminado, junto con el directorio `src/pages/api/` ahora vacío.
+- `TextInput.tsx`: revisado, tiene 7 consumidores reales — no se toca.
+- `public/favicon.ico` y `public/logo.png`: en uso (logo en `Topbar`) — no son scaffolding.
+- `README.md` seguía siendo el boilerplate genérico de `create-next-app` y además referenciaba explícitamente `pages/api/hello.ts` (el archivo eliminado en esta misma tarea), quedando desactualizado — se reemplazó por un README mínimo y real del proyecto (comandos, estructura, puntero a `SPEC.md`/`tasks/`). No estaba listado en el plan original pero cae dentro del alcance de "limpieza de scaffolding".
 
 **Dependencies:** Tasks 6-20 (todas las de negocio)
 
-**Files likely touched:**
-- `src/pages/api/hello.ts` (eliminar)
-- otros según lo encontrado
+**Files touched:**
+- `src/pages/api/hello.ts` (eliminado)
+- `README.md`
 
 **Estimated scope:** Small: 1-2 files
 
 ---
 
-## Task 22: QA visual contra el mockup
+## Task 22: QA visual contra el mockup ✅
 
 **Description:** Recorrer las 11 pantallas del mockup publicado (Claude Design) una por una, comparando contra la implementación real en `npm run dev`, en modo claro y oscuro, y corrigiendo discrepancias encontradas.
 
 **Acceptance criteria:**
-- [ ] Cada pantalla implementada coincide con su artboard correspondiente (colores, espaciados, copy) en ambos temas
-- [ ] Discrepancias encontradas quedan corregidas o documentadas explícitamente como decisión consciente
+- [x] Cada pantalla implementada coincide con su artboard correspondiente (colores, espaciados, copy) en ambos temas
+- [x] Discrepancias encontradas quedan corregidas o documentadas explícitamente como decisión consciente
 
 **Verification:**
-- [ ] Tests pass: `npm run test`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: recorrido pantalla por pantalla, documentado en la conversación o en un comentario de PR
+- [x] Tests pass: `npm run test` (174/174)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: recorrido pantalla por pantalla (ver método abajo), documentado en la conversación
+
+**Método:** sin herramienta de navegador en este entorno, se extrajeron los 11 artboards fuente (`.dc.html`) del artifact publicado (`MyOwnSpace Dashboard`, `https://claude.ai/artifact/ANaRQhfGj2bJun3aSv3JZS`) parseando el JSON embebido en `<script id="appifact-doc">`, y se compararon línea por línea contra el código real: colores exactos (`tailwind.config.ts` / `globals.css` vs. los hex hardcodeados del mockup — coinciden 1:1 en ambos temas), estructura, y copy textual.
+
+**Discrepancias encontradas y corregidas:**
+1. Faltaba el copyright "© DevTech 2026" en el sidebar de las pantallas autenticadas (Main/Admin/AdminUsers) — presente en el mockup debajo de "Cerrar sesión", ausente en `Sidebar.tsx`. Corregido.
+2. El texto informativo de `CreateUserModal` ("Crear usuario") estaba incompleto respecto al mockup, que agrega "Pasará a Activo cuando inicie sesión por primera vez." Corregido (con redacción equivalente, no textual).
+
+**Discrepancias menores, documentadas como decisión consciente (no corregidas):**
+- `ResetPasswordConfirmModal`: el mockup dice "...con tu nueva contraseña"; la implementación real dice "...con la nueva contraseña" (la copia real evita el posesivo porque el mismo texto se reutiliza tanto para uno mismo como para resetear la contraseña de otro usuario). El mockup además incluye una oración aclaratoria sobre la reutilización del botón entre usuarios, que no se llevó a la implementación real porque el propio modal ya se diferencia dinámicamente vía el título (`¿Restablecer tu propia contraseña?` vs. `¿Restablecer la contraseña de {nombre}?`), haciendo esa aclaración redundante para el usuario final.
+
+**Pantallas revisadas sin discrepancias:** Login, Olvidé mi contraseña, Revisá tu correo, Definí tu nueva contraseña, 404, Dashboard Empleado, Dashboard Admin — Solicitudes, Modal Crear solicitud.
 
 **Dependencies:** Task 21
 
-**Files likely touched:** variable, según lo encontrado
+**Files touched:**
+- `src/components/layout/Sidebar.tsx`
+- `src/components/pages/admin/CreateUserModal.tsx`
 
 **Estimated scope:** Small: 1-2 files (por corrección puntual)

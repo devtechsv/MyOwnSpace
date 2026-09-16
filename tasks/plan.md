@@ -57,16 +57,16 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 - [x] Tarea 20: Resetear contraseña + Activar/Desactivar
 
 ### Checkpoint: Módulos de negocio completos
-- [ ] Los 3 flujos de punta a punta funcionan contra mocks: empleado crea solicitud → admin la aprueba/deniega; admin crea usuario → usuario queda Pendiente
-- [ ] Revisión visual contra el mockup publicado (luz y oscuro)
+- [x] Los 3 flujos de punta a punta funcionan contra mocks: empleado crea solicitud → admin la aprueba/deniega; admin crea usuario → usuario queda Pendiente
+- [x] Revisión visual contra el mockup publicado (luz y oscuro) — ver Tarea 22
 
 ### Fase 4 — Limpieza
-- [ ] Tarea 21: Eliminar scaffolding sin uso (`pages/api/hello.ts`, etc.) y pase final de lint/typecheck
-- [ ] Tarea 22: QA visual contra el mockup publicado, pantalla por pantalla
+- [x] Tarea 21: Eliminar scaffolding sin uso (`pages/api/hello.ts`, etc.) y pase final de lint/typecheck
+- [x] Tarea 22: QA visual contra el mockup publicado, pantalla por pantalla
 
 ### Checkpoint: Completo
-- [ ] Todos los criterios de aceptación del `SPEC.md` cumplidos
-- [ ] Listo para especificar el backend
+- [x] Todos los criterios de aceptación del `SPEC.md` cumplidos
+- [x] Listo para especificar el backend
 
 ## Risks and Mitigations
 

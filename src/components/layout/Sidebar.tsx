@@ -137,8 +137,10 @@ export function Sidebar({ onCreateRequest }: Props) {
           Crear solicitud
         </Button>
       )}
-
-      <LogoutButton />
+      <div className='flex flex-col gap-4'>
+        <LogoutButton />
+        <span className='text-[11px] text-muted text-center'>© DevTech 2026</span>
+      </div>
     </div>
   );
 }

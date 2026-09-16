@@ -100,7 +100,8 @@ export function CreateUserModal({ isOpen, onClose, onCreated }: Props) {
             </svg>
             <span className='text-xs leading-relaxed text-foreground'>
               El usuario quedará en estado <strong>Pendiente</strong> y
-              recibirá un correo para definir su contraseña.
+              recibirá un correo para definir su contraseña. Si el usuario inicia
+              sesión por primera vez, pasará a Activo.
             </span>
           </div>
 
