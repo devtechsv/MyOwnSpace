@@ -25,7 +25,7 @@ export const Button = <E extends React.ElementType = DefaultComponentType>({
   return (
     <Tag
       className={cx(
-        'inline-flex items-center justify-center py-2 rounded-md px-4 bg-turquoise-blue-500 text-white ',
+        'inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-[10px] text-sm font-semibold bg-turquoise-blue-500 text-white transition-colors',
         /* hover props */
         'hover:bg-turquoise-blue-600',
         /* disabled props */

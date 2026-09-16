@@ -9,7 +9,7 @@ const Login: NextPage<Props> = ({}) => {
   return (
     <>
       <Head>
-        <title>Login</title>
+        <title>Iniciar sesión — MyOwnSpace</title>
       </Head>
       <LoginForm />
     </>

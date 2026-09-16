@@ -1,3 +1,40 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Tokens semánticos de tema, en RGB espaciado por blancos para soportar
+ * opacidad vía la notación `rgb(var(--x) / <alpha-value>)` de Tailwind.
+ * Valores tomados del mockup validado en Claude Design.
+ */
+:root {
+  --color-background: 246 248 251; /* #f6f8fb */
+  --color-surface: 255 255 255; /* #ffffff */
+  --color-surface-field: 248 250 252; /* #f8fafc */
+  --color-border: 227 232 239; /* #e3e8ef */
+  --color-foreground: 15 23 42; /* #0f172a */
+  --color-muted: 100 116 139; /* #64748b */
+}
+
+.dark {
+  --color-background: 11 18 32; /* #0b1220 */
+  --color-surface: 17 26 44; /* #111a2c */
+  --color-surface-field: 14 22 38; /* #0e1626 */
+  --color-border: 31 42 61; /* #1f2a3d */
+  --color-foreground: 230 237 245; /* #e6edf5 */
+  --color-muted: 143 161 184; /* #8fa1b8 */
+}
+
+/*
+ * El navegador pinta los campos autocompletados con su propio fondo
+ * (amarillo en Chrome/Edge), pisando bg-surface-field. Se neutraliza
+ * con un box-shadow inset del mismo color que el campo.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: rgb(var(--color-foreground));
+  -webkit-box-shadow: 0 0 0px 1000px rgb(var(--color-surface-field)) inset;
+  box-shadow: 0 0 0px 1000px rgb(var(--color-surface-field)) inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
