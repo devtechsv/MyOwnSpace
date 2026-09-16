@@ -171,6 +171,15 @@ export const mockUsersAdapter = {
 
   async update(id: string, payload: UpdateUserPayload): Promise<User> {
     const target = findUserOrThrow(id);
+    if (payload.correo){
+      const yaExiste = users.some(
+        (u) =>
+          u.id !== id && u.correo.toLowerCase() === payload.correo!.toLowerCase(),
+      );
+      if (yaExiste){
+        throw new Error('Ya existe un usuario con el correo ingresado.');
+      }
+    }
     Object.assign(target, payload);
     return delay(clone(target));
   },

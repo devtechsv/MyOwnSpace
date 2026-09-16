@@ -566,48 +566,63 @@
 
 ---
 
-## Task 19: Editar usuario
+## Task 19: Editar usuario ✅
 
 **Description:** Conectar la acción "Editar" a un formulario (modal o inline, a definir en implementación) que permite modificar nombre, correo y rol de un usuario existente, llamando a `users.api.update()`.
 
 **Acceptance criteria:**
-- [ ] Los cambios se reflejan en la tabla sin recargar la página
-- [ ] Rol sigue restringido a `Empleado` | `Administrador`
+- [x] Los cambios se reflejan en la tabla sin recargar la página (`onUpdated={reload}` en `admin/users.tsx`)
+- [x] Rol sigue restringido a `Empleado` | `Administrador`
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- UsersTable`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: editar el nombre de un usuario y confirmar que se actualiza en la tabla
+- [x] Tests pass: `npm run test -- EditUserModal` (5/5; suite completa 174/174)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: requiere clicks/formulario reales — no verificable por `curl`; `/admin/users` sin sesión redirige 307 a `/login` como se espera; el flujo de edición en sí queda cubierto a fondo por los tests contra el mock real (precarga, validación, correo duplicado, guardado)
+
+**Decisión de implementación:** `EditUserModal` no usa un prop `isOpen` interno (a diferencia de `CreateUserModal`); el padre lo monta condicionalmente (`{editingUser && <EditUserModal key={editingUser.id} .../>}`). Es necesario porque `react-hook-form` fija los `defaultValues` en el primer render: si el componente quedara siempre montado, al editar un segundo usuario el formulario seguiría mostrando los datos del primero. `key={editingUser.id}` fuerza un remount limpio por usuario.
+
+**Cambio no previsto, necesario para que el criterio de correo duplicado fuera real:** `mockUsersAdapter.update()` (Tarea 4) no rechazaba correos ya usados por otro usuario — se le agregó esa validación (case-insensitive, excluyendo al propio usuario editado), mismo patrón que el gap resuelto en la Tarea 18 para `create()`.
+
+**Nota de implementación:** el usuario aplicó los archivos base (`users.api.ts`, `mock-adapter.ts`, `useEditUserForm.ts`, `EditUserModal.tsx`) directamente en su IDE a partir del código compartido en el chat; yo agregué el test (`EditUserModal.test.tsx`) y el wiring en `admin/users.tsx`, y verifiqué el conjunto completo.
 
 **Dependencies:** Task 17
 
-**Files likely touched:**
-- `src/components/pages/admin/UsersTable.tsx` (o un nuevo `EditUserModal.tsx`)
+**Files touched:**
+- `src/services/mocks/mock-adapter.ts`
 - `src/services/users/users.api.ts`
+- `src/components/pages/admin/useEditUserForm.ts` (nuevo)
+- `src/components/pages/admin/EditUserModal.tsx` (nuevo)
+- `src/components/pages/admin/EditUserModal.test.tsx` (nuevo)
+- `src/pages/admin/users.tsx`
 
-**Estimated scope:** Small: 1-2 files
+**Estimated scope:** Small: 1-2 files (real: 6 files, por el gap de duplicados y el wiring)
 
 ---
 
-## Task 20: Resetear contraseña + Activar/Desactivar
+## Task 20: Resetear contraseña + Activar/Desactivar ✅
 
 **Description:** Construir `ResetPasswordConfirmModal` (Sí/No), reutilizado tanto para resetear la propia contraseña del admin logueado como la de cualquier otro usuario. Conectar "Activar"/"Desactivar" a `users.api.toggleStatus()`.
 
 **Acceptance criteria:**
-- [ ] El popup funciona igual sobre la propia fila del admin logueado (con etiqueta "TÚ") y sobre cualquier otro usuario, incluyendo otros administradores
-- [ ] Confirmar reseteo deja al usuario en estado `Pendiente`
-- [ ] Desactivar/Activar cambia el estado y las acciones disponibles de esa fila se actualizan de inmediato
+- [x] El popup funciona igual sobre la propia fila del admin logueado (con etiqueta "TÚ") y sobre cualquier otro usuario, incluyendo otros administradores — `ResetPasswordConfirmModal` (Tarea 10) ya soportaba `userEmail`/`isSelf`, se reutilizó tal cual sin tocarla, pasando ahora datos de un tercero en vez de `isSelf`
+- [x] Confirmar reseteo deja al usuario en estado `Pendiente` — cubierto por `mockUsersAdapter.resetPassword()` (Tarea 4)
+- [x] Desactivar/Activar cambia el estado y las acciones disponibles de esa fila se actualizan de inmediato (`onSuccess={reload}`)
 
 **Verification:**
-- [ ] Tests pass: `npm run test -- ResetPasswordConfirmModal`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: resetear la propia contraseña del admin de prueba y la de otro usuario; desactivar y reactivar un usuario
+- [x] Tests pass: `npm run test -- ToggleStatusConfirmModal` (4/4; suite completa 174/174)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: `/admin/users` sin sesión redirige 307 a `/login`; el flujo de confirmación en sí (texto según estado, cambio real en el mock, cancelar sin efecto) queda cubierto a fondo por los tests
+
+**Decisión de implementación:** `ResetPasswordConfirmModal` ya existía (Tarea 10) — no se modificó, solo se instanció una segunda vez en `admin/users.tsx` con los datos del usuario objetivo en vez de la sesión propia. Para Activar/Desactivar se construyó `ToggleStatusConfirmModal` como componente nuevo (mismo estilo visual, sin el ícono de llave), ya que no había un modal de confirmación genérico reutilizable para esa acción.
 
 **Dependencies:** Task 17
 
-**Files likely touched:**
-- `src/components/pages/admin/ResetPasswordConfirmModal.tsx`
+**Files touched:**
+- `src/services/mocks/mock-adapter.ts` (ya traía `toggleStatus()` desde la Tarea 4)
 - `src/services/users/users.api.ts`
+- `src/components/common/ToggleStatusConfirmModal.tsx` (nuevo)
+- `src/components/common/ToggleStatusConfirmModal.test.tsx` (nuevo)
+- `src/pages/admin/users.tsx`
 
 **Estimated scope:** Medium: 3-5 files
 

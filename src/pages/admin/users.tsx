@@ -6,8 +6,12 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Button } from '@/components/common/Button';
 import { UsersTable } from '@/components/pages/admin/UsersTable';
 import { CreateUserModal } from '@/components/pages/admin/CreateUserModal';
+import { EditUserModal } from '@/components/pages/admin/EditUserModal';
 import { useAdminUsers } from '@/components/pages/admin/useAdminUsers';
 import { useSession } from '@/hooks/useSession';
+import { ResetPasswordConfirmModal } from '@/components/common/ResetPasswordConfirmModal';
+import { ToggleStatusConfirmModal } from '@/components/common/ToggleStatusConfirmModal';
+import { User } from '@/contracts/interfaces/user';
 
 interface Props {}
 
@@ -15,6 +19,9 @@ const AdminUsersPage: NextPage<Props> = () => {
   const session = useSession();
   const { users, stats, isLoading, error, reload } = useAdminUsers();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [resettingUser, setResettingUser] = useState<User | null>(null);
+  const [togglingUser, setTogglingUser] = useState<User | null>(null);
 
   return (
     <AppShell sidebar={<Sidebar />}>
@@ -60,6 +67,9 @@ const AdminUsersPage: NextPage<Props> = () => {
         isLoading={isLoading}
         error={error}
         currentUserId={session?.userId}
+        onEdit={setEditingUser}
+        onResetPassword={setResettingUser}
+        onToggleStatus={setTogglingUser}
       />
 
       <CreateUserModal
@@ -67,6 +77,34 @@ const AdminUsersPage: NextPage<Props> = () => {
         onClose={() => setIsCreateOpen(false)}
         onCreated={reload}
       />
+
+      {editingUser && (
+        <EditUserModal
+          key={editingUser.id}
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onUpdated={reload}
+        />
+      )}
+
+      {resettingUser && (
+        <ResetPasswordConfirmModal
+          isOpen
+          onClose={() => setResettingUser(null)}
+          userId={resettingUser.id}
+          userName={resettingUser.nombre}
+          userEmail={resettingUser.correo}
+          onSuccess={reload}
+        />
+      )}
+
+      {togglingUser && (
+        <ToggleStatusConfirmModal
+          user={togglingUser}
+          onClose={() => setTogglingUser(null)}
+          onSuccess={reload}
+        />
+      )}
     </AppShell>
   );
 };

@@ -53,8 +53,8 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 - [x] Tarea 16: Acciones Aprobar/Denegar
 - [x] Tarea 17: Dashboard Admin — Usuarios (tabla + contadores)
 - [x] Tarea 18: Modal "Crear usuario"
-- [ ] Tarea 19: Editar usuario
-- [ ] Tarea 20: Resetear contraseña + Activar/Desactivar
+- [x] Tarea 19: Editar usuario
+- [x] Tarea 20: Resetear contraseña + Activar/Desactivar
 
 ### Checkpoint: Módulos de negocio completos
 - [ ] Los 3 flujos de punta a punta funcionan contra mocks: empleado crea solicitud → admin la aprueba/deniega; admin crea usuario → usuario queda Pendiente

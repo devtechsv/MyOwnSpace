@@ -1,5 +1,5 @@
 import { mockUsersAdapter } from '@/services/mocks/mock-adapter';
-import { CreateUserPayload, User } from '@/contracts/interfaces/user';
+import { CreateUserPayload, UpdateUserPayload, User } from '@/contracts/interfaces/user';
 
 async function list(): Promise<User[]> {
   return mockUsersAdapter.list();
@@ -9,15 +9,24 @@ async function create(payload: CreateUserPayload): Promise<User> {
   return mockUsersAdapter.create(payload);
 }
 
-// update/toggleStatus se agregan en la Tarea 19/20.
+async function update(id: string, payload: UpdateUserPayload): Promise<User> {
+  return mockUsersAdapter.update(id, payload);
+}
+
 async function resetPassword(userId: string): Promise<void> {
   return mockUsersAdapter.resetPassword(userId);
+}
+
+async function toggleStatus(userId: string): Promise<User> {
+  return mockUsersAdapter.toggleStatus(userId);
 }
 
 const users = {
   list,
   create,
+  update,
   resetPassword,
+  toggleStatus,
 };
 
 export default users;
