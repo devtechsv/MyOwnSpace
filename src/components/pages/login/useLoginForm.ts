@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/router';
 import { z } from 'zod';
 import API from '@/services/api-services';
+import { getHomeRoute } from '@/helpers/get-home-route';
 
 const schema = z.object({
   email: z.string().min(1, 'Ingresá tu correo').email('Correo inválido'),
@@ -37,9 +38,7 @@ const useLoginForm = () => {
         password: data.password,
       });
 
-      const destino =
-        session.rol === 'Administrador' ? '/admin/requests' : '/';
-      await router.push(destino);
+      await router.push(getHomeRoute(session.rol));
     } catch {
       // Nunca se confirma si el correo existe o no — mensaje genérico.
       setServerError('Correo o contraseña incorrectos.');

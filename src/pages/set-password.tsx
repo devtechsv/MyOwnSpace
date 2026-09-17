@@ -1,5 +1,6 @@
 import SetPasswordForm from '@/components/pages/set-password/SetPasswordForm';
 import { withAuth } from '@/middlewares/with-auth';
+import { getHomeRoute } from '@/helpers/get-home-route';
 import { GetServerSideProps, NextPage } from 'next';
 import Head from 'next/head';
 
@@ -21,7 +22,7 @@ export const getServerSideProps: GetServerSideProps = withAuth(
     if (session.user) {
       return {
         redirect: {
-          destination: '/',
+          destination: getHomeRoute(session.user.rol),
           permanent: false,
         },
       };

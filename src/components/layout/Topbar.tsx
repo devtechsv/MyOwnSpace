@@ -26,7 +26,7 @@ export function Topbar() {
   }, [isMenuOpen]);
 
   const handleLogout = async () => {
-    API.auth.logout();
+    await API.auth.logout();
     await router.push('/login');
   };
 

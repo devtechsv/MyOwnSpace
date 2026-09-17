@@ -697,3 +697,25 @@
 - `src/components/pages/admin/CreateUserModal.tsx`
 
 **Estimated scope:** Small: 1-2 files (por corrección puntual)
+
+---
+
+## Post-cierre: Conexión con el backend real (2026-09-17)
+
+No es una tarea del plan original — el plan de 22 tareas ya estaba cerrado. Esto documenta el trabajo hecho una vez que `OwnSpaceAPI` (backend) también quedó completo, para conectar ambos de verdad por primera vez.
+
+**Diseño: coexistencia mock/real por variable de entorno**, no un reemplazo total del mock. Se evaluó reescribir los 17 archivos de test que dependen del adaptador mock (`resetMockState()`/`mockXAdapter`), pero el costo era demasiado alto para el beneficio — se optó por que cada `services/*.api.ts` elija entre el adaptador mock y uno nuevo `*.http-adapter.ts` según `NEXT_PUBLIC_USE_REAL_API` (`.env.local`, gitignorado — nunca se carga en `npm test` por convención de Next.js). Con la variable sin definir, todo sigue exactamente igual que antes — los 174 tests no se tocaron.
+
+**Archivos nuevos:** `src/services/api-client.ts` (instancia de `axios`, `withCredentials: true`), `src/services/auth/auth.http-adapter.ts`, `src/services/users/users.http-adapter.ts`, `src/services/requests/requests.http-adapter.ts`, `.env.example`.
+
+**Archivos modificados:** `src/services/auth/auth.api.ts`, `src/services/auth/refresh-session.ts` (ahora llama a `GET /auth/session` del backend real en vez de decodificar la cookie localmente), `src/services/users/users.api.ts`, `src/services/requests/requests.api.ts`.
+
+**Bugs reales encontrados durante la verificación en vivo (no solo con `curl` — con los dos servidores corriendo y probado en navegador real):**
+
+1. **Logout no esperaba la respuesta del backend.** `logout()` era sincrónico (`fire-and-forget`) porque en modo mock nunca hizo falta esperar nada. Con el backend real, el navegador podía navegar a `/login` antes de que la cookie vieja terminara de borrarse — `/login` la veía "válida" y redirigía a `/`, que da 404 para un Administrador (rol incorrecto). Corregido: `logout()` pasa a ser `async` de verdad y esperar la respuesta real; los dos call sites (`Topbar.tsx`, `Sidebar.tsx`) ahora hacen `await`.
+
+2. **Las 4 páginas públicas (`login`, `forgot-password`, `forgot-password/sent`, `set-password`) redirigían a `/` a cualquiera ya logueado, sin mirar el rol** — un Administrador que visitara cualquiera de esas rutas con sesión activa terminaba en el mismo 404 por rol incorrecto. Bug preexistente (no lo introdujo la conexión con el backend, solo lo hizo visible porque antes nadie probó esta ruta con sesión real). Corregido con un helper compartido `src/helpers/get-home-route.ts` (`Administrador` → `/admin/requests`, `Empleado` → `/`), usado en las 4 páginas y en `useLoginForm.ts` (que ya tenía la lógica correcta, ahora deduplicada).
+
+3. **Certificado de desarrollo HTTPS autofirmado, dos mecanismos de confianza separados:** el navegador lo confía con `dotnet dev-certs https --trust`, pero el proceso de Node.js de Next.js (llamadas server-side en `getServerSideProps`) tiene su propio almacén de confianza TLS y lo rechazaba igual. Resuelto en `next.config.js` (`NODE_TLS_REJECT_UNAUTHORIZED=0`, condicionado a `NODE_ENV === 'development'` — nunca afecta producción ni se empaqueta para el navegador).
+
+**Verificación:** `npm run typecheck`, `npm run lint`, `npm test` (174/174) y `npm run build` limpios después de cada corrección. Flujo real probado de punta a punta con los dos servidores corriendo (backend HTTPS real contra SQL Server, frontend con `NEXT_PUBLIC_USE_REAL_API=true`): login, navegación autenticada, logout, y re-visita a páginas públicas ya logueado — todo verificado con `curl` simulando exactamente la secuencia del navegador antes de confirmarlo en un navegador real.
