@@ -80,7 +80,7 @@ export function RequestsTable({
             <span className='text-sm text-muted'>
               {formatFecha(request.fechaInicio)}
             </span>
-            <span className='text-sm text-muted truncate pr-3'>
+            <span className='text-sm text-muted truncate pr-3' title={request.motivo}>
               {request.motivo}
             </span>
             <div className='flex gap-2'>
