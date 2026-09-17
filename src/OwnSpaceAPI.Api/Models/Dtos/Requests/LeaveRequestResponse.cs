@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using OwnSpaceAPI.Api.Models.Entities;
 
 namespace OwnSpaceAPI.Api.Models.Dtos.Requests;
@@ -5,7 +6,7 @@ namespace OwnSpaceAPI.Api.Models.Dtos.Requests;
 public record LeaveRequestResponse(
     Guid Id,
     Guid EmployeeId,
-    RequestType Tipo,
+    [property: JsonConverter(typeof(RequestTypeJsonConverter))] RequestType Tipo,
     DateOnly FechaInicio,
     DateOnly FechaFin,
     string Motivo,

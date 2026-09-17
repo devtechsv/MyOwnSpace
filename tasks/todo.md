@@ -364,6 +364,8 @@ Se corrigió el origen (`AppDbContext.cs`), se borró la migración rota (`dotne
 - [x] Los 3 flujos de punta a punta funcionan vía Swagger UI, con SQL Server real
 - [x] El Swagger generado por el código no diverge de `docs/openapi.yaml`
 
+**Bug post-cierre encontrado el 2026-09-17, al preparar la conexión con el frontend:** `RequestType.PermisoPersonal` se serializaba/deserializaba como `"PermisoPersonal"` (sin espacio) en el JSON de la API, en vez de `"Permiso personal"` (con espacio) como pide `docs/openapi.yaml` y como lo espera el tipo literal del frontend (`'Permiso personal'`). La causa: el `JsonStringEnumConverter` registrado globalmente en `Program.cs` (Tarea 9) tiene **más prioridad** que un `[JsonConverter]` puesto sobre el tipo enum — hay que ponerlo sobre la *propiedad* que usa el enum para que gane. Corregido agregando `RequestTypeJsonConverter` (mapeo manual, igual criterio que el `HasConversion` de la Tarea 5 pero para JSON en vez de SQL) y aplicándolo con `[property: JsonConverter(typeof(RequestTypeJsonConverter))]` en `CreateLeaveRequestRequest.Tipo` y `LeaveRequestResponse.Tipo`. Verificado en ambas direcciones contra SQL Server real: `POST /requests` acepta `"Permiso personal"` con espacio, y `GET /requests/mine` lo devuelve igual, tanto en el eco inmediato como leído de vuelta de la base.
+
 ---
 
 ## Fase 6 — Cierre
