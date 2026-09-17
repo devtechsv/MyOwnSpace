@@ -7,20 +7,18 @@ import {
   encodeSession,
   SESSION_COOKIE,
 } from './session-cookie';
+import { httpAuthAdapter, SessionCheckResult } from './auth.http-adapter';
 
-export type SessionCheckResult =
-  | { status: 'valid'; session: Session }
-  | { status: 'expired' }
-  | { status: 'none' };
+export type { SessionCheckResult };
 
-// Mientras no exista un backend real, la sesión viaja como JSON (con su
-// propio `expiresAt`) en la cookie `accessToken` — ver session-cookie.ts
-// y auth.api.ts -> login(). Cada verificación exitosa renueva esa fecha
-// +2h reescribiendo la misma cookie, así la sesión expira por
-// inactividad y no por un plazo fijo. Cuando el backend exista, esta
-// función vuelve a verificar contra AuthEndpoints.VERIFY — el resto de
-// la app (withAuth, páginas) no cambia, porque sigue recibiendo el
-// mismo resultado de tres estados.
+const USE_REAL_API = process.env.NEXT_PUBLIC_USE_REAL_API === 'true';
+
+// Mientras coexisten mock y backend real: en modo mock, la sesión viaja
+// como JSON (con su propio expiresAt) en la cookie — ver
+// session-cookie.ts y auth.api.ts -> login(). En modo real, el JWT es
+// opaco: no hay nada que decodificar acá, la única forma de saber si
+// sigue siendo válido es preguntarle al backend.
+
 const refreshSession = async (
   accessToken: string | undefined,
   _refreshToken: string | undefined,
@@ -29,6 +27,10 @@ const refreshSession = async (
 ): Promise<SessionCheckResult> => {
   if (!accessToken) {
     return { status: 'none' };
+  }
+
+  if (USE_REAL_API) {
+    return httpAuthAdapter.refreshSession(accessToken, res);
   }
 
   const stored = decodeSession(accessToken);
