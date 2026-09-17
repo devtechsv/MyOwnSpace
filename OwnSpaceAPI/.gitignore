@@ -1,0 +1,16 @@
+# build output
+bin/
+obj/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# secretos locales — la connection string real vive acá, nunca se commitea
+appsettings.Development.json
+appsettings.*.local.json
+
+# OS
+.DS_Store

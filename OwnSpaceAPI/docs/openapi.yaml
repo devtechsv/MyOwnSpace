@@ -1,0 +1,482 @@
+openapi: 3.0.3
+info:
+  title: OwnSpaceAPI
+  description: >
+    Backend de MyOwnSpace. Contrato de diseño (el "mockup" del backend) —
+    ver ../SPEC.md. Una vez implementado, el Swagger generado por el código
+    es la fuente de verdad de lo que realmente corre; este archivo es la
+    fuente de verdad de diseño y debe mantenerse alineado a mano.
+  version: "0.1.0"
+servers:
+  - url: https://localhost:7000/api/v1
+    description: Desarrollo local
+
+tags:
+  - name: auth
+  - name: users
+  - name: requests
+
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Inicia sesión. Setea la cookie httpOnly `accessToken` (JWT).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Credenciales válidas.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: accessToken=<jwt>; HttpOnly; Secure; SameSite=Lax; Path=/
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          description: >
+            Credenciales inválidas o usuario Desactivado. Mismo mensaje
+            genérico en ambos casos — nunca confirmar si el correo existe.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Cierra sesión. Borra la cookie `accessToken`.
+      responses:
+        '204':
+          description: Sesión cerrada.
+
+  /auth/session:
+    get:
+      tags: [auth]
+      summary: >
+        Valida la cookie actual y, si es válida, renueva su expiración
+        (+2h desde ahora — expiración deslizante por inactividad, no fija).
+        Equivale a refresh-session.ts del frontend.
+      responses:
+        '200':
+          description: Sesión válida (renovada).
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          description: Sin cookie, cookie inválida, o expirada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /auth/forgot-password:
+    post:
+      tags: [auth]
+      summary: >
+        Solicita el enlace de recuperación. Siempre responde 200, exista o
+        no el correo — nunca revela si un correo está registrado.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Solicitud aceptada (independientemente de si el correo existe).
+
+  /auth/set-password:
+    post:
+      tags: [auth]
+      summary: >
+        Define una nueva contraseña usando el token recibido por correo
+        (recuperación, invitación de usuario nuevo, o reseteo por un admin).
+        Pasa el usuario a estado Activo.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+      responses:
+        '200':
+          description: Contraseña actualizada.
+        '400':
+          description: Token inválido/expirado/ya usado, o contraseña que no cumple las reglas.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ValidationProblemDetails'
+
+  /users:
+    get:
+      tags: [users]
+      summary: Lista todos los usuarios.
+      security: [{ cookieAuth: [Administrador] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '404':
+          description: Rol insuficiente (nunca 401/403 — ver SPEC.md §9).
+    post:
+      tags: [users]
+      summary: Crea un usuario. Queda en estado Pendiente; dispara la invitación por correo.
+      security: [{ cookieAuth: [Administrador] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Usuario creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '409':
+          description: Ya existe un usuario con ese correo (comparación case-insensitive).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /users/{id}:
+    patch:
+      tags: [users]
+      summary: Edita nombre/correo/rol de un usuario existente.
+      security: [{ cookieAuth: [Administrador] }]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Usuario actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Usuario no encontrado, o rol insuficiente.
+        '409':
+          description: El nuevo correo ya pertenece a otro usuario.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /users/{id}/reset-password:
+    post:
+      tags: [users]
+      summary: >
+        Un admin fuerza el reseteo de la contraseña de otro usuario (o la
+        propia). Vuelve al usuario a estado Pendiente y dispara un correo
+        con un nuevo token.
+      security: [{ cookieAuth: [Administrador] }]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Reseteo iniciado.
+        '404':
+          description: Usuario no encontrado, o rol insuficiente.
+
+  /users/{id}/toggle-status:
+    post:
+      tags: [users]
+      summary: Alterna entre Activo y Desactivado. No aplica a usuarios Pendientes.
+      security: [{ cookieAuth: [Administrador] }]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Estado actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Usuario no encontrado, o rol insuficiente.
+        '409':
+          description: El usuario está en estado Pendiente (no tiene Activo/Desactivado que alternar).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /requests/mine:
+    get:
+      tags: [requests]
+      summary: Lista las solicitudes del empleado autenticado.
+      security: [{ cookieAuth: [Empleado] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaveRequest'
+
+  /requests/pending:
+    get:
+      tags: [requests]
+      summary: Lista todas las solicitudes pendientes (sin jerarquía jefe-empleado — ver SPEC.md §8).
+      security: [{ cookieAuth: [Administrador] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaveRequest'
+
+  /requests:
+    post:
+      tags: [requests]
+      summary: Crea una solicitud propia. Queda en estado Pendiente.
+      security: [{ cookieAuth: [Empleado] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeaveRequestRequest'
+      responses:
+        '201':
+          description: Solicitud creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '400':
+          description: fechaFin anterior a fechaInicio, u otro dato inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ValidationProblemDetails'
+
+  /requests/{id}/approve:
+    post:
+      tags: [requests]
+      summary: Aprueba una solicitud pendiente. Dispara correo al empleado.
+      security: [{ cookieAuth: [Administrador] }]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Solicitud aprobada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '404':
+          description: Solicitud no encontrada, o rol insuficiente.
+        '409':
+          description: La solicitud ya no está Pendiente.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /requests/{id}/deny:
+    post:
+      tags: [requests]
+      summary: Deniega una solicitud pendiente. Dispara correo al empleado.
+      security: [{ cookieAuth: [Administrador] }]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: Solicitud denegada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '404':
+          description: Solicitud no encontrada, o rol insuficiente.
+        '409':
+          description: La solicitud ya no está Pendiente.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: accessToken
+      description: >
+        JWT en cookie httpOnly/Secure. El array de scopes en cada uso de
+        `security` documenta el/los rol(es) permitido(s) — no es OAuth2
+        real, es notación para dejar el requisito de rol explícito en el
+        contrato. Un rol insuficiente responde 404, no 401/403.
+
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RequestId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    UserRole:
+      type: string
+      enum: [Empleado, Administrador, SuperAdmin]
+      description: SuperAdmin sin lógica de permisos propia todavía — ver SPEC.md §8.
+
+    UserStatus:
+      type: string
+      enum: [Pendiente, Activo, Desactivado]
+
+    RequestType:
+      type: string
+      enum: [Emergencia, Enfermedad, "Permiso personal", Otro]
+
+    RequestStatus:
+      type: string
+      enum: [Pendiente, Aprobada, Denegada]
+
+    User:
+      type: object
+      required: [id, nombre, correo, rol, estado]
+      properties:
+        id: { type: string, format: uuid }
+        nombre: { type: string, maxLength: 200 }
+        correo: { type: string, format: email, maxLength: 256 }
+        rol: { $ref: '#/components/schemas/UserRole' }
+        estado: { $ref: '#/components/schemas/UserStatus' }
+
+    Session:
+      type: object
+      required: [userId, nombre, rol, estado]
+      properties:
+        userId: { type: string, format: uuid }
+        nombre: { type: string }
+        rol: { $ref: '#/components/schemas/UserRole' }
+        estado: { $ref: '#/components/schemas/UserStatus' }
+
+    LeaveRequest:
+      type: object
+      required: [id, employeeId, tipo, fechaInicio, fechaFin, motivo, estado, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        employeeId: { type: string, format: uuid }
+        tipo: { $ref: '#/components/schemas/RequestType' }
+        fechaInicio: { type: string, format: date }
+        fechaFin: { type: string, format: date }
+        motivo: { type: string, maxLength: 1000 }
+        estado: { $ref: '#/components/schemas/RequestStatus' }
+        createdAt: { type: string, format: date-time }
+        reviewedBy: { type: string, format: uuid, nullable: true }
+        reviewedAt: { type: string, format: date-time, nullable: true }
+
+    LoginRequest:
+      type: object
+      required: [correo, password]
+      properties:
+        correo: { type: string, format: email }
+        password: { type: string, format: password }
+
+    ForgotPasswordRequest:
+      type: object
+      required: [correo]
+      properties:
+        correo: { type: string, format: email }
+
+    SetPasswordRequest:
+      type: object
+      required: [token, nuevaPassword]
+      properties:
+        token: { type: string }
+        nuevaPassword: { type: string, format: password, minLength: 10 }
+
+    CreateUserRequest:
+      type: object
+      required: [nombre, correo, rol]
+      properties:
+        nombre: { type: string, maxLength: 200 }
+        correo: { type: string, format: email, maxLength: 256 }
+        rol:
+          allOf: [{ $ref: '#/components/schemas/UserRole' }]
+          enum: [Empleado, Administrador]
+          description: SuperAdmin no es asignable desde la UI todavía.
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        nombre: { type: string, maxLength: 200 }
+        correo: { type: string, format: email, maxLength: 256 }
+        rol:
+          allOf: [{ $ref: '#/components/schemas/UserRole' }]
+          enum: [Empleado, Administrador]
+
+    CreateLeaveRequestRequest:
+      type: object
+      required: [tipo, fechaInicio, fechaFin, motivo]
+      properties:
+        tipo: { $ref: '#/components/schemas/RequestType' }
+        fechaInicio: { type: string, format: date }
+        fechaFin: { type: string, format: date }
+        motivo: { type: string, maxLength: 1000 }
+
+    ProblemDetails:
+      type: object
+      description: RFC 7807 — formato estándar de error de ASP.NET Core.
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }

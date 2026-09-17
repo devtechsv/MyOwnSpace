@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{4A30D3CA-3353-4E4B-B81A-DD8FF3708F5B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnSpaceAPI.Api", "src\OwnSpaceAPI.Api\OwnSpaceAPI.Api.csproj", "{8404CF93-B849-4942-9FE7-96A2D82A86FC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A8D3E179-0BD1-4304-9B59-E865A0456B5E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OwnSpaceAPI.Tests", "tests\OwnSpaceAPI.Tests\OwnSpaceAPI.Tests.csproj", "{8DC0E324-C5B5-49E3-A6C4-DDBEDAE8180F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8404CF93-B849-4942-9FE7-96A2D82A86FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8404CF93-B849-4942-9FE7-96A2D82A86FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8404CF93-B849-4942-9FE7-96A2D82A86FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8404CF93-B849-4942-9FE7-96A2D82A86FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8DC0E324-C5B5-49E3-A6C4-DDBEDAE8180F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8DC0E324-C5B5-49E3-A6C4-DDBEDAE8180F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8DC0E324-C5B5-49E3-A6C4-DDBEDAE8180F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8DC0E324-C5B5-49E3-A6C4-DDBEDAE8180F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8404CF93-B849-4942-9FE7-96A2D82A86FC} = {4A30D3CA-3353-4E4B-B81A-DD8FF3708F5B}
+		{8DC0E324-C5B5-49E3-A6C4-DDBEDAE8180F} = {A8D3E179-0BD1-4304-9B59-E865A0456B5E}
+	EndGlobalSection
+EndGlobal
