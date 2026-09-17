@@ -18,10 +18,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Por defecto System.Text.Json serializa enums como su valor
-        // numérico (0,1,2...) — el contrato (docs/openapi.yaml) espera
-        // los strings ("Empleado", "Activo", etc.), igual que el frontend.
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+      // Por defecto System.Text.Json serializa enums como su valor
+      // numérico (0,1,2...) — el contrato (docs/openapi.yaml) espera
+      // los strings ("Empleado", "Activo", etc.), igual que el frontend.
+      options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -39,39 +39,61 @@ builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IUsersService, UsersService>();
 builder.Services.AddScoped<IRequestsService, RequestsService>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, NotFoundOnForbidResultHandler>();
+
+const string FrontendCorsPolicy = "FrontendCorsPolicy";
+
+builder.Services.AddCors(options =>
+{
+  options.AddPolicy(FrontendCorsPolicy, policy =>
+  {
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+          ?? Array.Empty<string>();
+
+    // AllowCredentials() es obligatorio porque la sesión viaja en
+    // una cookie (SPEC.md §9) — sin esto, el navegador nunca manda
+    // la cookie en requests cross-origin, aunque el resto de CORS
+    // esté bien configurado. Por eso mismo NO se puede usar
+    // AllowAnyOrigin() junto con AllowCredentials() (el navegador
+    // lo rechaza) — tiene que ser una lista explícita de orígenes.
+    policy.WithOrigins(allowedOrigins)
+          .AllowAnyHeader()
+          .AllowAnyMethod()
+          .AllowCredentials();
+  });
+});
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var signingKey = builder.Configuration["Jwt:SigningKey"]
-            ?? throw new InvalidOperationException("Falta configurar Jwt:SigningKey.");
+      var signingKey = builder.Configuration["Jwt:SigningKey"]
+          ?? throw new InvalidOperationException("Falta configurar Jwt:SigningKey.");
 
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidateAudience = true,
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
-            ClockSkew = TimeSpan.Zero,
-        };
+      options.TokenValidationParameters = new TokenValidationParameters
+      {
+        ValidateIssuer = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidateAudience = true,
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+        ClockSkew = TimeSpan.Zero,
+      };
 
-        // El JWT viaja en la cookie httpOnly `accessToken` (SPEC.md §9),
-        // no en el header Authorization — hay que decirle al middleware
-        // dónde buscarlo.
-        options.Events = new JwtBearerEvents
+      // El JWT viaja en la cookie httpOnly `accessToken` (SPEC.md §9),
+      // no en el header Authorization — hay que decirle al middleware
+      // dónde buscarlo.
+      options.Events = new JwtBearerEvents
+      {
+        OnMessageReceived = context =>
         {
-            OnMessageReceived = context =>
-            {
-                if (context.Request.Cookies.TryGetValue("accessToken", out var token))
-                {
-                    context.Token = token;
-                }
-                return Task.CompletedTask;
-            },
-        };
+          if (context.Request.Cookies.TryGetValue("accessToken", out var token))
+          {
+            context.Token = token;
+          }
+          return Task.CompletedTask;
+        },
+      };
     });
 
 builder.Services.AddAuthorization();
@@ -86,15 +108,15 @@ app.UseExceptionHandler();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await SeedData.SeedAsync(db);
+  app.UseSwagger();
+  app.UseSwaggerUI();
+  using var scope = app.Services.CreateScope();
+  var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+  await SeedData.SeedAsync(db);
 }
 
 app.UseHttpsRedirection();
-
+app.UseCors(FrontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 

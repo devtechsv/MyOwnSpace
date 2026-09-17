@@ -63,12 +63,12 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 - [x] El Swagger generado por el código no diverge de `docs/openapi.yaml` (mismos 14 endpoints, mismos códigos de estado)
 
 ### Fase 6 — Cierre
-- [ ] Tarea 19: CORS configurado para el origen real del frontend (`AllowCredentials`, sin wildcard)
-- [ ] Tarea 20: `README.md` de `OwnSpaceAPI` con instrucciones de setup (connection string, migraciones, `dotnet run`)
+- [x] Tarea 19: CORS configurado para el origen real del frontend (`AllowCredentials`, sin wildcard)
+- [x] Tarea 20: `README.md` de `OwnSpaceAPI` con instrucciones de setup (connection string, migraciones, `dotnet run`)
 
 ### Checkpoint: Completo
-- [ ] Todos los criterios de éxito de `SPEC.md` §10 cumplidos
-- [ ] Listo para conectar el frontend real (cambiar `services/*.api.ts` de mock a HTTP)
+- [x] Todos los criterios de éxito de `SPEC.md` §10 cumplidos
+- [x] Listo para conectar el frontend real (cambiar `services/*.api.ts` de mock a HTTP)
 
 ## Risks and Mitigations
 

@@ -368,33 +368,44 @@ Se corrigió el origen (`AppDbContext.cs`), se borró la migración rota (`dotne
 
 ## Fase 6 — Cierre
 
-## Task 19: CORS
+## Task 19: CORS ✅
 
 **Description:** Configurar CORS para el origen real del frontend (`http://localhost:3000` en desarrollo) con `AllowCredentials()` — necesario porque la cookie de sesión viaja cross-origin. Nunca un wildcard (`*`) combinado con credentials (el navegador lo rechaza igual, pero además sería un hueco de seguridad si se sacara la restricción de origin).
 
 **Acceptance criteria:**
-- [ ] Un request desde el origen del frontend con `credentials: 'include'` funciona
-- [ ] Un request desde un origen no listado es rechazado por CORS
+- [x] Un request desde el origen del frontend con `credentials: 'include'` funciona
+- [x] Un request desde un origen no listado es rechazado por CORS
 
-**Verification:** prueba manual desde el frontend real (o un `fetch` de prueba) una vez conectado.
+**Verification:** prueba manual real con `curl.exe -X OPTIONS` simulando el preflight: desde `http://localhost:3000` → 204 con `Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials: true` y `Access-Control-Allow-Methods` presentes; desde `http://localhost:9999` (no listado) → sigue 204 pero **sin ningún header `Access-Control-Allow-*`** (el servidor no rechaza con error — el navegador es quien bloquea la request real al no encontrar esos headers, comportamiento correcto de CORS).
+
+**Bug real encontrado y corregido durante la implementación:** al aplicar las instrucciones, `builder.Services.AddCors(...)` y `app.UseCors(FrontendCorsPolicy)` quedaron sin la línea `const string FrontendCorsPolicy = "FrontendCorsPolicy";` que las precedía — no compilaba (`CS0103: The name 'FrontendCorsPolicy' does not exist in the current context`). Se había perdido al copiar el bloque de código compartido; corregido agregando la constante.
 
 **Dependencies:** Task 9.
 
 ---
 
-## Task 20: `README.md` de OwnSpaceAPI
+## Task 20: `README.md` de OwnSpaceAPI ✅
 
 **Description:** Instrucciones de setup: requisitos (.NET 8 SDK, SQL Server), cómo configurar la connection string local, `dotnet ef database update`, `dotnet run`, dónde está Swagger.
 
 **Acceptance criteria:**
-- [ ] Alguien sin contexto previo puede clonar y levantar la API siguiendo solo el README
+- [x] Alguien sin contexto previo puede clonar y levantar la API siguiendo solo el README
 
-**Verification:** lectura cruzada (Claude revisa que no falte ningún paso).
+**Verification:** lectura cruzada — confirmado que cubre requisitos, connection string, JWT, CORS, migraciones, cómo levantar la API, dónde está Swagger, y comandos de referencia (`build`/`test`/`ef migrations`).
+
+**Problemas reales encontrados y corregidos:**
+1. El archivo había quedado en `src/OwnSpaceAPI.Api/README.md` en vez de la raíz de `OwnSpaceAPI/` (donde GitHub lo muestra automáticamente al entrar al repo).
+2. Varios bloques de código Markdown sin el ` ``` ` de cierre (el bloque JSON se mezclaba con el texto siguiente; los comandos `dotnet ef database update` y `dotnet run` no tenían fences en absoluto).
+3. El texto "Abrí .../swagger" aparecía duplicado (una vez mal pegado al comando de arriba, otra vez como su propio paso).
+4. La sección de comandos usaba `* Comandos:` en vez de un encabezado `## Comandos`.
+5. Faltaba la sección final "Estructura".
+
+A pedido explícito del usuario, Claude reescribió el archivo directamente en la ubicación correcta en vez de solo señalar los problemas.
 
 **Dependencies:** todas las anteriores.
 
 ---
 
 ### Checkpoint: Completo
-- [ ] Todos los criterios de éxito de `SPEC.md` §10 cumplidos
-- [ ] Listo para conectar el frontend real
+- [x] Todos los criterios de éxito de `SPEC.md` §10 cumplidos
+- [x] Listo para conectar el frontend real
