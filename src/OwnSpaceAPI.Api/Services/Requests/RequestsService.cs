@@ -28,6 +28,17 @@ public sealed class RequestsService : IRequestsService
             .OrderBy(r => r.CreatedAt)
             .ToListAsync();
 
+    public async Task<List<LeaveRequest>> ListAllAsync(RequestStatus? estado)
+  {
+    var query = _db.LeaveRequests.AsQueryable();
+    if (estado is not null)
+    {
+      query = query.Where(r => r.Estado == estado);
+    }
+
+    return await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+  }
+
     public async Task<LeaveRequest> CreateAsync(
         Guid employeeId, RequestType tipo, DateOnly fechaInicio, DateOnly fechaFin, string motivo)
     {

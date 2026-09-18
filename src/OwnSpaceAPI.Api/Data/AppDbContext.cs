@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     {
       entity.Property(u => u.Nombre).HasMaxLength(200).IsRequired();
       entity.Property(u => u.Correo).HasMaxLength(256).IsRequired();
+      entity.Property(u => u.SecurityStamp).HasMaxLength(64).IsRequired();
       entity.HasIndex(u => u.Correo).IsUnique();
 
       entity.Property(u => u.Rol).HasConversion<string>().HasMaxLength(20);
@@ -47,6 +48,8 @@ public class AppDbContext : DbContext
         .HasMaxLength(30);
 
       entity.Property(r => r.Estado).HasConversion<string>().HasMaxLength(20);
+
+
 
       entity.ToTable(t => t.HasCheckConstraint(
         "CK_LeaveRequests_Tipo",

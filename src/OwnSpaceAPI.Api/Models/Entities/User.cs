@@ -8,6 +8,7 @@ public class User
     public string? PasswordHash { get; set; }
     public UserRole Rol { get; set; }
     public UserStatus Estado { get; set; }
+    public string SecurityStamp { get; set; } = Guid.NewGuid().ToString("N");
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

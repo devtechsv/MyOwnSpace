@@ -1,28 +1,42 @@
+using Microsoft.Extensions.Hosting;
+
 namespace OwnSpaceAPI.Api.Services;
 
 // Stub: no hay proveedor de correo real conectado todavía (ver SPEC.md
-// §11, Open Questions). Loguea el "envío" en vez de mandarlo de verdad,
-// para no bloquear el resto del desarrollo. Cuando se decida un proveedor
-// real (SMTP/SendGrid/etc.), se agrega una nueva implementación de
-// IEmailSender y se cambia el registro en Program.cs — nada que la
-// consuma tiene que cambiar.
+// §11, Open Questions). El log de la aplicación (ILogger) nunca ve el
+// cuerpo del correo — solo destinatario y asunto — para que un token de
+// reset nunca quede en texto plano si estos logs algún día viajan a un
+// agregador centralizado. El cuerpo completo (con el token) se escribe
+// aparte, solo en Development, a un archivo dentro de bin/ (ya
+// gitignoreado — no hace falta una entrada nueva en .gitignore).
 public sealed class LoggingEmailSender : IEmailSender
 {
-    private readonly ILogger<LoggingEmailSender> _logger;
+    private static readonly string DevEmailsFilePath =
+        Path.Combine(AppContext.BaseDirectory, "dev-emails.log");
 
-    public LoggingEmailSender(ILogger<LoggingEmailSender> logger)
+    private readonly ILogger<LoggingEmailSender> _logger;
+    private readonly IHostEnvironment _environment;
+
+    public LoggingEmailSender(ILogger<LoggingEmailSender> logger, IHostEnvironment environment)
     {
         _logger = logger;
+        _environment = environment;
     }
 
-    public Task SendAsync(string destinatario, string asunto, string cuerpo)
+    public async Task SendAsync(string destinatario, string asunto, string cuerpo)
     {
         _logger.LogInformation(
-            "[EMAIL STUB] Para: {Destinatario} | Asunto: {Asunto} | Cuerpo: {Cuerpo}",
+            "[EMAIL STUB] Para: {Destinatario} | Asunto: {Asunto}",
             destinatario,
-            asunto,
-            cuerpo);
+            asunto);
 
-        return Task.CompletedTask;
+        if (_environment.IsDevelopment())
+        {
+            var linea =
+                $"{DateTime.UtcNow:O} | Para: {destinatario} | Asunto: {asunto}{Environment.NewLine}" +
+                $"{cuerpo}{Environment.NewLine}{new string('-', 40)}{Environment.NewLine}";
+
+            await File.AppendAllTextAsync(DevEmailsFilePath, linea);
+        }
     }
 }

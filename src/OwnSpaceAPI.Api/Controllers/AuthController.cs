@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using OwnSpaceAPI.Api.Models.Dtos.Auth;
 using OwnSpaceAPI.Api.Models.Entities;
 using OwnSpaceAPI.Api.Services.Auth;
@@ -29,11 +30,12 @@ public class AuthController : ControllerBase
 
   [HttpPost("login")]
   [AllowAnonymous]
+  [EnableRateLimiting("auth")]
   public async Task<ActionResult<SessionResponse>> Login(LoginRequest request)
   {
     var user = await _authService.ValidateCredentialsAsync(request.Correo, request.Password);
 
-    var token = _jwtTokenService.GenerateToken(user.Id, user.Nombre, user.Rol, user.Estado);
+    var token = _jwtTokenService.GenerateToken(user.Id, user.Nombre, user.Rol, user.Estado, user.SecurityStamp);
     SetAccessTokenCookie(token);
 
     return Ok(new SessionResponse(user.Id, user.Nombre, user.Rol, user.Estado));
@@ -41,33 +43,44 @@ public class AuthController : ControllerBase
 
   [HttpGet("session")]
   [Authorize]
-  public ActionResult<SessionResponse> GetSession()
+  public async Task<ActionResult<SessionResponse>> GetSession()
   {
     var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    var nombre = User.FindFirstValue(OwnSpaceClaimTypes.Nombre)!;
-    var rol = Enum.Parse<UserRole>(User.FindFirstValue(ClaimTypes.Role)!);
-    var estado = Enum.Parse<UserStatus>(User.FindFirstValue(OwnSpaceClaimTypes.Estado)!);
 
-    // Renovación deslizante (SPEC.md §9): se reemite un token nuevo
-    // con los mismos datos y una expiración +2h desde ahora, sin
-    // volver a consultar la base — si [Authorize] dejó pasar la
-    // request es porque el token todavía era válido.
-    var token = _jwtTokenService.GenerateToken(userId, nombre, rol, estado);
+    // Renovación deslizante: a diferencia de antes, SÍ vuelve a
+    // consultar la base en cada renovación — así un usuario desactivado
+    // o con el rol cambiado deja de tener sesión válida en su próxima
+    // navegación, no recién cuando el token de 2h expire solo.
+    var user = await _authService.GetActiveUserAsync(userId);
+    if (user is null)
+    {
+      Response.Cookies.Delete(AccessTokenCookie, new CookieOptions { Path = "/" });
+      return Unauthorized();
+    }
+
+    var token = _jwtTokenService.GenerateToken(user.Id, user.Nombre, user.Rol, user.Estado, user.SecurityStamp);
     SetAccessTokenCookie(token);
 
-    return Ok(new SessionResponse(userId, nombre, rol, estado));
+    return Ok(new SessionResponse(user.Id, user.Nombre, user.Rol, user.Estado));
   }
 
   [HttpPost("logout")]
   [Authorize]
-  public IActionResult Logout()
+  public async Task<IActionResult> Logout()
   {
+    var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    // Regenera el securityStamp: cualquier otra sesión/token vivo de
+    // este usuario queda inválido de inmediato, no solo la cookie de
+    // este navegador.
+    await _authService.InvalidateSessionsAsync(userId);
+
     Response.Cookies.Delete(AccessTokenCookie, new CookieOptions { Path = "/" });
     return NoContent();
   }
 
   [HttpPost("forgot-password")]
   [AllowAnonymous]
+  [EnableRateLimiting("auth")]
   public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
   {
     await _passwordResetService.RequestResetAsync(request.Correo);
@@ -76,10 +89,27 @@ public class AuthController : ControllerBase
 
   [HttpPost("set-password")]
   [AllowAnonymous]
+  [EnableRateLimiting("auth")]
   public async Task<IActionResult> SetPassword(SetPasswordRequest request)
   {
     await _passwordResetService.SetPasswordAsync(request.Token, request.NuevaPassword);
     return Ok();
+  }
+
+  [HttpPost("change-password")]
+  [Authorize]
+  public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+  {
+    var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    var user = await _authService.ChangePasswordAsync(userId, request.PasswordActual, request.PasswordNueva);
+
+    // Cambiar la contraseña regenera el securityStamp (invalida otras
+    // sesiones) — hay que reemitir el token para que ESTA sesión, la
+    // que acaba de hacer el cambio, no quede deslogueada de rebote.
+    var token = _jwtTokenService.GenerateToken(user.Id, user.Nombre, user.Rol, user.Estado, user.SecurityStamp);
+    SetAccessTokenCookie(token);
+
+    return NoContent();
   }
 
   private void SetAccessTokenCookie(string token)

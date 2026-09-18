@@ -28,7 +28,7 @@ public class JwtTokenServiceTests
         var service = CreateService();
         var userId = Guid.NewGuid();
 
-        var tokenString = service.GenerateToken(userId, "Ana Martínez", UserRole.Empleado, UserStatus.Activo);
+        var tokenString = service.GenerateToken(userId, "Ana Martínez", UserRole.Empleado, UserStatus.Activo, "stamp-123");
 
         var token = new JwtSecurityTokenHandler().ReadJwtToken(tokenString);
 
@@ -36,13 +36,14 @@ public class JwtTokenServiceTests
         Assert.Equal("Ana Martínez", token.Claims.Single(c => c.Type == OwnSpaceClaimTypes.Nombre).Value);
         Assert.Equal("Empleado", token.Claims.Single(c => c.Type == ClaimTypes.Role).Value);
         Assert.Equal("Activo", token.Claims.Single(c => c.Type == OwnSpaceClaimTypes.Estado).Value);
+        Assert.Equal("stamp-123", token.Claims.Single(c => c.Type == OwnSpaceClaimTypes.SecurityStamp).Value);
     }
 
     [Fact]
     public void GenerateToken_ExpiraEnAproximadamenteDosHoras()
     {
         var service = CreateService();
-        var tokenString = service.GenerateToken(Guid.NewGuid(), "Julio Pérez", UserRole.Administrador, UserStatus.Activo);
+        var tokenString = service.GenerateToken(Guid.NewGuid(), "Julio Pérez", UserRole.Administrador, UserStatus.Activo, "stamp-456");
 
         var token = new JwtSecurityTokenHandler().ReadJwtToken(tokenString);
         var restante = token.ValidTo - DateTime.UtcNow;

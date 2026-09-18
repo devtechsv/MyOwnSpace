@@ -129,4 +129,66 @@ public class AuthServiceTests
         await Assert.ThrowsAsync<UnauthorizedException>(
             () => service.ValidateCredentialsAsync("pendiente@devtch.com", "CualquierCosa123!"));
     }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ConLaContraseniaActualCorrecta_CambiaElHashYElStamp()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!");
+        var stampAnterior = user.SecurityStamp;
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+        await service.ChangePasswordAsync(user.Id, "Correcta123!", "NuevaSegura456!");
+
+        Assert.NotEqual(stampAnterior, user.SecurityStamp);
+        Assert.True(hasher.Verify(user, user.PasswordHash!, "NuevaSegura456!"));
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ConLaContraseniaActualIncorrecta_TiraUnauthorized()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+
+        await Assert.ThrowsAsync<UnauthorizedException>(
+            () => service.ChangePasswordAsync(user.Id, "Incorrecta999!", "NuevaSegura456!"));
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ConLaMismaContraseniaDeNuevo_TiraBadRequest()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+
+        await Assert.ThrowsAsync<BadRequestException>(
+            () => service.ChangePasswordAsync(user.Id, "Correcta123!", "Correcta123!"));
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ConUnaContraseniaQueNoCumpleLasReglas_TiraBadRequest()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+
+        await Assert.ThrowsAsync<BadRequestException>(
+            () => service.ChangePasswordAsync(user.Id, "Correcta123!", "corta1"));
+    }
 }

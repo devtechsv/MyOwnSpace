@@ -11,53 +11,62 @@ namespace OwnSpaceAPI.Api.Controllers;
 [Route("api/v1/requests")]
 public class RequestsController : ControllerBase
 {
-    private readonly IRequestsService _requestsService;
+  private readonly IRequestsService _requestsService;
 
-    public RequestsController(IRequestsService requestsService)
-    {
-        _requestsService = requestsService;
-    }
+  public RequestsController(IRequestsService requestsService)
+  {
+    _requestsService = requestsService;
+  }
 
-    private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+  private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    [HttpGet("mine")]
-    [Authorize(Roles = nameof(UserRole.Empleado))]
-    public async Task<ActionResult<IEnumerable<LeaveRequestResponse>>> ListMine()
-    {
-        var requests = await _requestsService.ListMineAsync(CurrentUserId);
-        return Ok(requests.Select(LeaveRequestResponse.FromEntity));
-    }
+  [HttpGet("mine")]
+  [Authorize(Roles = nameof(UserRole.Empleado))]
+  public async Task<ActionResult<IEnumerable<LeaveRequestResponse>>> ListMine()
+  {
+    var requests = await _requestsService.ListMineAsync(CurrentUserId);
+    return Ok(requests.Select(LeaveRequestResponse.FromEntity));
+  }
 
-    [HttpPost]
-    [Authorize(Roles = nameof(UserRole.Empleado))]
-    public async Task<ActionResult<LeaveRequestResponse>> Create(CreateLeaveRequestRequest request)
-    {
-        var created = await _requestsService.CreateAsync(
-            CurrentUserId, request.Tipo, request.FechaInicio, request.FechaFin, request.Motivo);
-        return StatusCode(StatusCodes.Status201Created, LeaveRequestResponse.FromEntity(created));
-    }
+  [HttpPost]
+  [Authorize(Roles = nameof(UserRole.Empleado))]
+  public async Task<ActionResult<LeaveRequestResponse>> Create(CreateLeaveRequestRequest request)
+  {
+    var created = await _requestsService.CreateAsync(
+        CurrentUserId, request.Tipo, request.FechaInicio, request.FechaFin, request.Motivo);
+    return StatusCode(StatusCodes.Status201Created, LeaveRequestResponse.FromEntity(created));
+  }
 
-    [HttpGet("pending")]
-    [Authorize(Roles = nameof(UserRole.Administrador))]
-    public async Task<ActionResult<IEnumerable<LeaveRequestResponse>>> ListPending()
-    {
-        var requests = await _requestsService.ListPendingAsync();
-        return Ok(requests.Select(LeaveRequestResponse.FromEntity));
-    }
+  [HttpGet("pending")]
+  [Authorize(Roles = nameof(UserRole.Administrador))]
+  public async Task<ActionResult<IEnumerable<LeaveRequestResponse>>> ListPending()
+  {
+    var requests = await _requestsService.ListPendingAsync();
+    return Ok(requests.Select(LeaveRequestResponse.FromEntity));
+  }
 
-    [HttpPost("{id:guid}/approve")]
-    [Authorize(Roles = nameof(UserRole.Administrador))]
-    public async Task<ActionResult<LeaveRequestResponse>> Approve(Guid id)
-    {
-        var request = await _requestsService.ApproveAsync(id, CurrentUserId);
-        return Ok(LeaveRequestResponse.FromEntity(request));
-    }
+  [HttpGet]
+  [Authorize(Roles = nameof(UserRole.Administrador))]
+  public async Task<ActionResult<IEnumerable<LeaveRequestResponse>>> List([FromQuery] RequestStatus? estado)
+  {
+    var requests = await _requestsService.ListAllAsync(estado);
+    return Ok(requests.Select(LeaveRequestResponse.FromEntity));
+  }
 
-    [HttpPost("{id:guid}/deny")]
-    [Authorize(Roles = nameof(UserRole.Administrador))]
-    public async Task<ActionResult<LeaveRequestResponse>> Deny(Guid id)
-    {
-        var request = await _requestsService.DenyAsync(id, CurrentUserId);
-        return Ok(LeaveRequestResponse.FromEntity(request));
-    }
+
+  [HttpPost("{id:guid}/approve")]
+  [Authorize(Roles = nameof(UserRole.Administrador))]
+  public async Task<ActionResult<LeaveRequestResponse>> Approve(Guid id)
+  {
+    var request = await _requestsService.ApproveAsync(id, CurrentUserId);
+    return Ok(LeaveRequestResponse.FromEntity(request));
+  }
+
+  [HttpPost("{id:guid}/deny")]
+  [Authorize(Roles = nameof(UserRole.Administrador))]
+  public async Task<ActionResult<LeaveRequestResponse>> Deny(Guid id)
+  {
+    var request = await _requestsService.DenyAsync(id, CurrentUserId);
+    return Ok(LeaveRequestResponse.FromEntity(request));
+  }
 }

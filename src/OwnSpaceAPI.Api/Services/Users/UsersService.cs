@@ -61,6 +61,7 @@ public sealed class UsersService : IUsersService
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
+        EnsureNotSuperAdmin(user);
 
         if (rol == UserRole.SuperAdmin)
         {
@@ -86,6 +87,7 @@ public sealed class UsersService : IUsersService
         if (rol is not null)
         {
             user.Rol = rol.Value;
+            user.SecurityStamp = Guid.NewGuid().ToString("N");
         }
 
         user.UpdatedAt = DateTime.UtcNow;
@@ -94,18 +96,21 @@ public sealed class UsersService : IUsersService
         return user;
     }
 
-    public async Task ResetPasswordAsync(Guid id)
+     public async Task ResetPasswordAsync(Guid id)
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
+        EnsureNotSuperAdmin(user);
 
+        // Limpiar el hash es lo que hace que el reset sea real: si no,
+        // la contraseña vieja sigue funcionando hasta que el usuario
+        // complete el link (que además puede no llegar nunca, hoy).
+        user.PasswordHash = null;
         user.Estado = UserStatus.Pendiente;
+        user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        // Mismo mecanismo de token que "olvidé mi contraseña" — el admin
-        // fuerza el reseteo, pero quien define la nueva contraseña sigue
-        // siendo el propio usuario, vía el link que recibe por correo.
         await _passwordResetService.RequestResetAsync(user.Correo);
     }
 
@@ -113,6 +118,7 @@ public sealed class UsersService : IUsersService
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
+        EnsureNotSuperAdmin(user);
 
         if (user.Estado == UserStatus.Pendiente)
         {
@@ -120,9 +126,18 @@ public sealed class UsersService : IUsersService
         }
 
         user.Estado = user.Estado == UserStatus.Activo ? UserStatus.Desactivado : UserStatus.Activo;
+        user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
         return user;
+    }
+
+    private static void EnsureNotSuperAdmin(User user)
+    {
+        if (user.Rol == UserRole.SuperAdmin)
+        {
+            throw new BadRequestException("No se puede modificar una cuenta SuperAdmin desde acá.");
+        }
     }
 }

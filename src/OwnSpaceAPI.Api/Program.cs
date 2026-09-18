@@ -1,7 +1,11 @@
+using System.Security.Claims;
+using OwnSpaceAPI.Api.Models.Entities;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OwnSpaceAPI.Api.Data;
@@ -26,8 +30,12 @@ builder.Services.AddControllers()
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+  throw new InvalidOperationException("Falta configurar ConnectionStrings:DefaultConnection.");
+}
+builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -65,8 +73,11 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-      var signingKey = builder.Configuration["Jwt:SigningKey"]
-          ?? throw new InvalidOperationException("Falta configurar Jwt:SigningKey.");
+      var signingKey = builder.Configuration["Jwt:SigningKey"];
+      if (string.IsNullOrWhiteSpace(signingKey) || Encoding.UTF8.GetByteCount(signingKey) < 32)
+      {
+        throw new InvalidOperationException("Jwt:SigningKey debe estar configurado con al menos 32 bytes (256 bits).");
+      }
 
       options.TokenValidationParameters = new TokenValidationParameters
       {
@@ -80,9 +91,6 @@ builder.Services
         ClockSkew = TimeSpan.Zero,
       };
 
-      // El JWT viaja en la cookie httpOnly `accessToken` (SPEC.md §9),
-      // no en el header Authorization — hay que decirle al middleware
-      // dónde buscarlo.
       options.Events = new JwtBearerEvents
       {
         OnMessageReceived = context =>
@@ -93,10 +101,52 @@ builder.Services
           }
           return Task.CompletedTask;
         },
+
+        // Esto es lo que hace que desactivar/cambiar rol/logout tengan
+        // efecto inmediato en CUALQUIER endpoint, no solo en la
+        // renovación de /auth/session: en cada request autenticado se
+        // vuelve a comparar el securityStamp del token contra el de la
+        // base. Si no coincide (o el usuario ya no está Activo), el
+        // token se rechaza aunque su firma y expiración sean válidas.
+        OnTokenValidated = async context =>
+        {
+          var userIdRaw = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+          var stamp = context.Principal?.FindFirstValue(OwnSpaceClaimTypes.SecurityStamp);
+
+          if (userIdRaw is null || stamp is null || !Guid.TryParse(userIdRaw, out var userId))
+          {
+            context.Fail("Token inválido.");
+            return;
+          }
+
+          var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+          var current = await db.Users.AsNoTracking()
+              .Where(u => u.Id == userId)
+              .Select(u => new { u.Estado, u.SecurityStamp })
+              .FirstOrDefaultAsync();
+
+          if (current is null || current.Estado != UserStatus.Activo || current.SecurityStamp != stamp)
+          {
+            context.Fail("Sesión inválida o revocada.");
+          }
+        },
       };
     });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddRateLimiter(options =>
+{
+  options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+  options.AddPolicy("auth", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+      partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+      factory: _ => new FixedWindowRateLimiterOptions
+      {
+        PermitLimit = 10,
+        Window = TimeSpan.FromMinutes(1),
+        QueueLimit = 0,
+      }));
+});
 
 var app = builder.Build();
 
@@ -113,10 +163,13 @@ if (app.Environment.IsDevelopment())
   using var scope = app.Services.CreateScope();
   var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
   await SeedData.SeedAsync(db);
+  var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHashingService>();
+  await SeedData.EnsureDevPasswordsAsync(db, passwordHasher);
 }
 
 app.UseHttpsRedirection();
 app.UseCors(FrontendCorsPolicy);
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

@@ -24,12 +24,55 @@ public sealed class AuthService : IAuthService
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Correo.ToLower() == correoNormalizado);
 
         if (user is null
-            || user.Estado == UserStatus.Desactivado
+            || user.Estado != UserStatus.Activo
             || user.PasswordHash is null
             || !_passwordHasher.Verify(user, user.PasswordHash, password))
         {
             throw new UnauthorizedException(CredencialesInvalidasMensaje);
         }
+
+        return user;
+    }
+
+    public async Task<User?> GetActiveUserAsync(Guid id)
+    {
+        var user = await _db.Users.FindAsync(id);
+        return user is not null && user.Estado == UserStatus.Activo ? user : null;
+    }
+
+    public async Task InvalidateSessionsAsync(Guid userId)
+    {
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null)
+        {
+            return;
+        }
+
+        user.SecurityStamp = Guid.NewGuid().ToString("N");
+        user.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<User> ChangePasswordAsync(Guid userId, string passwordActual, string passwordNueva)
+    {
+        var user = await _db.Users.FindAsync(userId)
+            ?? throw new UnauthorizedException(CredencialesInvalidasMensaje);
+
+        if (user.PasswordHash is null || !_passwordHasher.Verify(user, user.PasswordHash, passwordActual))
+        {
+            throw new UnauthorizedException("La contraseña actual es incorrecta.");
+        }
+
+        var context = new PasswordRuleContext { PasswordActual = passwordActual };
+        if (!PasswordRules.IsValid(passwordNueva, context))
+        {
+            throw new BadRequestException("La contraseña no cumple los requisitos mínimos.");
+        }
+
+        user.PasswordHash = _passwordHasher.Hash(user, passwordNueva);
+        user.SecurityStamp = Guid.NewGuid().ToString("N");
+        user.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
 
         return user;
     }

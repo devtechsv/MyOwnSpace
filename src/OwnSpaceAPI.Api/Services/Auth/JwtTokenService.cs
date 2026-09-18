@@ -6,13 +6,11 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace OwnSpaceAPI.Api.Services.Auth;
 
-// Nombres de los claims custom (no hay uno estándar para "nombre" ni para
-// el estado del usuario) — compartidos con AuthController, que los lee de
-// vuelta en GET /auth/session sin consultar la base (SPEC.md §9).
 public static class OwnSpaceClaimTypes
 {
     public const string Nombre = "nombre";
     public const string Estado = "estado";
+    public const string SecurityStamp = "security_stamp";
 }
 
 public sealed class JwtTokenService : IJwtTokenService
@@ -24,7 +22,7 @@ public sealed class JwtTokenService : IJwtTokenService
         _config = config;
     }
 
-    public string GenerateToken(Guid userId, string nombre, UserRole rol, UserStatus estado)
+    public string GenerateToken(Guid userId, string nombre, UserRole rol, UserStatus estado, string securityStamp)
     {
         var claims = new List<Claim>
         {
@@ -32,10 +30,14 @@ public sealed class JwtTokenService : IJwtTokenService
             new(OwnSpaceClaimTypes.Nombre, nombre),
             new(ClaimTypes.Role, rol.ToString()),
             new(OwnSpaceClaimTypes.Estado, estado.ToString()),
+            new(OwnSpaceClaimTypes.SecurityStamp, securityStamp),
         };
 
-        var signingKey = _config["Jwt:SigningKey"]
-            ?? throw new InvalidOperationException("Falta configurar Jwt:SigningKey.");
+        var signingKey = _config["Jwt:SigningKey"];
+        if (string.IsNullOrWhiteSpace(signingKey) || Encoding.UTF8.GetByteCount(signingKey) < 32)
+        {
+            throw new InvalidOperationException("Jwt:SigningKey debe estar configurado con al menos 32 bytes (256 bits).");
+        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

@@ -1,10 +1,41 @@
 using Microsoft.EntityFrameworkCore;
 using OwnSpaceAPI.Api.Models.Entities;
+using OwnSpaceAPI.Api.Services;
 
 namespace OwnSpaceAPI.Api.Data;
 
 public static class SeedData
 {
+    // Contraseñas fijas solo para desarrollo local — hasta que el flujo de
+    // invitación por correo (Resend) esté implementado, esta es la forma
+    // de tener usuarios sembrados con los que sí se puede iniciar sesión.
+    // Se sobreescribe en cada arranque a propósito: son cuentas de prueba
+    // conocidas, no se debe depender de qué contraseña haya quedado de
+    // una prueba manual anterior (vía /forgot-password u otra).
+    private static readonly Dictionary<string, string> DevPasswords = new()
+    {
+        ["julio.perez@devtch.com"] = "Admin123!",
+        ["ana.martinez@devtch.com"] = "Empleado123!",
+    };
+
+    public static async Task EnsureDevPasswordsAsync(AppDbContext context, IPasswordHashingService hasher)
+    {
+        foreach (var (correo, password) in DevPasswords)
+        {
+            var user = await context.Users.FirstOrDefaultAsync(u => u.Correo == correo);
+            if (user is null)
+            {
+                continue;
+            }
+
+            user.PasswordHash = hasher.Hash(user, password);
+            user.SecurityStamp = Guid.NewGuid().ToString("N");
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+
     public static async Task SeedAsync(AppDbContext context)
     {
         if (await context.Users.AnyAsync())
