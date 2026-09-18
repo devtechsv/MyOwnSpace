@@ -13,6 +13,7 @@ import {
   LoginPayload,
   Session,
   SetPasswordPayload,
+  ChangePasswordPayload
 } from '@/contracts/interfaces/auth';
 import { mockRequests, mockUsers } from './mock-data';
 
@@ -111,6 +112,12 @@ export const mockAuthAdapter = {
     user.estado = 'Activo';
     return delay(undefined);
   },
+
+  async changePassword(_payload: ChangePasswordPayload): Promise<void> {
+    // El mock no valida la contraseña actual (no la tiene guardada) —
+    // siempre resuelve, igual que forgotPassword/setPassword.
+    return delay(undefined);
+  },
 };
 
 export const mockRequestsAdapter = {
@@ -120,6 +127,13 @@ export const mockRequestsAdapter = {
 
   async listPending(): Promise<LeaveRequest[]> {
     return delay(clone(requests.filter((r) => r.estado === 'Pendiente')));
+  },
+
+  async listAll(estado?: RequestStatus): Promise<LeaveRequest[]> {
+    const filtered = estado
+      ? requests.filter((r) => r.estado === estado)
+      : requests;
+    return delay(clone(filtered));
   },
 
   async create(payload: CreateLeaveRequestPayload): Promise<LeaveRequest> {

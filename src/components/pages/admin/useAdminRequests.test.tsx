@@ -60,6 +60,27 @@ describe('useAdminRequests', () => {
     expect(r3?.reviewedBy).toBe('u1');
   });
 
+  it('con filtro "Todas", approve actualiza el estado en la lista en vez de sacarla', async () => {
+    const { result } = renderHook(() => useAdminRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setFiltro('Todas');
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const before = result.current.requests.length;
+
+    await act(async () => {
+      await result.current.approve('r3');
+    });
+
+    expect(result.current.requests).toHaveLength(before);
+    expect(result.current.requests.find((r) => r.id === 'r3')?.estado).toBe(
+      'Aprobada',
+    );
+  });
+
   it('deny saca la solicitud de la lista y la deja Denegada en el mock', async () => {
     const { result } = renderHook(() => useAdminRequests(), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));

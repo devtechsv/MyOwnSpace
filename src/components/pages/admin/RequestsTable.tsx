@@ -1,4 +1,5 @@
 import { AdminRequestRow } from './useAdminRequests';
+import { StatusBadge } from '@/components/common/StatusBadge';
 
 interface Props {
   requests: AdminRequestRow[];
@@ -35,9 +36,7 @@ export function RequestsTable({
 
   if (requests.length === 0) {
     return (
-      <p className='text-sm text-muted'>
-        No hay solicitudes pendientes por revisar.
-      </p>
+      <p className='text-sm text-muted'>No hay solicitudes para este filtro.</p>
     );
   }
 
@@ -83,49 +82,55 @@ export function RequestsTable({
             <span className='text-sm text-muted truncate pr-3' title={request.motivo}>
               {request.motivo}
             </span>
-            <div className='flex gap-2'>
-              <button
-                type='button'
-                onClick={() => onApprove(request.id)}
-                disabled={isActioning}
-                className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-semibold disabled:opacity-50'
-              >
-                <svg
-                  width='13'
-                  height='13'
-                  viewBox='0 0 24 24'
-                  fill='none'
-                  stroke='currentColor'
-                  strokeWidth='2.5'
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
+            {request.estado === 'Pendiente' ? (
+              <div className='flex gap-2'>
+                <button
+                  type='button'
+                  onClick={() => onApprove(request.id)}
+                  disabled={isActioning}
+                  className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-semibold disabled:opacity-50'
                 >
-                  <polyline points='20 6 9 17 4 12' />
-                </svg>
-                Aprobar
-              </button>
-              <button
-                type='button'
-                onClick={() => onDeny(request.id)}
-                disabled={isActioning}
-                className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500 text-red-500 text-xs font-semibold disabled:opacity-50'
-              >
-                <svg
-                  width='13'
-                  height='13'
-                  viewBox='0 0 24 24'
-                  fill='none'
-                  stroke='currentColor'
-                  strokeWidth='2.5'
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
+                  <svg
+                    width='13'
+                    height='13'
+                    viewBox='0 0 24 24'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='2.5'
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                  >
+                    <polyline points='20 6 9 17 4 12' />
+                  </svg>
+                  Aprobar
+                </button>
+                <button
+                  type='button'
+                  onClick={() => onDeny(request.id)}
+                  disabled={isActioning}
+                  className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500 text-red-500 text-xs font-semibold disabled:opacity-50'
                 >
-                  <line x1='18' y1='6' x2='6' y2='18' />
-                  <line x1='6' y1='6' x2='18' y2='18' />
-                </svg>
-                Denegar
-              </button>
-            </div>
+                  <svg
+                    width='13'
+                    height='13'
+                    viewBox='0 0 24 24'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='2.5'
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                  >
+                    <line x1='18' y1='6' x2='6' y2='18' />
+                    <line x1='6' y1='6' x2='18' y2='18' />
+                  </svg>
+                  Denegar
+                </button>
+              </div>
+            ) : (
+              <span>
+                <StatusBadge status={request.estado} />
+              </span>
+            )}
           </div>
         );
       })}

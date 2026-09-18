@@ -75,7 +75,7 @@ describe('Topbar', () => {
     );
 
     expect(
-      screen.getByText('¿Restablecer tu propia contraseña?'),
+      screen.getByText('Cambiar tu contraseña'),
     ).toBeInTheDocument();
   });
 

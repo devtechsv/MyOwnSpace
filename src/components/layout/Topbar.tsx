@@ -1,15 +1,13 @@
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/router';
+import { useLogout } from '@/hooks/useLogout';
 import { useSession } from '@/hooks/useSession';
 import { getInitials } from '@/helpers/get-initials';
 import { ThemeToggle } from './ThemeToggle';
-import { ResetPasswordConfirmModal } from '@/components/common/ResetPasswordConfirmModal';
-import API from '@/services/api-services';
+import { ChangePasswordModal } from '@/components/common/ChangePasswordModal';
 
 export function Topbar() {
   const session = useSession();
-  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -25,10 +23,7 @@ export function Topbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
 
-  const handleLogout = async () => {
-    await API.auth.logout();
-    await router.push('/login');
-  };
+  const handleLogout = useLogout();
 
   return (
     <header className='h-[72px] shrink-0 flex items-center justify-between px-8 bg-surface border-b border-border'>
@@ -99,12 +94,9 @@ export function Topbar() {
               </div>
             )}
 
-            <ResetPasswordConfirmModal
+            <ChangePasswordModal
               isOpen={isChangePasswordOpen}
               onClose={() => setIsChangePasswordOpen(false)}
-              userId={session.userId}
-              userName={session.nombre}
-              isSelf
             />
           </>
         )}

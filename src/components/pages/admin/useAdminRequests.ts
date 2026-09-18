@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '@/hooks/useSession';
 import API from '@/services/api-services';
-import { LeaveRequest } from '@/contracts/interfaces/request';
+import { LeaveRequest, RequestStatus } from '@/contracts/interfaces/request';
 import { getInitials } from '@/helpers/get-initials';
 
 export interface AdminRequestRow extends LeaveRequest {
@@ -9,8 +9,11 @@ export interface AdminRequestRow extends LeaveRequest {
   employeeInitials: string;
 }
 
+export type AdminRequestsFilter = 'Pendiente' | RequestStatus | 'Todas';
+
 export function useAdminRequests() {
   const session = useSession();
+  const [filtro, setFiltro] = useState<AdminRequestsFilter>('Pendiente');
   const [requests, setRequests] = useState<AdminRequestRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,12 +23,14 @@ export function useAdminRequests() {
     setIsLoading(true);
     setError(null);
     try {
-      const [pending, users] = await Promise.all([
-        API.requests.listPending(),
+      const [items, users] = await Promise.all([
+        filtro === 'Pendiente'
+          ? API.requests.listPending()
+          : API.requests.listAll(filtro === 'Todas' ? undefined : filtro),
         API.users.list(),
       ]);
       const userById = new Map(users.map((u) => [u.id, u]));
-      const enriched = pending.map((request) => {
+      const enriched = items.map((request) => {
         const user = userById.get(request.employeeId);
         const nombre = user?.nombre ?? 'Empleado';
         return {
@@ -40,26 +45,41 @@ export function useAdminRequests() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [filtro]);
 
   useEffect(() => {
+    // load() dispara setState propio (loading/error/data) — patrón de
+    // fetch-en-efecto estándar de este proyecto, sin librería de
+    // data-fetching. La regla no distingue setState sync de async.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
+
+  const applyReviewResult = useCallback(
+    (updated: LeaveRequest) => {
+      setRequests((current) =>
+        filtro === 'Pendiente'
+          ? current.filter((r) => r.id !== updated.id)
+          : current.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)),
+      );
+    },
+    [filtro],
+  );
 
   const approve = useCallback(
     async (id: string) => {
       if (!session) return;
       setActioningId(id);
       try {
-        await API.requests.approve(id, session.userId);
-        setRequests((current) => current.filter((r) => r.id !== id));
+        const updated = await API.requests.approve(id, session.userId);
+        applyReviewResult(updated);
       } catch {
         setError('No pudimos aprobar la solicitud. Intentá de nuevo.');
       } finally {
         setActioningId(null);
       }
     },
-    [session],
+    [session, applyReviewResult],
   );
 
   const deny = useCallback(
@@ -67,15 +87,15 @@ export function useAdminRequests() {
       if (!session) return;
       setActioningId(id);
       try {
-        await API.requests.deny(id, session.userId);
-        setRequests((current) => current.filter((r) => r.id !== id));
+        const updated = await API.requests.deny(id, session.userId);
+        applyReviewResult(updated);
       } catch {
         setError('No pudimos denegar la solicitud. Intentá de nuevo.');
       } finally {
         setActioningId(null);
       }
     },
-    [session],
+    [session, applyReviewResult],
   );
 
   return {
@@ -86,5 +106,7 @@ export function useAdminRequests() {
     approve,
     deny,
     reload: load,
+    filtro,
+    setFiltro,
   };
 }

@@ -1,8 +1,9 @@
 import { mockRequestsAdapter } from '@/services/mocks/mock-adapter';
 import { httpRequestsAdapter } from './requests.http-adapter';
-import { CreateLeaveRequestPayload, LeaveRequest } from '@/contracts/interfaces/request';
+import { CreateLeaveRequestPayload, LeaveRequest, RequestStatus } from '@/contracts/interfaces/request';
+import { USE_REAL_API } from '@/services/use-real-api';
 
-const adapter = process.env.NEXT_PUBLIC_USE_REAL_API === 'true' ? httpRequestsAdapter : mockRequestsAdapter;
+const adapter = USE_REAL_API ? httpRequestsAdapter : mockRequestsAdapter;
 
 async function listByEmployee(employeeId: string): Promise<LeaveRequest[]> {
   return adapter.listByEmployee(employeeId);
@@ -10,6 +11,10 @@ async function listByEmployee(employeeId: string): Promise<LeaveRequest[]> {
 
 async function listPending(): Promise<LeaveRequest[]> {
   return adapter.listPending();
+}
+
+async function listAll(estado?: RequestStatus): Promise<LeaveRequest[]> {
+  return adapter.listAll(estado);
 }
 
 async function create(payload: CreateLeaveRequestPayload): Promise<LeaveRequest> {
@@ -27,6 +32,7 @@ async function deny(id: string, reviewerId: string): Promise<LeaveRequest> {
 const requests = {
   listByEmployee,
   listPending,
+  listAll,
   create,
   approve,
   deny,

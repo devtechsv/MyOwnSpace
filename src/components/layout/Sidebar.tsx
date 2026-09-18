@@ -1,21 +1,16 @@
 import Link from 'next/link';
+import { useLogout } from '@/hooks/useLogout';
 import { useRouter } from 'next/router';
 import { cx } from '@/helpers/cx';
 import { useSession } from '@/hooks/useSession';
 import { Button } from '@/components/common/Button';
-import API from '@/services/api-services';
 
 interface Props {
   onCreateRequest?: () => void;
 }
 
 function LogoutButton() {
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await API.auth.logout();
-    await router.push('/login');
-  };
+  const handleLogout = useLogout();
 
   return (
     <button

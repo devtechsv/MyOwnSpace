@@ -20,6 +20,14 @@ describe('requests.api', () => {
     expect(result.every((r) => r.estado === 'Pendiente')).toBe(true);
   });
 
+  it('listAll delega al mock y respeta el filtro de estado', async () => {
+    const todas = await requestsApi.listAll();
+    expect(todas.length).toBeGreaterThan(0);
+
+    const aprobadas = await requestsApi.listAll('Aprobada');
+    expect(aprobadas.every((r) => r.estado === 'Aprobada')).toBe(true);
+  });
+
   it('create agrega una solicitud en estado Pendiente', async () => {
     const created = await requestsApi.create({
       employeeId: 'u4',

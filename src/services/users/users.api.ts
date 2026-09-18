@@ -1,14 +1,14 @@
 import { mockUsersAdapter } from '@/services/mocks/mock-adapter';
 import { httpUsersAdapter } from './users.http-adapter';
 import { CreateUserPayload, UpdateUserPayload, User } from '@/contracts/interfaces/user';
+import { USE_REAL_API } from '@/services/use-real-api';
 
 // Coexistencia mock/real (ver SPEC.md del backend, "Migración del
 // frontend"): mientras no se reemplaza el mock por completo, se elige
 // acá según esta variable — el resto de la app nunca sabe cuál de los
 // dos está respondiendo. Prender NEXT_PUBLIC_USE_REAL_API=true en
 // .env.local para probar contra OwnSpaceAPI real corriendo en local.
-const adapter =
-  process.env.NEXT_PUBLIC_USE_REAL_API === 'true' ? httpUsersAdapter : mockUsersAdapter;
+const adapter = USE_REAL_API ? httpUsersAdapter : mockUsersAdapter;
 
 async function list(): Promise<User[]> {
   return adapter.list();

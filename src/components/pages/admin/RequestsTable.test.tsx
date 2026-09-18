@@ -32,7 +32,7 @@ describe('RequestsTable (admin)', () => {
     expect(screen.getByText(/cargando solicitudes/i)).toBeInTheDocument();
   });
 
-  it('muestra un mensaje cuando no hay solicitudes pendientes', () => {
+  it('muestra un mensaje cuando no hay solicitudes para el filtro actual', () => {
     render(
       <RequestsTable
         requests={[]}
@@ -44,7 +44,7 @@ describe('RequestsTable (admin)', () => {
       />,
     );
     expect(
-      screen.getByText(/no hay solicitudes pendientes/i),
+      screen.getByText(/no hay solicitudes para este filtro/i),
     ).toBeInTheDocument();
   });
 
@@ -88,6 +88,28 @@ describe('RequestsTable (admin)', () => {
 
     expect(onApprove).toHaveBeenCalledWith('r6');
     expect(onDeny).toHaveBeenCalledWith('r6');
+  });
+
+  it('muestra el StatusBadge en vez de Aprobar/Denegar cuando ya no está Pendiente', () => {
+    const revisada: AdminRequestRow = { ...sample[0], estado: 'Aprobada' };
+    render(
+      <RequestsTable
+        requests={[revisada]}
+        isLoading={false}
+        error={null}
+        actioningId={null}
+        onApprove={jest.fn()}
+        onDeny={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Aprobada')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /aprobar/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /denegar/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('deshabilita los botones de la fila en acción', () => {

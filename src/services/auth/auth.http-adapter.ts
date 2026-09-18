@@ -1,11 +1,14 @@
 import { ServerResponse } from 'http';
 import apiClient from '@/services/api-client';
 import {
+  ChangePasswordPayload,
   ForgotPasswordPayload,
   LoginPayload,
   Session,
   SetPasswordPayload,
 } from '@/contracts/interfaces/auth';
+
+
 import { SESSION_COOKIE } from './session-cookie';
 
 export type SessionCheckResult =
@@ -53,5 +56,8 @@ export const httpAuthAdapter = {
     } catch {
       return { status: 'expired' };
     }
+  },
+    async changePassword(payload: ChangePasswordPayload): Promise<void> {
+    await apiClient.post('/auth/change-password', payload);
   },
 };

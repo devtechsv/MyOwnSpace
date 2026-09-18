@@ -2,6 +2,7 @@ import apiClient from '@/services/api-client';
 import {
   CreateLeaveRequestPayload,
   LeaveRequest,
+  RequestStatus,
 } from '@/contracts/interfaces/request';
 
 export const httpRequestsAdapter = {
@@ -14,6 +15,13 @@ export const httpRequestsAdapter = {
 
   async listPending(): Promise<LeaveRequest[]> {
     const { data } = await apiClient.get<LeaveRequest[]>('/requests/pending');
+    return data;
+  },
+
+  async listAll(estado?: RequestStatus): Promise<LeaveRequest[]> {
+    const { data } = await apiClient.get<LeaveRequest[]>('/requests', {
+      params: estado ? { estado } : undefined,
+    });
     return data;
   },
 

@@ -24,6 +24,10 @@ export function useTheme() {
 
   useEffect(() => {
     const initial = readStoredTheme() ?? readSystemTheme();
+    // localStorage/matchMedia solo existen en el cliente: no se puede
+    // leer el tema real durante el render en el servidor, así que este
+    // setState inicial en el efecto es intencional, no un anti-patrón.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(initial);
     applyTheme(initial);
   }, []);

@@ -3,12 +3,22 @@ import { GetServerSideProps, NextPage } from 'next';
 import { AppShell } from '@/components/layout/AppShell';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { RequestsTable } from '@/components/pages/admin/RequestsTable';
-import { useAdminRequests } from '@/components/pages/admin/useAdminRequests';
+import {
+  AdminRequestsFilter,
+  useAdminRequests,
+} from '@/components/pages/admin/useAdminRequests';
 
 interface Props {}
 
+const TABS: { key: AdminRequestsFilter; label: string }[] = [
+  { key: 'Pendiente', label: 'Pendientes' },
+  { key: 'Aprobada', label: 'Aprobadas' },
+  { key: 'Denegada', label: 'Denegadas' },
+  { key: 'Todas', label: 'Todas' },
+];
+
 const AdminRequestsPage: NextPage<Props> = () => {
-  const { requests, isLoading, error, actioningId, approve, deny } =
+  const { requests, isLoading, error, actioningId, approve, deny, filtro, setFiltro } =
     useAdminRequests();
 
   return (
@@ -23,18 +33,24 @@ const AdminRequestsPage: NextPage<Props> = () => {
       </div>
 
       <div className='flex gap-2 mb-5'>
-        <span className='px-4 py-2 rounded-full bg-turquoise-blue-500 text-white text-sm font-semibold'>
-          Pendientes{isLoading ? '' : ` · ${requests.length}`}
-        </span>
-        <span className='px-4 py-2 rounded-full border border-border text-muted text-sm font-medium'>
-          Aprobadas
-        </span>
-        <span className='px-4 py-2 rounded-full border border-border text-muted text-sm font-medium'>
-          Denegadas
-        </span>
-        <span className='px-4 py-2 rounded-full border border-border text-muted text-sm font-medium'>
-          Todas
-        </span>
+        {TABS.map((tab) => {
+          const isActive = filtro === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type='button'
+              onClick={() => setFiltro(tab.key)}
+              className={
+                isActive
+                  ? 'px-4 py-2 rounded-full bg-turquoise-blue-500 text-white text-sm font-semibold'
+                  : 'px-4 py-2 rounded-full border border-border text-muted text-sm font-medium'
+              }
+            >
+              {tab.label}
+              {isActive && !isLoading ? ` · ${requests.length}` : ''}
+            </button>
+          );
+        })}
       </div>
 
       <RequestsTable

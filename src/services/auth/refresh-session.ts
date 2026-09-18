@@ -8,10 +8,9 @@ import {
   SESSION_COOKIE,
 } from './session-cookie';
 import { httpAuthAdapter, SessionCheckResult } from './auth.http-adapter';
+import { USE_REAL_API } from '@/services/use-real-api';
 
 export type { SessionCheckResult };
-
-const USE_REAL_API = process.env.NEXT_PUBLIC_USE_REAL_API === 'true';
 
 // Mientras coexisten mock y backend real: en modo mock, la sesión viaja
 // como JSON (con su propio expiresAt) en la cookie — ver

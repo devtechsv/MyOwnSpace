@@ -20,3 +20,8 @@ export interface SetPasswordPayload {
   token: string;
   nuevaPassword: string;
 }
+
+export interface ChangePasswordPayload {
+  passwordActual: string;
+  passwordNueva: string;
+}

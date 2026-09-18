@@ -24,6 +24,10 @@ export function useEmployeeRequests() {
   }, [session]);
 
   useEffect(() => {
+    // load() dispara setState propio (loading/error/data) — patrón de
+    // fetch-en-efecto estándar de este proyecto, sin librería de
+    // data-fetching. La regla no distingue setState sync de async.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 

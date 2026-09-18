@@ -719,3 +719,38 @@ No es una tarea del plan original — el plan de 22 tareas ya estaba cerrado. Es
 3. **Certificado de desarrollo HTTPS autofirmado, dos mecanismos de confianza separados:** el navegador lo confía con `dotnet dev-certs https --trust`, pero el proceso de Node.js de Next.js (llamadas server-side en `getServerSideProps`) tiene su propio almacén de confianza TLS y lo rechazaba igual. Resuelto en `next.config.js` (`NODE_TLS_REJECT_UNAUTHORIZED=0`, condicionado a `NODE_ENV === 'development'` — nunca afecta producción ni se empaqueta para el navegador).
 
 **Verificación:** `npm run typecheck`, `npm run lint`, `npm test` (174/174) y `npm run build` limpios después de cada corrección. Flujo real probado de punta a punta con los dos servidores corriendo (backend HTTPS real contra SQL Server, frontend con `NEXT_PUBLIC_USE_REAL_API=true`): login, navegación autenticada, logout, y re-visita a páginas públicas ya logueado — todo verificado con `curl` simulando exactamente la secuencia del navegador antes de confirmarlo en un navegador real.
+
+---
+
+## Post-cierre: Migración Next.js 13 → 16 (2026-09-17)
+
+Rama `chore/nextjs-16-migration`, creada desde `feature/frontend-fases-0-3` (no desde `Develop` — `Develop` todavía no tenía mergeados ni el PR de frontend ni el de backend al momento de esta migración). Motivada por las vulnerabilidades de `npm audit` en Next 13.5.11, pospuestas desde el inicio del proyecto.
+
+**Alcance real vs. temido:** el proyecto usa exclusivamente Pages Router (nada de `app/`), así que casi todos los breaking changes de v14/v15/v16 (Async Request APIs, `cacheComponents`, Partial Prerendering, parallel routes, `revalidateTag`/`updateTag`) no aplicaron — son exclusivos de App Router. Tampoco hay `middleware.ts`, `next/image`, ni `serverRuntimeConfig`/`publicRuntimeConfig`.
+
+**Dependencias actualizadas:** `next` 13.5.11 → 16.3.5, `react`/`react-dom` 18 → 19.3.0, `eslint` 8 → 9.39.5 (no 10.x — sus propios plugins internos, como `eslint-plugin-react`, todavía no soportan ESLint 10), `eslint-config-next` 13.5.4 → 16.3.5, `react-hook-form` 7.47.0 → 7.88.0 y `@hookform/resolvers` 3.3.2 → 5.9.1 (ambos sin soporte formal de React 19 en las versiones viejas), `zod` 3.22.4 → 3.25.76 (solo hasta la última 3.x estable — subir a zod v4 sería una migración aparte, sin relación con Next.js).
+
+**Cambios de configuración:**
+- `.eslintrc.json` (legacy) reemplazado por `eslint.config.mjs` (flat config, default en ESLint 10 y recomendado desde v16) — mismo contenido efectivo (`eslint-config-next/core-web-vitals`).
+- `package.json`: script `lint` de `next lint` (removido en v16) a `eslint .`.
+- `tsconfig.json`: `next build` cambió automáticamente `jsx: "preserve"` → `"react-jsx"` (obligatorio, React 19 usa el runtime automático de JSX) — cambio hecho por la propia herramienta, no manual.
+- `next.config.js`: sin cambios — no tenía `webpack` ni `eslint` custom, así que no chocó con el nuevo build-fail-if-webpack-config de Turbopack (default en v16).
+- `.gitignore`: se agregó `/AGENTS.md` y `/CLAUDE.md` — Next.js 16 los autogenera en cada `next dev` (instrucciones para agentes de IA apuntando a la doc empaquetada de la versión instalada); se decidió no versionarlos.
+
+**Regla de lint nueva sin fix chico posible — `react-hooks/set-state-in-effect`:** viene con la versión actualizada de `eslint-plugin-react-hooks` en `eslint-config-next@16`. Marca cualquier función llamada desde un `useEffect` que en algún punto de su cuerpo dispare un `setState` — sin distinguir si es antes o después de un `await` (se verificó empíricamente: reestructurar para que el `setState` ocurra después del primer `await` no lo saca del error). La recomendación oficial del equipo de React para este patrón (fetch-en-efecto) es migrar a una librería de data-fetching (TanStack Query) o a Suspense — cambio arquitectónico grande, fuera de alcance para una migración de versión. Hay incluso un issue abierto en `facebook/react` señalando la regla como potencialmente demasiado estricta para este caso. Se optó por suprimirla puntualmente con `eslint-disable-next-line` + comentario explicando el motivo en los 4 sitios afectados: `useAdminRequests.ts`, `useAdminUsers.ts`, `useEmployeeRequests.ts` (fetch inicial) y `useTheme.ts` (lectura de `localStorage`/`matchMedia`, que solo existen en el cliente — ahí el efecto es imprescindible, no hay nada que reestructurar). Queda pendiente como posible refactor futuro si el proyecto adopta una librería de data-fetching.
+
+**Verificación:** `npm run typecheck`, `npm run lint` (0 errores, 1 warning informativo del React Compiler sobre `react-hook-form`), `npm test` (174/174, sin tocar ningún test) y `npm run build` (Turbopack, default en v16) limpios. Verificado con `curl` contra `npm run dev`: rutas protegidas y `/` siguen redirigiendo a `/login` sin sesión (lógica de `with-auth.tsx` intacta), y el CSS de Tailwind se sirve bien bajo Turbopack. QA manual en navegador real con backend real y las cuentas de dev (`julio.perez@devtch.com` / `ana.martinez@devtch.com`, ver sección de contraseñas de dev más abajo): login, logout, redirects por rol y tooltip de Motivo, todo verificado sin problemas.
+
+**Hallazgo durante el QA manual, sin relación con la migración — pendiente aparte:** en `/admin/requests`, los tabs "Aprobadas", "Denegadas" y "Todas" (`src/pages/admin/requests.tsx`) son `<span>` estáticos sin `onClick` ni estado — nunca se cablearon a nada, solo "Pendientes" funciona de verdad (vía `useAdminRequests` → `GET /requests/pending`). El backend tampoco tiene la funcionalidad: `RequestsController` solo expone `GET /requests/mine` y `GET /requests/pending` — no existe ningún endpoint para listar aprobadas, denegadas, ni todas. Es un gap real de feature (frontend y backend), preexistente al build original, no algo que haya introducido la migración a Next 16. Falta decidir cuándo se aborda como tarea nueva.
+
+---
+
+## Post-cierre: Contraseñas de desarrollo para las cuentas sembradas (2026-09-17)
+
+Los usuarios de `SeedData.cs` (backend) nunca tuvieron `PasswordHash` asignado — se sembraron pensados para completarse vía el flujo real de invitación por correo (`/forgot-password` → `PasswordResetToken` → `/set-password`), que a su vez depende de un `IEmailSender` real (pendiente: integración con Resend). Mientras tanto, para poder probar en navegador sin tener que revisar la consola del backend cada vez, se agregó `SeedData.EnsureDevPasswordsAsync` (llamado desde `Program.cs`, solo en `Development`, después de `SeedData.SeedAsync`): fuerza un hash conocido para dos cuentas específicas en cada arranque, usando el mismo `IPasswordHashingService`/`PasswordHasher<User>` que usa el login real.
+
+**Cuentas de dev (se sobreescriben en cada `dotnet run`, no depender de la contraseña que haya quedado de una prueba manual anterior):**
+- Admin: `julio.perez@devtch.com` / `Admin123!`
+- Empleado: `ana.martinez@devtch.com` / `Empleado123!`
+
+Diseñado para eliminarse sin fricción una vez que el flujo de invitación por correo esté funcionando de verdad (Resend) — es un parche de conveniencia para desarrollo local, no parte del diseño final de altas de usuario.

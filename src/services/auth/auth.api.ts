@@ -4,6 +4,7 @@ import {
   LoginPayload,
   Session,
   SetPasswordPayload,
+  ChangePasswordPayload
 } from '@/contracts/interfaces/auth';
 import { mockAuthAdapter } from '@/services/mocks/mock-adapter';
 import { httpAuthAdapter } from './auth.http-adapter';
@@ -13,10 +14,9 @@ import {
   encodeSession,
   SESSION_COOKIE,
 } from './session-cookie';
+import { USE_REAL_API } from '@/services/use-real-api';
 
 export { SESSION_COOKIE };
-
-const USE_REAL_API = process.env.NEXT_PUBLIC_USE_REAL_API === 'true';
 
 async function login(payload: LoginPayload): Promise<Session> {
   if (USE_REAL_API){
@@ -55,12 +55,18 @@ async function setPassword(payload: SetPasswordPayload): Promise<void> {
   return adapter.setPassword(payload);
 }
 
+async function changePassword(payload: ChangePasswordPayload): Promise<void> {
+  const adapter = USE_REAL_API ? httpAuthAdapter : mockAuthAdapter;
+  return adapter.changePassword(payload);
+}
+
 const auth = {
   refreshSession,
   login,
   logout,
   forgotPassword,
   setPassword,
+  changePassword
 };
 
 export default auth;
