@@ -818,3 +818,15 @@ Los 6 modales del proyecto (`ChangePasswordModal`, `ResetPasswordConfirmModal`, 
 - **`NODE_TLS_REJECT_UNAUTHORIZED` en `next.config.js`** (desactiva TLS para todo el proceso de Node en dev, no solo la llamada al backend): evaluado y dejado como está a propósito. El fix "correcto" (acotarlo con un `https.Agent` en `api-client.ts`) requiere un `require('https')` condicional en un archivo compartido entre servidor y navegador — el mismo tipo de cambio que ya causó un incidente real en este proyecto (ver [[feedback-myownspace-workflow]] o la sesión donde se estableció la regla de no importar módulos de Node en `api-client.ts`). Dado que hoy es la única llamada HTTP del lado servidor en todo el proyecto, ya está acotado a `NODE_ENV=development`, y nunca toca producción, el riesgo de tocarlo no se justifica frente al beneficio. Decisión del usuario.
 
 **Verificación:** `npm run typecheck`, `npm run lint` (0 errores) y `npm test` (183/183) limpios.
+
+---
+
+## Feature nueva: motivo obligatorio al denegar una solicitud (2026-09-21)
+
+Pedido directo del usuario: cuando un admin deniega una solicitud, tiene que poder (y estar obligado a) escribir por qué — y el empleado dueño de la solicitud tiene que poder verlo.
+
+**Backend:** columna nueva `LeaveRequest.MotivoRechazo` (nullable, `nvarchar(1000)`, migración `AddMotivoRechazoToLeaveRequest`). `POST /requests/{id}/deny` ahora recibe `{ motivo }` en el body (`DenyRequestRequest`, `[Required]` — rechaza vacío/solo-espacios en la validación de modelo automática de `[ApiController]`, sin duplicar el chequeo a mano en el servicio). `RequestsService.ReviewAsync` (compartido entre aprobar/denegar) ahora recibe un `motivoRechazo` nullable, lo persiste, y lo incluye en el correo de notificación al empleado cuando corresponde. `LeaveRequestResponse` expone `MotivoRechazo`.
+
+**Frontend:** nuevo `DenyRequestModal.tsx` (adopta `useModalAlly`, el hook compartido de accesibilidad que armamos en el punto anterior) con un textarea obligatorio — el botón de confirmar queda deshabilitado hasta que haya texto. El botón "Denegar" de la tabla de admin ahora abre este modal en vez de denegar directo. `StatusBadge` ganó una prop `title` opcional; tanto la tabla de admin como la del empleado muestran el motivo como tooltip nativo sobre el badge "Denegada" (mismo patrón que ya usa la columna Motivo).
+
+**Verificación:** backend `dotnet test` (68/68) y frontend `npm run typecheck`/`npm run lint` (0 errores)/`npm test` (191/191 — incluye tests nuevos para el modal: abre con "Denegar", confirmar con motivo llama a `onDeny(id, motivo)`, y no deja confirmar sin motivo). Migración generada y aplicada a la base local.

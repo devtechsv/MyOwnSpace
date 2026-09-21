@@ -46,8 +46,9 @@ describe('requests.api', () => {
     expect(approved.estado).toBe('Aprobada');
     expect(approved.reviewedBy).toBe('u1');
 
-    const denied = await requestsApi.deny('r5', 'u2');
+    const denied = await requestsApi.deny('r5', 'u2', 'No hay cobertura ese día.');
     expect(denied.estado).toBe('Denegada');
     expect(denied.reviewedBy).toBe('u2');
+    expect(denied.motivoRechazo).toBe('No hay cobertura ese día.');
   });
 });

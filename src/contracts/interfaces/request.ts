@@ -19,6 +19,7 @@ export interface LeaveRequest {
   createdAt: string; // ISO 8601
   reviewedBy?: User['id'];
   reviewedAt?: string; // ISO 8601
+  motivoRechazo?: string;
 }
 
 export interface CreateLeaveRequestPayload {

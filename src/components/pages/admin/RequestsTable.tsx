@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { AdminRequestRow } from './useAdminRequests';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { DenyRequestModal } from './DenyRequestModal';
 
 interface Props {
   requests: AdminRequestRow[];
@@ -7,7 +9,7 @@ interface Props {
   error: string | null;
   actioningId: string | null;
   onApprove: (id: string) => void;
-  onDeny: (id: string) => void;
+  onDeny: (id: string, motivo: string) => void;
 }
 
 function formatFecha(iso: string): string {
@@ -26,6 +28,8 @@ export function RequestsTable({
   onApprove,
   onDeny,
 }: Props) {
+  const [denyingRequest, setDenyingRequest] = useState<AdminRequestRow | null>(null);
+
   if (isLoading) {
     return <p className='text-sm text-muted'>Cargando solicitudes…</p>;
   }
@@ -106,7 +110,7 @@ export function RequestsTable({
                 </button>
                 <button
                   type='button'
-                  onClick={() => onDeny(request.id)}
+                  onClick={() => setDenyingRequest(request)}
                   disabled={isActioning}
                   className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500 text-red-500 text-xs font-semibold disabled:opacity-50'
                 >
@@ -128,12 +132,24 @@ export function RequestsTable({
               </div>
             ) : (
               <span>
-                <StatusBadge status={request.estado} />
+                <StatusBadge
+                  status={request.estado}
+                  title={request.estado === 'Denegada' ? request.motivoRechazo : undefined}
+                />
               </span>
             )}
           </div>
         );
       })}
+
+      <DenyRequestModal
+        request={denyingRequest}
+        onClose={() => setDenyingRequest(null)}
+        onConfirm={(motivo) => {
+          if (denyingRequest) onDeny(denyingRequest.id, motivo);
+          setDenyingRequest(null);
+        }}
+      />
     </div>
   );
 }

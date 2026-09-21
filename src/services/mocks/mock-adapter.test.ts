@@ -136,11 +136,12 @@ describe('mockRequestsAdapter', () => {
     expect(result.reviewedAt).toBeTruthy();
   });
 
-  it('deny cambia el estado a Denegada y registra quién revisó', async () => {
-    const result = await mockRequestsAdapter.deny('r5', 'u2');
+  it('deny cambia el estado a Denegada, registra quién revisó y guarda el motivo', async () => {
+    const result = await mockRequestsAdapter.deny('r5', 'u2', 'No hay cobertura ese día.');
 
     expect(result.estado).toBe('Denegada');
     expect(result.reviewedBy).toBe('u2');
+    expect(result.motivoRechazo).toBe('No hay cobertura ese día.');
   });
 
   it('approve rechaza si la solicitud no existe', async () => {

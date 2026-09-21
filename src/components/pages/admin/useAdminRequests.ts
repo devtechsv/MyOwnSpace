@@ -83,11 +83,11 @@ export function useAdminRequests() {
   );
 
   const deny = useCallback(
-    async (id: string) => {
+    async (id: string, motivo: string) => {
       if (!session) return;
       setActioningId(id);
       try {
-        const updated = await API.requests.deny(id, session.userId);
+        const updated = await API.requests.deny(id, session.userId, motivo);
         applyReviewResult(updated);
       } catch {
         setError('No pudimos denegar la solicitud. Intentá de nuevo.');

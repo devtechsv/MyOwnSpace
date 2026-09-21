@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { RequestsTable } from './RequestsTable';
 import { AdminRequestRow } from './useAdminRequests';
 
@@ -69,9 +69,8 @@ describe('RequestsTable (admin)', () => {
     expect(screen.getByRole('button', { name: /denegar/i })).toBeInTheDocument();
   });
 
-  it('"Aprobar" y "Denegar" llaman a los callbacks con el id correcto', () => {
+  it('"Aprobar" llama al callback con el id correcto', () => {
     const onApprove = jest.fn();
-    const onDeny = jest.fn();
     render(
       <RequestsTable
         requests={sample}
@@ -79,15 +78,57 @@ describe('RequestsTable (admin)', () => {
         error={null}
         actioningId={null}
         onApprove={onApprove}
-        onDeny={onDeny}
+        onDeny={jest.fn()}
       />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: /aprobar/i }));
-    fireEvent.click(screen.getByRole('button', { name: /denegar/i }));
 
     expect(onApprove).toHaveBeenCalledWith('r6');
-    expect(onDeny).toHaveBeenCalledWith('r6');
+  });
+
+  it('"Denegar" abre el modal, y confirmar con un motivo llama a onDeny con el id y el motivo', () => {
+    const onDeny = jest.fn();
+    render(
+      <RequestsTable
+        requests={sample}
+        isLoading={false}
+        error={null}
+        actioningId={null}
+        onApprove={jest.fn()}
+        onDeny={onDeny}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /denegar/i }));
+
+    const dialog = screen.getByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText(/motivo del rechazo/i), {
+      target: { value: 'No hay cobertura ese día.' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: /denegar/i }));
+
+    expect(onDeny).toHaveBeenCalledWith('r6', 'No hay cobertura ese día.');
+  });
+
+  it('el modal de denegar no deja confirmar sin escribir un motivo', () => {
+    render(
+      <RequestsTable
+        requests={sample}
+        isLoading={false}
+        error={null}
+        actioningId={null}
+        onApprove={jest.fn()}
+        onDeny={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /denegar/i }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByRole('button', { name: /denegar/i }),
+    ).toBeDisabled();
   });
 
   it('muestra el StatusBadge en vez de Aprobar/Denegar cuando ya no está Pendiente', () => {

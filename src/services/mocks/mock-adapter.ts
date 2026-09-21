@@ -73,6 +73,7 @@ async function setRequestEstado(
   id: string,
   estado: RequestStatus,
   reviewerId: string,
+  motivoRechazo?: string,
 ): Promise<LeaveRequest> {
   const target = findRequestOrThrow(id);
   if (target.estado !== 'Pendiente') {
@@ -83,6 +84,9 @@ async function setRequestEstado(
   target.estado = estado;
   target.reviewedBy = reviewerId;
   target.reviewedAt = new Date().toISOString();
+  if (motivoRechazo !== undefined) {
+    target.motivoRechazo = motivoRechazo;
+  }
   return delay(clone(target));
 }
 
@@ -172,8 +176,8 @@ export const mockRequestsAdapter = {
     return setRequestEstado(id, 'Aprobada', reviewerId);
   },
 
-  async deny(id: string, reviewerId: string): Promise<LeaveRequest> {
-    return setRequestEstado(id, 'Denegada', reviewerId);
+  async deny(id: string, reviewerId: string, motivo: string): Promise<LeaveRequest> {
+    return setRequestEstado(id, 'Denegada', reviewerId, motivo);
   },
 };
 

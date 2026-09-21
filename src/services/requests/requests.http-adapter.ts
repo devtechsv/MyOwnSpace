@@ -38,8 +38,8 @@ export const httpRequestsAdapter = {
     return data;
   },
 
-  async deny(id: string, _reviewerId: string): Promise<LeaveRequest> {
-    const { data } = await apiClient.post<LeaveRequest>(`/requests/${id}/deny`);
+async deny(id: string, _reviewerId: string, motivo: string): Promise<LeaveRequest> {
+    const { data } = await apiClient.post<LeaveRequest>(`/requests/${id}/deny`, { motivo });
     return data;
   },
 };

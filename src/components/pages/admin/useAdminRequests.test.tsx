@@ -81,12 +81,12 @@ describe('useAdminRequests', () => {
     );
   });
 
-  it('deny saca la solicitud de la lista y la deja Denegada en el mock', async () => {
+  it('deny saca la solicitud de la lista y la deja Denegada con el motivo en el mock', async () => {
     const { result } = renderHook(() => useAdminRequests(), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
-      await result.current.deny('r5');
+      await result.current.deny('r5', 'No hay cobertura ese día.');
     });
 
     expect(result.current.requests.find((r) => r.id === 'r5')).toBeUndefined();
@@ -95,5 +95,6 @@ describe('useAdminRequests', () => {
     const r5 = propias.find((r) => r.id === 'r5');
     expect(r5?.estado).toBe('Denegada');
     expect(r5?.reviewedBy).toBe('u1');
+    expect(r5?.motivoRechazo).toBe('No hay cobertura ese día.');
   });
 });

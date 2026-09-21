@@ -64,7 +64,9 @@ export function RequestsTable({ requests, isLoading, error }: Props) {
             {request.motivo}
           </span>
           <span>
-            <StatusBadge status={request.estado} />
+            <StatusBadge
+            status={request.estado}
+            title={request.estado === 'Denegada' ? request.motivoRechazo : undefined} />
           </span>
         </div>
       ))}

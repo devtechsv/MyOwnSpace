@@ -25,8 +25,8 @@ async function approve(id: string, reviewerId: string): Promise<LeaveRequest> {
   return adapter.approve(id, reviewerId);
 }
 
-async function deny(id: string, reviewerId: string): Promise<LeaveRequest> {
-  return adapter.deny(id, reviewerId);
+async function deny(id: string, reviewerId: string, motivo: string): Promise<LeaveRequest> {
+  return adapter.deny(id, reviewerId, motivo);
 }
 
 const requests = {
