@@ -4,6 +4,11 @@ import { GetServerSidePropsContext, GetServerSidePropsResult } from 'next';
 import { UserRole } from '@/contracts/interfaces/user';
 import { Session } from '@/contracts/interfaces/auth';
 
+type AuthTokens = {
+  accessToken: string;
+  refreshToken: string;
+};
+
 type WithAuthOptions = {
   public?: boolean;
   // Si se indica, solo estos roles pueden ver la página — cualquier
@@ -30,6 +35,25 @@ function withSessionProp<P extends { [key: string]: any }>(
   return result;
 }
 
+// Dos sobrecargas en vez de `session: any`: en una página `public`, el
+// visitante puede no tener sesión (`user` nullable — hay que chequearlo
+// antes de usarlo, como ya hacen login/forgot-password); en una página
+// protegida, si `fn` llega a ejecutarse es porque ya hay sesión válida
+// (`user` nunca null acá).
+export function withAuth<P extends { [key: string]: any }>(
+  fn: (
+    ctx: GetServerSidePropsContext,
+    session: { user: Session | null; tokens: AuthTokens },
+  ) => Promise<GetServerSidePropsResult<P>>,
+  options: WithAuthOptions & { public: true },
+): (ctx: GetServerSidePropsContext) => Promise<GetServerSidePropsResult<P & { session: Session | null }>>;
+export function withAuth<P extends { [key: string]: any }>(
+  fn: (
+    ctx: GetServerSidePropsContext,
+    session: { user: Session; tokens: AuthTokens },
+  ) => Promise<GetServerSidePropsResult<P>>,
+  options?: WithAuthOptions & { public?: false },
+): (ctx: GetServerSidePropsContext) => Promise<GetServerSidePropsResult<P & { session: Session | null }>>;
 // Verifica la sesión antes de renderizar. Sin sesión válida -> /login;
 // con sesión vencida por inactividad -> /login?expired=1 (banner
 // correspondiente en el login); con sesión válida pero rol no

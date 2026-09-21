@@ -45,7 +45,12 @@ export function resetMockState(): void {
 }
 
 function nextId(prefix: string, existing: { id: string }[]): string {
-  return `${prefix}${existing.length + 1}`;
+  const max = existing.reduce((acc, item) =>{
+    const n = Number(item.id.slice(prefix.length));
+    return Number.isFinite(n) && n > acc ? n: acc;
+
+  }, 0);
+  return `${prefix}${max + 1}`;
 }
 
 function findUserOrThrow(id: string): User {

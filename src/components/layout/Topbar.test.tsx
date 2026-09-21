@@ -57,7 +57,6 @@ describe('Topbar', () => {
     fireEvent.click(screen.getByRole('button', { name: /ana martínez/i }));
 
     expect(screen.getByRole('menu')).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Perfil' })).toBeInTheDocument();
     expect(
       screen.getByRole('menuitem', { name: 'Cambiar contraseña' }),
     ).toBeInTheDocument();

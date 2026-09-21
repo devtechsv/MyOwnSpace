@@ -2,6 +2,7 @@ import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/common/form/TextInput';
 import { Select } from '@/components/common/form/Select';
 import { useCreateUserForm } from './useCreateUserForm';
+import { useModalAlly } from '@/hooks/useModalAlly';
 
 interface Props {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export function CreateUserModal({ isOpen, onClose, onCreated }: Props) {
       },
     });
 
+  const containerRef = useModalAlly(isOpen, onClose, isSubmitting);
+
   if (!isOpen) return null;
 
   return (
@@ -32,7 +35,7 @@ export function CreateUserModal({ isOpen, onClose, onCreated }: Props) {
       aria-label='Crear usuario'
       className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4'
     >
-      <div className='w-full max-w-[420px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8'>
+      <div ref={containerRef} className='w-full max-w-[420px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8'>
         <div className='flex items-center justify-between mb-5'>
           <h2 className='text-base font-bold text-foreground'>
             Crear usuario

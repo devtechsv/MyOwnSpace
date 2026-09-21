@@ -67,13 +67,6 @@ export function Topbar() {
                 <button
                   type='button'
                   role='menuitem'
-                  className='text-left px-3 py-2.5 rounded-lg text-sm text-foreground hover:bg-surface-field'
-                >
-                  Perfil
-                </button>
-                <button
-                  type='button'
-                  role='menuitem'
                   onClick={() => {
                     setIsMenuOpen(false);
                     setIsChangePasswordOpen(true);

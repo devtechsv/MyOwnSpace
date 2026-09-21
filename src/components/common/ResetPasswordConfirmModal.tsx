@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Button } from './Button';
 import API from '@/services/api-services';
+import { useModalAlly } from '@/hooks/useModalAlly';
+
+
 
 interface Props {
   isOpen: boolean;
@@ -23,6 +26,8 @@ export function ResetPasswordConfirmModal({
 }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const containerRef = useModalAlly(isOpen, onClose, isSubmitting);
 
   if (!isOpen) return null;
 
@@ -50,7 +55,7 @@ export function ResetPasswordConfirmModal({
       aria-label={title}
       className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4'
     >
-      <div className='w-full max-w-[380px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8 text-center'>
+      <div ref={containerRef} className='w-full max-w-[380px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8 text-center'>
         <div className='w-12 h-12 rounded-full bg-turquoise-blue-50 dark:bg-turquoise-blue-950/40 text-turquoise-blue-600 dark:text-turquoise-blue-400 flex items-center justify-center mx-auto mb-4'>
           <svg
             width='20'
@@ -79,7 +84,7 @@ export function ResetPasswordConfirmModal({
           hasta que {isSelf ? 'accedas' : 'acceda'} con la nueva contraseña.
         </p>
 
-        {error && <p className='mb-4 text-xs text-red-500'>{error}</p>}
+        {error && <p role='alert' className='mb-4 text-xs text-red-500'>{error}</p>}
 
         <div className='flex gap-2.5'>
           <button

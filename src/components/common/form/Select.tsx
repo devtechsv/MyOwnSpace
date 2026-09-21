@@ -51,6 +51,7 @@ export const Select = forwardRef<HTMLSelectElement, Props>(
         </select>
         {error && (
           <span
+            role = 'alert'
             className={cx(
               'flex gap-x-1 items-center text-xs text-red-400',
               classNames?.error,

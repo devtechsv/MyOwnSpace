@@ -2,6 +2,7 @@ import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/common/form/TextInput';
 import { Select } from '@/components/common/form/Select';
 import { useCreateRequestForm } from './useCreateRequestForm';
+import { useModalAlly } from '@/hooks/useModalAlly';
 
 interface Props {
   isOpen: boolean;
@@ -13,6 +14,7 @@ const TIPO_OPTIONS = [
   { value: 'Emergencia', label: 'Emergencia' },
   { value: 'Enfermedad', label: 'Enfermedad' },
   { value: 'Permiso personal', label: 'Permiso personal' },
+  { value: 'Vacaciones', label: 'Vacaciones' },
   { value: 'Otro', label: 'Otro' },
 ];
 
@@ -31,6 +33,8 @@ export function CreateRequestModal({ isOpen, onClose, onCreated }: Props) {
     },
   });
 
+  const containerRef = useModalAlly(isOpen, onClose, isSubmitting);
+
   if (!isOpen) return null;
 
   return (
@@ -40,7 +44,7 @@ export function CreateRequestModal({ isOpen, onClose, onCreated }: Props) {
       aria-label='Nueva solicitud'
       className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4'
     >
-      <div className='w-full max-w-[440px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8'>
+      <div ref={containerRef} className='w-full max-w-[440px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8'>
         <div className='flex items-center justify-between mb-5'>
           <h2 className='text-base font-bold text-foreground'>
             Nueva solicitud
@@ -68,7 +72,7 @@ export function CreateRequestModal({ isOpen, onClose, onCreated }: Props) {
         </div>
 
         {serverError && (
-          <div className='mb-4 rounded-[10px] bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600 dark:text-red-400'>
+          <div role='alert' className='mb-4 rounded-[10px] bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600 dark:text-red-400'>
             {serverError}
           </div>
         )}

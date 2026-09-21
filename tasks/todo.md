@@ -780,3 +780,41 @@ No se tocó `setPassword` (ya documentado como simplificación intencional — s
 Se unificaron las dos listas (unión de ambas, sin la entrada muerta), y se dejó un comentario cruzado en los dos archivos apuntando al otro, para que la próxima edición actualice ambos lados. No existe una forma automática de compartir esta lista entre un runtime de TypeScript y uno de C# sin agregar infraestructura nueva (ej. un JSON compartido consumido por los dos) — se consideró desproporcionado para una lista de ~11 strings en una app interna, así que se optó por la reconciliación manual + el comentario, no por una solución de una sola fuente de verdad.
 
 **Verificación:** `npm test` (183/183) y `dotnet test` (68/68) limpios, con un test nuevo en cada lado probando que las entradas agregadas para igualar al otro lado efectivamente rechazan.
+
+---
+
+## Post-cierre: 5 puntos "medios" rápidos del frontend (2026-09-21)
+
+De la lista de hallazgos "medios" de la auditoría de tres agentes, los 5 más chicos y mecánicos:
+
+- `src/pages/_document.tsx`: `<Html lang='en'>` → `'es'` (la UI es 100% en español).
+- `tsconfig.json`: `"target": "es5"` → `"es2017"` (vestigial bajo Next 16/React 19; es el default del propio scaffolding de Next.js).
+- `src/services/mocks/mock-adapter.ts`: `nextId` generaba el id como `` `${prefix}${existing.length + 1}` `` — colisiona en cuanto algo borre un elemento del array (nada lo hace hoy, pero era una trampa para el próximo que agregue esa función). Ahora calcula el máximo id numérico existente en vez de depender del `length`.
+- `src/services/axios-config.ts`: borrado — código muerto, nada lo importaba, y le faltaba `withCredentials: true` respecto a `api-client.ts` (si alguien lo hubiera usado por error, las llamadas autenticadas habrían fallado en silencio).
+- Botón "Perfil" en el menú del `Topbar`: sacado del menú — no tenía `onClick` ni página de destino (no existe una pantalla de perfil todavía). Decisión del usuario: sacarlo en vez de dejarlo deshabilitado como placeholder.
+
+**Verificación:** `npm run typecheck`, `npm run lint` (0 errores) y `npm test` (183/183) limpios.
+
+---
+
+## Post-cierre: Accesibilidad de modales — foco, Escape, aria-live (2026-09-21)
+
+Los 6 modales del proyecto (`ChangePasswordModal`, `ResetPasswordConfirmModal`, `ToggleStatusConfirmModal`, `CreateUserModal`, `EditUserModal`, `CreateRequestModal`) no tenían ningún manejo de teclado/foco: el foco no se movía adentro al abrir, `Tab` seguía recorriendo lo que está detrás del overlay, no cerraban con Escape, y los errores no se anunciaban a un lector de pantalla.
+
+**`src/hooks/useModalAlly.ts` (nuevo):** hook compartido — mueve el foco al primer elemento enfocable al abrir, atrapa `Tab`/`Shift+Tab` dentro del modal, cierra con Escape (salvo `closeDisabled`, para no cerrar a mitad de un submit — mismo criterio que ya usaba el botón "Cancelar" de cada modal), y devuelve el foco a lo que lo tenía antes al cerrar. Adoptado por los 6 modales.
+
+**`aria-live` centralizado, no repetido por modal:** se agregó `role='alert'` una sola vez en `TextInput.tsx` y `Select.tsx` (los errores de campo) — cubre los 6 modales y el resto de los formularios del proyecto (login, forgot-password, set-password) de una sola vez. Los errores "de servidor" que 4 de los 6 modales muestran aparte (no vía `TextInput`/`Select`) también llevan `role='alert'` cada uno.
+
+**Bug encontrado en el camino:** `EditUserModal.tsx` quedó referenciando una prop `isOpen` que no existe en ese componente (se monta condicionalmente desde `admin/users.tsx`, como `ToggleStatusConfirmModal` — "montado" ya es "abierto"). Corregido a `useModalAlly(true, onClose, isSubmitting)`.
+
+**Verificación:** `npm run typecheck`, `npm run lint` (0 errores) y `npm test` (189/189 — 183 + 6 nuevos cubriendo el hook: foco inicial, Escape cierra, Escape no cierra si `closeDisabled`, ciclo de Tab en las dos direcciones, y que el foco vuelve a quien lo tenía antes al cerrar) limpios.
+
+---
+
+## Post-cierre: 3 puntos "medios" más del frontend (2026-09-21)
+
+- **`src/middlewares/with-auth.tsx`**: `session: any` reemplazado por dos sobrecargas de `withAuth` — en una página `public` el callback recibe `{ user: Session | null; tokens }` (hay que chequear `user` antes de usarlo, como ya hacían login/forgot-password); en una página protegida recibe `{ user: Session; tokens }` (nunca null, porque si `fn` llega a ejecutarse ya hubo sesión válida). `tsc --noEmit` limpio contra los 7 call sites existentes sin tocar ninguna página.
+- **`src/pages/set-password.tsx`**: ya no redirige a un visitante ya autenticado a su home route. Era un bug real: el link de "olvidé mi contraseña" llega por correo y su token no tiene nada que ver con la sesión que el navegador tenga en ese momento — alguien con sesión activa en otra pestaña que abría el link perdía el token en silencio, sin nunca ver el formulario. A diferencia de login/forgot-password (donde sí tiene sentido mandar a un usuario ya logueado a su home), acá no correspondía el mismo patrón.
+- **`NODE_TLS_REJECT_UNAUTHORIZED` en `next.config.js`** (desactiva TLS para todo el proceso de Node en dev, no solo la llamada al backend): evaluado y dejado como está a propósito. El fix "correcto" (acotarlo con un `https.Agent` en `api-client.ts`) requiere un `require('https')` condicional en un archivo compartido entre servidor y navegador — el mismo tipo de cambio que ya causó un incidente real en este proyecto (ver [[feedback-myownspace-workflow]] o la sesión donde se estableció la regla de no importar módulos de Node en `api-client.ts`). Dado que hoy es la única llamada HTTP del lado servidor en todo el proyecto, ya está acotado a `NODE_ENV=development`, y nunca toca producción, el riesgo de tocarlo no se justifica frente al beneficio. Decisión del usuario.
+
+**Verificación:** `npm run typecheck`, `npm run lint` (0 errores) y `npm test` (183/183) limpios.

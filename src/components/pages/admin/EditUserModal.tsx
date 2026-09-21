@@ -3,6 +3,7 @@ import { TextInput } from '@/components/common/form/TextInput';
 import { Select } from '@/components/common/form/Select';
 import { User } from '@/contracts/interfaces/user';
 import { useEditUserForm } from './useEditUserForm';
+import { useModalAlly } from '@/hooks/useModalAlly';
 
 interface Props {
   user: User;
@@ -25,6 +26,8 @@ export function EditUserModal({ user, onClose, onUpdated }: Props) {
       },
     });
 
+  const containerRef = useModalAlly(true, onClose, isSubmitting);
+
   return (
     <div
       role='dialog'
@@ -32,7 +35,7 @@ export function EditUserModal({ user, onClose, onUpdated }: Props) {
       aria-label='Editar usuario'
       className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4'
     >
-      <div className='w-full max-w-[420px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8'>
+      <div ref={containerRef} className='w-full max-w-[420px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8'>
         <div className='flex items-center justify-between mb-5'>
           <h2 className='text-base font-bold text-foreground'>Editar usuario</h2>
           <button

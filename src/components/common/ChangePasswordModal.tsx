@@ -5,6 +5,7 @@ import { cx } from '@/helpers/cx';
 import { Button } from './Button';
 import { TextInput } from './form/TextInput';
 import API from '@/services/api-services';
+import { useModalAlly } from '@/hooks/useModalAlly';
 
 interface Props {
   isOpen: boolean;
@@ -29,18 +30,20 @@ export function ChangePasswordModal({ isOpen, onClose }: Props) {
   const passwordNueva = watch('passwordNueva');
   const confirmarPassword = watch('confirmarPassword');
 
+  const handleClose = () => {
+    reset();
+    setServerError(null);
+    onClose();
+  };
+
+  const containerRef = useModalAlly(isOpen, handleClose, isSubmitting);
+
   if (!isOpen) return null;
 
   const requirements = evaluatePasswordRules(passwordNueva, { passwordActual });
   const passwordsMatch = confirmarPassword.length > 0 && passwordNueva === confirmarPassword;
   const canSubmit =
     passwordActual.length > 0 && isPasswordValid(passwordNueva, { passwordActual }) && passwordsMatch;
-
-  const handleClose = () => {
-    reset();
-    setServerError(null);
-    onClose();
-  };
 
   const onSubmit = handleSubmit(async (data) => {
     if (!canSubmit) return;
@@ -54,7 +57,7 @@ export function ChangePasswordModal({ isOpen, onClose }: Props) {
       });
       handleClose();
     } catch {
-      setServerError('No pudimos cambiar tu contraseña. Revisá tu contraseña actual e intentá de nuevo.');
+      setServerError('No pudimos cambiar tu contraseña. Revise su contraseña actual e intente de nuevo.');
       setIsSubmitting(false);
     }
   });
@@ -66,13 +69,13 @@ export function ChangePasswordModal({ isOpen, onClose }: Props) {
       aria-label='Cambiar tu contraseña'
       className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4'
     >
-      <div className='w-full max-w-[420px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8'>
+      <div ref={containerRef} className='w-full max-w-[420px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8'>
         <h2 className='text-base font-bold text-foreground mb-5 text-center'>
           Cambiar tu contraseña
         </h2>
 
         {serverError && (
-          <div className='mb-4 rounded-[10px] bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600 dark:text-red-400'>
+          <div role='alert' className='mb-4 rounded-[10px] bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600 dark:text-red-400'>
             {serverError}
           </div>
         )}
