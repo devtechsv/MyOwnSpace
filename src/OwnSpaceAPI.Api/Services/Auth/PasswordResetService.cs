@@ -25,11 +25,23 @@ public sealed class PasswordResetService : IPasswordResetService
   public async Task RequestResetAsync(string correo)
   {
     var correoNormalizado = correo.Trim().ToLowerInvariant();
-    var user = await _db.Users.FirstOrDefaultAsync(u => u.Correo.ToLower() == correoNormalizado);
+    var user = await _db.Users.FirstOrDefaultAsync(u => u.Correo == correoNormalizado);
 
     if (user is null || user.Estado == UserStatus.Desactivado)
     {
       return; // nunca revela si el correo existe o si está desactivado (SPEC.md §9)
+    }
+
+    // Sin esto, pedir varios resets seguidos dejaba varios tokens
+    // válidos vivos a la vez — cualquiera de ellos (p. ej. uno filtrado
+    // desde un correo viejo) seguía sirviendo para tomar la cuenta hasta
+    // que expirara por su cuenta.
+    var tokensViejos = await _db.PasswordResetTokens
+        .Where(t => t.UserId == user.Id && t.UsedAt == null)
+        .ToListAsync();
+    foreach (var tokenViejo in tokensViejos)
+    {
+      tokenViejo.UsedAt = DateTime.UtcNow;
     }
 
     var rawToken = GenerateRawToken();

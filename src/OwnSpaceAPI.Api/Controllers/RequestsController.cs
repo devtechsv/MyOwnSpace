@@ -32,8 +32,11 @@ public class RequestsController : ControllerBase
   [Authorize(Roles = nameof(UserRole.Empleado))]
   public async Task<ActionResult<LeaveRequestResponse>> Create(CreateLeaveRequestRequest request)
   {
+    // request.Tipo no puede ser null acá: [Required] + la validación de
+    // modelo automática de [ApiController] ya rechazó la request con 400
+    // antes de que este método se ejecute si faltaba.
     var created = await _requestsService.CreateAsync(
-        CurrentUserId, request.Tipo, request.FechaInicio, request.FechaFin, request.Motivo);
+        CurrentUserId, request.Tipo!.Value, request.FechaInicio, request.FechaFin, request.Motivo);
     return StatusCode(StatusCodes.Status201Created, LeaveRequestResponse.FromEntity(created));
   }
 

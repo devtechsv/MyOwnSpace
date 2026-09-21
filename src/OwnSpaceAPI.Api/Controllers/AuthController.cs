@@ -54,7 +54,7 @@ public class AuthController : ControllerBase
     var user = await _authService.GetActiveUserAsync(userId);
     if (user is null)
     {
-      Response.Cookies.Delete(AccessTokenCookie, new CookieOptions { Path = "/" });
+      DeleteAccessTokenCookie();
       return Unauthorized();
     }
 
@@ -74,7 +74,7 @@ public class AuthController : ControllerBase
     // este navegador.
     await _authService.InvalidateSessionsAsync(userId);
 
-    Response.Cookies.Delete(AccessTokenCookie, new CookieOptions { Path = "/" });
+    DeleteAccessTokenCookie();
     return NoContent();
   }
 
@@ -121,6 +121,20 @@ public class AuthController : ControllerBase
       SameSite = SameSiteMode.Lax,
       Path = "/",
       Expires = DateTimeOffset.UtcNow.AddHours(2),
+    });
+  }
+
+  private void DeleteAccessTokenCookie()
+  {
+    // Delete necesita los mismos atributos (HttpOnly/Secure/SameSite)
+    // que Append: si no coinciden, algunos navegadores no la borran y
+    // la cookie vieja queda pegada.
+    Response.Cookies.Delete(AccessTokenCookie, new CookieOptions
+    {
+      HttpOnly = true,
+      Secure = true,
+      SameSite = SameSiteMode.Lax,
+      Path = "/",
     });
   }
 }

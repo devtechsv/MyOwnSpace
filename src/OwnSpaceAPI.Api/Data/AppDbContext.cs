@@ -19,7 +19,14 @@ public class AppDbContext : DbContext
     modelBuilder.Entity<User>(entity =>
     {
       entity.Property(u => u.Nombre).HasMaxLength(200).IsRequired();
-      entity.Property(u => u.Correo).HasMaxLength(256).IsRequired();
+      // Colación explícita case-insensitive: antes las consultas hacían
+      // u.Correo.ToLower() == x del lado de C#, lo que no puede usar el
+      // índice de Correo (SQL Server tiene que bajar cada fila a
+      // minúsculas para comparar). Con la columna ya CI, comparar
+      // directo (sin ToLower en la columna) es sargable y sigue siendo
+      // insensible a mayúsculas — antes dependía en silencio de que el
+      // collation por defecto del server fuera CI.
+      entity.Property(u => u.Correo).HasMaxLength(256).IsRequired().UseCollation("Latin1_General_CI_AS");
       entity.Property(u => u.SecurityStamp).HasMaxLength(64).IsRequired();
       entity.HasIndex(u => u.Correo).IsUnique();
 
@@ -77,6 +84,12 @@ public class AppDbContext : DbContext
 
     modelBuilder.Entity<PasswordResetToken>(entity =>
         {
+          // Sin esto, cada set-password hacía un table scan buscando el
+          // hash del token — no es único a propósito (la colisión es
+          // astronómicamente improbable con 256 bits random, pero no es
+          // una regla de negocio que valga la pena forzar a nivel DB).
+          entity.HasIndex(t => t.TokenHash);
+
           entity.HasOne(t => t.User)
               .WithMany()
               .HasForeignKey(t => t.UserId)

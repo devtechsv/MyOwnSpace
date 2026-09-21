@@ -411,3 +411,33 @@ A pedido explícito del usuario, Claude reescribió el archivo directamente en l
 ### Checkpoint: Completo
 - [x] Todos los criterios de éxito de `SPEC.md` §10 cumplidos
 - [x] Listo para conectar el frontend real
+
+---
+
+## Post-cierre — Puntos Medios del backend (auditoría 2026-09-21)
+
+**Contexto:** tras el análisis profundo del proyecto (Críticos/Malos/Medios/Buenos, basado en los criterios de https://github.com/addyosmani/agent-skills) y de cerrar todos los Críticos, Malos y los Medios del frontend, esta tanda cierra los Medios del backend — 14 de los 15 puntos detectados; el punto 15 (bitácora de auditoría de acciones privilegiadas) se difiere a propósito, ver abajo. Implementado por Claude directamente ("es tu turno" — modo agilidad, no guía).
+
+**Cambios:**
+1. `Enums.cs` — `RequestTypeJsonConverter.Read` pasó de `Enum.Parse` a `Enum.TryParse` + `throw new JsonException(...)`: un `tipo` inválido ahora da 400 en vez de 500 (antes `Enum.Parse` tiraba `ArgumentException`, que el `GlobalExceptionHandler` no reconoce como error de cliente).
+2. `CreateLeaveRequestRequest.Tipo` y `CreateUserRequest.Rol` pasaron a nullable (`RequestType?`, `UserRole?`): `[Required]` sobre un enum no-nullable es un no-op silencioso en `[ApiController]` — omitir el campo simplemente daba `default(T)` en vez de rechazar la request. Ajustados los call-sites (`request.Tipo!.Value`, `request.Rol!.Value`) con comentario explicando por qué el `!` es seguro ahí.
+3. `[MaxLength]` agregado a los campos de texto de los DTOs de entrada que no lo tenían (`Motivo`, `MotivoRechazo`, `Nombre`, `Correo`).
+4. `AuthService.ValidateCredentialsAsync` — mitigación de oráculo de tiempo: ahora siempre hace una verificación de hash completa (contra un usuario/hash de relleno si el correo no existe), para que el tiempo de respuesta no distinga "no existe" de "existe pero mal la contraseña".
+5. `User.Correo` — colación explícita `Latin1_General_CI_AS` a nivel de columna (antes las consultas hacían `.ToLower()` del lado de C#, no sargable — dependía en silencio del collation por defecto del server). Los `u.Correo.ToLower() == x` se cambiaron a `u.Correo == x` en `AuthService`, `UsersService` y `PasswordResetService`.
+6. `UsersService.CreateAsync`/`UpdateAsync` — la verificación de correo duplicado (`AnyAsync`) no es atómica con el insert/update; se agregó try/catch de `DbUpdateException` → `ConflictException` alrededor del `SaveChangesAsync` para cerrar la ventana de carrera (dos altas/ediciones concurrentes con el mismo correo).
+7. `PasswordResetService.RequestResetAsync` — antes de generar un token nuevo, invalida (`UsedAt`) todos los tokens sin usar previos del mismo usuario. Antes, pedir varios resets seguidos dejaba varios tokens válidos vivos a la vez.
+8. `PasswordResetToken.TokenHash` — índice agregado (no único); antes cada `set-password` hacía table scan.
+9. `AuthController` — nuevo helper `DeleteAccessTokenCookie()` que borra la cookie con los mismos atributos (`HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`) con los que se creó; antes `Response.Cookies.Delete` se llamaba solo con `Path=/`, lo que en algunos navegadores no borra la cookie si los atributos no coinciden.
+10. `Program.cs` — `UseCors` movido a *antes* de `UseExceptionHandler` (antes las respuestas de error no llevaban headers CORS, y el navegador las descartaba silenciosamente); agregado `UseHsts()` fuera de desarrollo; agregado middleware inline con `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`; comentario agregado documentando que `SameSite=Lax` asume despliegue same-site (a revisar si el frontend pasa a un dominio distinto al del backend).
+11. `GlobalExceptionHandler.TryHandleAsync` — guard de `Response.HasStarted` al inicio: si el body ya empezó a enviarse, loguea y devuelve `false` en vez de intentar tocar el `StatusCode` (que tiraría una segunda excepción tapando la real).
+12. `UsersService` — nuevo helper `EnsureNotLastActiveAdminAsync`, llamado desde `UpdateAsync` (al cambiar el rol) y `ToggleStatusAsync` (al desactivar): impide desactivar o degradar al último Administrador activo (`ConflictException`). Es no-op para reactivar o para roles/estados que no aplican.
+
+**Diferido a propósito — punto 15 (bitácora de auditoría de acciones privilegiadas):** no se implementó en esta tanda. Es una feature más grande que el resto (nueva entidad `AuditLog` + tabla + migración + instrumentar ~6 puntos de mutación + tests propios), evaluada como fuera de alcance de un batch de Medios. Queda pendiente como punto propio a futuro.
+
+**Migración:** `AddCorreoCollationAndTokenHashIndex` — `ALTER COLUMN Correo ... COLLATE Latin1_General_CI_AS`, `TokenHash` pasó de `nvarchar(max)` a `nvarchar(450)` (necesario para poder indexarlo — el valor real es un hash SHA-256 en hex, 64 caracteres, sin riesgo real de truncamiento pese al warning de "possible data loss" que tira el scaffolding). Generada y aplicada contra SQL Server real.
+
+**Verification:** `dotnet build` (0 warnings, 0 errores) + `dotnet test`: 72/72 (68 existentes + 4 nuevos en `UsersServiceTests` para el guard del último admin: `ToggleStatusAsync` sobre único admin activo → `ConflictException` y sin cambios; con otro admin activo → sí lo desactiva; `UpdateAsync` degradando al único admin → `ConflictException` y sin cambios; cambiar al mismo rol que ya tiene no dispara el guard).
+
+**Cobertura no agregada — límite real encontrado:** se intentó cubrir también la condición de carrera del punto 6 (`DbUpdateException` → `Conflict`) simulándola con un `SaveChangesInterceptor` que inserta el correo "ganador" justo antes del `SaveChangesAsync` bajo prueba. El proveedor **EF Core InMemory no aplica índices únicos que no sean la clave primaria** (confirmado con un test descartable: dos `DbContext` separados insertando el mismo correo NO tiran `DbUpdateException`), así que el escenario no es reproducible con la infraestructura de tests actual sin sumar un proveedor relacional (p. ej. SQLite en memoria) solo para este caso. El try/catch en el código queda como manejo defensivo verificado por lectura, no por test automatizado — documentado acá para no reportarlo como cubierto cuando no lo está.
+
+**Dependencies:** todas las tareas de la Fase 4/5 (opera sobre el mismo código).

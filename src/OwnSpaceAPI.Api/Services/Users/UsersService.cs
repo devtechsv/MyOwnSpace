@@ -28,7 +28,7 @@ public sealed class UsersService : IUsersService
         }
 
         var correoNormalizado = correo.Trim().ToLowerInvariant();
-        var yaExiste = await _db.Users.AnyAsync(u => u.Correo.ToLower() == correoNormalizado);
+        var yaExiste = await _db.Users.AnyAsync(u => u.Correo == correoNormalizado);
         if (yaExiste)
         {
             throw new ConflictException("Ya existe un usuario con ese correo.");
@@ -47,7 +47,19 @@ public sealed class UsersService : IUsersService
         };
 
         _db.Users.Add(user);
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // La verificación AnyAsync de arriba no es atómica con el
+            // insert: dos altas concurrentes con el mismo correo pueden
+            // pasar las dos la verificación y una de las dos choca acá
+            // contra el índice único — sin este catch, eso daba 500 en
+            // vez del 409 que corresponde.
+            throw new ConflictException("Ya existe un usuario con ese correo.");
+        }
 
         // Dispara la invitación a definir contraseña reutilizando el
         // mismo mecanismo de "olvidé mi contraseña" (Tarea 12) — mismo
@@ -71,7 +83,7 @@ public sealed class UsersService : IUsersService
         if (correo is not null)
         {
             var correoNormalizado = correo.Trim().ToLowerInvariant();
-            var yaExiste = await _db.Users.AnyAsync(u => u.Id != id && u.Correo.ToLower() == correoNormalizado);
+            var yaExiste = await _db.Users.AnyAsync(u => u.Id != id && u.Correo == correoNormalizado);
             if (yaExiste)
             {
                 throw new ConflictException("Ya existe un usuario con ese correo.");
@@ -84,14 +96,24 @@ public sealed class UsersService : IUsersService
             user.Nombre = nombre;
         }
 
-        if (rol is not null)
+        if (rol is not null && rol.Value != user.Rol)
         {
+            await EnsureNotLastActiveAdminAsync(user);
             user.Rol = rol.Value;
             user.SecurityStamp = Guid.NewGuid().ToString("N");
         }
 
         user.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Mismo caso que en CreateAsync: dos ediciones concurrentes
+            // al mismo correo nuevo pueden pasar la verificación las dos.
+            throw new ConflictException("Ya existe un usuario con ese correo.");
+        }
 
         return user;
     }
@@ -125,6 +147,14 @@ public sealed class UsersService : IUsersService
             throw new ConflictException("El usuario está Pendiente — no tiene Activo/Desactivado para alternar.");
         }
 
+        // Solo importa camino Activo -> Desactivado; el helper mismo es
+        // no-op si el usuario ya no es un admin activo (p. ej. reactivar
+        // a alguien nunca puede dejar sin admins).
+        if (user.Estado == UserStatus.Activo)
+        {
+            await EnsureNotLastActiveAdminAsync(user);
+        }
+
         user.Estado = user.Estado == UserStatus.Activo ? UserStatus.Desactivado : UserStatus.Activo;
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = DateTime.UtcNow;
@@ -138,6 +168,21 @@ public sealed class UsersService : IUsersService
         if (user.Rol == UserRole.SuperAdmin)
         {
             throw new BadRequestException("No se puede modificar una cuenta SuperAdmin desde acá.");
+        }
+    }
+
+    private async Task EnsureNotLastActiveAdminAsync(User user)
+    {
+        if (user.Rol != UserRole.Administrador || user.Estado != UserStatus.Activo)
+        {
+            return;
+        }
+
+        var otrosAdminsActivos = await _db.Users.CountAsync(
+            u => u.Id != user.Id && u.Rol == UserRole.Administrador && u.Estado == UserStatus.Activo);
+        if (otrosAdminsActivos == 0)
+        {
+            throw new ConflictException("No se puede desactivar ni degradar al último administrador activo.");
         }
     }
 }

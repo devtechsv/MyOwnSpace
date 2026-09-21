@@ -226,4 +226,66 @@ public class UsersServiceTests
 
         await Assert.ThrowsAsync<ConflictException>(() => service.ToggleStatusAsync(user.Id));
     }
+
+    [Fact]
+    public async Task ToggleStatusAsync_SobreElUltimoAdminActivo_TiraConflictYNoLoDesactiva()
+    {
+        await using var db = CreateContext();
+        var unicoAdmin = CrearUsuario("Julio Pérez", "julio.perez@devtch.com", rol: UserRole.Administrador);
+        db.Users.Add(unicoAdmin);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService());
+
+        await Assert.ThrowsAsync<ConflictException>(() => service.ToggleStatusAsync(unicoAdmin.Id));
+
+        var sinCambios = await db.Users.SingleAsync(u => u.Id == unicoAdmin.Id);
+        Assert.Equal(UserStatus.Activo, sinCambios.Estado);
+    }
+
+    [Fact]
+    public async Task ToggleStatusAsync_SobreUnAdminConOtroAdminActivo_LoDesactivaSinProblema()
+    {
+        await using var db = CreateContext();
+        var admin1 = CrearUsuario("Julio Pérez", "julio.perez@devtch.com", rol: UserRole.Administrador);
+        var admin2 = CrearUsuario("Laura Sánchez", "laura.sanchez@devtch.com", rol: UserRole.Administrador);
+        db.Users.AddRange(admin1, admin2);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService());
+        var actualizado = await service.ToggleStatusAsync(admin1.Id);
+
+        Assert.Equal(UserStatus.Desactivado, actualizado.Estado);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_DegradandoAlUltimoAdminActivo_TiraConflictYNoLoDegrada()
+    {
+        await using var db = CreateContext();
+        var unicoAdmin = CrearUsuario("Julio Pérez", "julio.perez@devtch.com", rol: UserRole.Administrador);
+        db.Users.Add(unicoAdmin);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService());
+
+        await Assert.ThrowsAsync<ConflictException>(
+            () => service.UpdateAsync(unicoAdmin.Id, null, null, UserRole.Empleado));
+
+        var sinCambios = await db.Users.SingleAsync(u => u.Id == unicoAdmin.Id);
+        Assert.Equal(UserRole.Administrador, sinCambios.Rol);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ConElMismoRolQueYaTiene_NoDisparaElGuardDelUltimoAdmin()
+    {
+        await using var db = CreateContext();
+        var unicoAdmin = CrearUsuario("Julio Pérez", "julio.perez@devtch.com", rol: UserRole.Administrador);
+        db.Users.Add(unicoAdmin);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService());
+        var actualizado = await service.UpdateAsync(unicoAdmin.Id, "Julio Pérez Actualizado", null, UserRole.Administrador);
+
+        Assert.Equal(UserRole.Administrador, actualizado.Rol);
+    }
 }

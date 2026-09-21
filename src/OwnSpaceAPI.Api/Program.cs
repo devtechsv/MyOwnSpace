@@ -63,6 +63,13 @@ builder.Services.AddCors(options =>
     // esté bien configurado. Por eso mismo NO se puede usar
     // AllowAnyOrigin() junto con AllowCredentials() (el navegador
     // lo rechaza) — tiene que ser una lista explícita de orígenes.
+    //
+    // La cookie de sesión usa SameSite=Lax (ver SetAccessTokenCookie en
+    // AuthController) en vez de None: eso asume que front y back se
+    // despliegan same-site (incluso si son subdominios/puertos
+    // distintos). Si algún día el frontend pasa a servirse desde un
+    // dominio de verdad distinto al del backend, esto hay que
+    // revisarlo junto con SameSite (Lax no viaja en ese caso).
     policy.WithOrigins(allowedOrigins)
           .AllowAnyHeader()
           .AllowAnyMethod()
@@ -150,9 +157,26 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// UseExceptionHandler debe ser de los primeros middlewares del pipeline:
-// cada Use() envuelve a todo lo registrado después, así que si va después
-// de algo que puede tirar una excepción, no llega a capturarla.
+if (!app.Environment.IsDevelopment())
+{
+  app.UseHsts();
+}
+
+app.Use(async (context, next) =>
+{
+  // Cabeceras de seguridad básicas — no dependen de configuración y
+  // aplican a toda respuesta, incluidas las de error.
+  context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+  context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+  context.Response.Headers.Append("X-Frame-Options", "DENY");
+  await next();
+});
+
+// UseCors tiene que ir antes que UseExceptionHandler: si va después,
+// una respuesta de error (4xx/5xx) generada por el exception handler no
+// lleva cabeceras CORS, y el navegador la descarta silenciosamente en
+// vez de dejar que el frontend vea el status/mensaje real.
+app.UseCors(FrontendCorsPolicy);
 app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline.
@@ -168,7 +192,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors(FrontendCorsPolicy);
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

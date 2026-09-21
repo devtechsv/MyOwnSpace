@@ -17,6 +17,15 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
     Exception exception,
     CancellationToken cancellationToken)
   {
+    if (httpContext.Response.HasStarted)
+    {
+      // Si el body ya empezó a mandarse (p. ej. streaming parcial) no se
+      // puede tocar el status code acá — intentarlo tira una segunda
+      // InvalidOperationException que tapa la excepción real en los logs.
+      _logger.LogError(exception, "Excepción no controlada después de que la respuesta ya había empezado a enviarse.");
+      return false;
+    }
+
     var (status, title) = exception switch
     {
       NotFoundException => (StatusCodes.Status404NotFound, "No encontrado"),
