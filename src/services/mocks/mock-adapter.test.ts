@@ -43,6 +43,24 @@ describe('mockAuthAdapter', () => {
     ).rejects.toThrow();
   });
 
+  it('login rechaza cuando el usuario está Pendiente, igual que el backend real', async () => {
+    await expect(
+      mockAuthAdapter.login({
+        correo: 'sofia.nunez@devtch.com', // u5, Pendiente en los fixtures
+        password: 'x',
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('login es insensible a mayúsculas/minúsculas en el correo, igual que el backend real', async () => {
+    const session = await mockAuthAdapter.login({
+      correo: 'ANA.MARTINEZ@DEVTCH.COM',
+      password: 'cualquiera',
+    });
+
+    expect(session.userId).toBe('u3');
+  });
+
   it('forgotPassword siempre resuelve, exista o no el correo', async () => {
     await expect(
       mockAuthAdapter.forgotPassword({ correo: 'ana.martinez@devtch.com' }),
@@ -130,6 +148,24 @@ describe('mockRequestsAdapter', () => {
       mockRequestsAdapter.approve('no-existe', 'u1'),
     ).rejects.toThrow();
   });
+
+  it('approve rechaza una solicitud que ya no está Pendiente, igual que el backend real', async () => {
+    await expect(
+      mockRequestsAdapter.approve('r1', 'u1'), // r1 ya está Aprobada en los fixtures
+    ).rejects.toThrow();
+  });
+
+  it('create rechaza un rango de fechas invertido, igual que el backend real', async () => {
+    await expect(
+      mockRequestsAdapter.create({
+        employeeId: 'u4',
+        tipo: 'Otro',
+        fechaInicio: '2026-10-05',
+        fechaFin: '2026-10-01',
+        motivo: 'Fechas invertidas',
+      }),
+    ).rejects.toThrow();
+  });
 });
 
 describe('mockUsersAdapter', () => {
@@ -195,5 +231,11 @@ describe('mockUsersAdapter', () => {
 
     const reactivated = await mockUsersAdapter.toggleStatus('u3');
     expect(reactivated.estado).toBe('Activo');
+  });
+
+  it('toggleStatus rechaza un usuario Pendiente, igual que el backend real', async () => {
+    await expect(
+      mockUsersAdapter.toggleStatus('u5'), // Sofía Núñez, Pendiente en los fixtures
+    ).rejects.toThrow();
   });
 });

@@ -12,6 +12,9 @@ export interface PasswordRule {
 
 // Lista mínima de contraseñas genéricas/comunes bloqueadas, además de la
 // comparación contra la contraseña temporal/actual (vía el contexto).
+// Duplicada a mano en OwnSpaceAPI/.../Services/PasswordRules.cs (el
+// backend es la autoridad real; esta copia solo da feedback en vivo en
+// el formulario) — mantener las dos listas iguales si se edita una.
 const CONTRASENAS_GENERICAS = [
   'password123!',
   'password1234',
@@ -20,6 +23,10 @@ const CONTRASENAS_GENERICAS = [
   'admin1234!',
   'devtech123!',
   'bienvenido1!',
+  'contrasena',
+  'contraseña',
+  'incorrecta',
+  'incorrecto',
 ];
 
 export const passwordRules: PasswordRule[] = [

@@ -42,6 +42,12 @@ describe('password-rules: reglas individuales', () => {
     expect(ruleTest('not-generic', 'Dt#2026reto99')).toBe(true);
   });
 
+  it('not-generic: rechaza las entradas agregadas para igualar la lista del backend', () => {
+    expect(ruleTest('not-generic', 'contrasena')).toBe(false);
+    expect(ruleTest('not-generic', 'CONTRASENA')).toBe(false); // case-insensitive
+    expect(ruleTest('not-generic', 'incorrecta')).toBe(false);
+  });
+
   it('not-generic: rechaza la contraseña actual/temporal cuando se provee el contexto', () => {
     expect(
       ruleTest('not-generic', 'Temporal1!', { passwordActual: 'Temporal1!' }),

@@ -70,6 +70,11 @@ async function setRequestEstado(
   reviewerId: string,
 ): Promise<LeaveRequest> {
   const target = findRequestOrThrow(id);
+  if (target.estado !== 'Pendiente') {
+    // Igual que el backend real (409): una solicitud ya revisada no se
+    // puede volver a aprobar/denegar.
+    throw new Error('La solicitud ya no está Pendiente.');
+  }
   target.estado = estado;
   target.reviewedBy = reviewerId;
   target.reviewedAt = new Date().toISOString();
@@ -78,10 +83,13 @@ async function setRequestEstado(
 
 export const mockAuthAdapter = {
   async login(payload: LoginPayload): Promise<Session> {
-    const user = users.find((u) => u.correo === payload.correo);
-    if (!user || user.estado === 'Desactivado') {
-      // El mock no distingue "no existe" de "desactivado" en el mensaje,
-      // igual que hará la API real: nunca se confirma si un correo existe.
+    const correoNormalizado = payload.correo.trim().toLowerCase();
+    const user = users.find((u) => u.correo.toLowerCase() === correoNormalizado);
+    if (!user || user.estado !== 'Activo') {
+      // El mock no distingue "no existe" de "no está Activo" en el
+      // mensaje, igual que hará la API real: nunca se confirma si un
+      // correo existe ni por qué falló (Desactivado y Pendiente
+      // rechazan igual que en el backend).
       throw new Error('Credenciales inválidas');
     }
     const session: Session = {
@@ -137,6 +145,10 @@ export const mockRequestsAdapter = {
   },
 
   async create(payload: CreateLeaveRequestPayload): Promise<LeaveRequest> {
+    if (payload.fechaFin < payload.fechaInicio) {
+      // Igual que el backend real: rechaza un rango de fechas invertido.
+      throw new Error('La fecha de fin no puede ser anterior a la fecha de inicio.');
+    }
     const nueva: LeaveRequest = {
       id: nextId('r', requests),
       employeeId: payload.employeeId,
@@ -206,7 +218,12 @@ export const mockUsersAdapter = {
 
   async toggleStatus(id: string): Promise<User> {
     const target = findUserOrThrow(id);
-    target.estado = target.estado === 'Desactivado' ? 'Activo' : 'Desactivado';
+    if (target.estado === 'Pendiente') {
+      // Igual que el backend real (409): un usuario Pendiente no tiene
+      // Activo/Desactivado para alternar todavía.
+      throw new Error('El usuario está Pendiente — no tiene Activo/Desactivado para alternar.');
+    }
+    target.estado = target.estado === 'Activo' ? 'Desactivado' : 'Activo';
     return delay(clone(target));
   },
 };

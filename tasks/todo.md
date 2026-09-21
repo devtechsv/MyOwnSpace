@@ -754,3 +754,29 @@ Los usuarios de `SeedData.cs` (backend) nunca tuvieron `PasswordHash` asignado �
 - Empleado: `ana.martinez@devtch.com` / `Empleado123!`
 
 Diseñado para eliminarse sin fricción una vez que el flujo de invitación por correo esté funcionando de verdad (Resend) — es un parche de conveniencia para desarrollo local, no parte del diseño final de altas de usuario.
+
+---
+
+## Post-cierre: El mock ahora replica las reglas de negocio reales del backend (2026-09-21)
+
+Hallazgo de la auditoría de tres agentes (revisión de código): `mock-adapter.ts` simulaba solo el "camino feliz" — varias reglas que el backend real sí aplica no existían del lado mock, así que los 177 tests originales pasaban en verde sin probar nada de esto, y el comportamiento en modo mock podía divergir del real de forma silenciosa.
+
+**Arreglado en `src/services/mocks/mock-adapter.ts`:**
+- `login`: ahora es insensible a mayúsculas/minúsculas en el correo (igual que el backend), y rechaza cualquier usuario que no esté `Activo` (antes solo rechazaba `Desactivado` — un usuario `Pendiente` lograba loguear en modo mock, cosa que el backend real siempre rechazó).
+- `approve`/`deny` (`setRequestEstado`): rechaza una solicitud que ya no está `Pendiente`, igual que el 409 del backend real. Antes se podía "re-aprobar" una solicitud ya revisada sin error.
+- `create` (solicitudes): rechaza un rango de fechas invertido (`fechaFin < fechaInicio`), igual que el backend real.
+- `toggleStatus` (usuarios): rechaza a un usuario `Pendiente` (no tiene Activo/Desactivado para alternar todavía), igual que el 409 del backend real.
+
+No se tocó `setPassword` (ya documentado como simplificación intencional — sin backend real no hay token opaco que resolver) ni el bloqueo de asignar rol `SuperAdmin` en `update` — el tipo `UserRole` del frontend ni siquiera incluye `'SuperAdmin'` hoy, así que no es una divergencia real alcanzable vía la API tipada (y tocar el rol de SuperAdmin está fuera de alcance por ahora, ver memoria de sesión).
+
+**Verificación:** `npm run typecheck`, `npm run lint` (0 errores) y `npm test` (182/182 — 177 + 5 nuevos cubriendo cada regla agregada) limpios. Se revisó explícitamente que ningún test existente en el resto del proyecto dependiera del comportamiento viejo (los `approve`/`deny`/`create` usados en otros tests ya apuntaban a fixtures que siguen pasando con las reglas nuevas).
+
+---
+
+## Post-cierre: Reglas de contraseña reconciliadas entre frontend y backend (2026-09-21)
+
+`src/lib/password-rules.ts` (frontend, solo feedback en vivo del formulario) y `OwnSpaceAPI/.../Services/PasswordRules.cs` (backend, la autoridad real) mantienen a mano la misma lista de contraseñas genéricas bloqueadas, y ya habían divergido: el frontend tenía `devtech123!` que el backend no tenía; el backend tenía `contrasena`/`contraseña`/`incorrecta`/`incorrecto` que el frontend no tenía, más una entrada muerta (`12345`, de 5 caracteres — nunca hizo nada, la regla de longitud mínima de 10 ya la rechaza antes).
+
+Se unificaron las dos listas (unión de ambas, sin la entrada muerta), y se dejó un comentario cruzado en los dos archivos apuntando al otro, para que la próxima edición actualice ambos lados. No existe una forma automática de compartir esta lista entre un runtime de TypeScript y uno de C# sin agregar infraestructura nueva (ej. un JSON compartido consumido por los dos) — se consideró desproporcionado para una lista de ~11 strings en una app interna, así que se optó por la reconciliación manual + el comentario, no por una solución de una sola fuente de verdad.
+
+**Verificación:** `npm test` (183/183) y `dotnet test` (68/68) limpios, con un test nuevo en cada lado probando que las entradas agregadas para igualar al otro lado efectivamente rechazan.
