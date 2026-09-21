@@ -165,7 +165,7 @@ public class RequestsServiceTests
   }
 
   [Fact]
-  public async Task DenyAsync_MarcaDenegadaConElRevisor()
+  public async Task DenyAsync_MarcaDenegadaConElRevisorYMotivo()
   {
     await using var db = CreateContext();
     var ana = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
@@ -176,10 +176,11 @@ public class RequestsServiceTests
     await db.SaveChangesAsync();
 
     var service = new RequestsService(db, new FakeEmailSender());
-    var actualizada = await service.DenyAsync(solicitud.Id, admin.Id);
+    var actualizada = await service.DenyAsync(solicitud.Id, admin.Id, "No hay cobertura para ese día");
 
     Assert.Equal(RequestStatus.Denegada, actualizada.Estado);
     Assert.Equal(admin.Id, actualizada.ReviewedBy);
+    Assert.Equal("No hay cobertura para ese día", actualizada.MotivoRechazo);
   }
 
   [Fact]

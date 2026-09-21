@@ -37,6 +37,7 @@ public class AppDbContext : DbContext
     modelBuilder.Entity<LeaveRequest>(entity =>
     {
       entity.Property(r => r.Motivo).HasMaxLength(1000).IsRequired();
+      entity.Property(r => r.MotivoRechazo).HasMaxLength(1000);
       // "Permiso personal" tiene espacio — el enum de C# no puede
       // llamarse así (es PermisoPersonal), así que acá se traduce a
       // mano en vez de usar HasConversion<string>() genérico.

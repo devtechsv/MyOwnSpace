@@ -6,7 +6,6 @@ public class LeaveRequest
 
     public Guid EmployeeId { get; set; }
     public User Employee { get; set; } = null!;
-
     public RequestType Tipo { get; set; }
     public DateOnly FechaInicio { get; set; }
     public DateOnly FechaFin { get; set; }
@@ -17,4 +16,5 @@ public class LeaveRequest
     public Guid? ReviewedBy { get; set; }
     public User? Reviewer { get; set; }
     public DateTime? ReviewedAt { get; set; }
+    public string? MotivoRechazo { get; set; }
 }

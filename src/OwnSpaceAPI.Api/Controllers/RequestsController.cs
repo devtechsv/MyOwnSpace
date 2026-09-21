@@ -64,9 +64,9 @@ public class RequestsController : ControllerBase
 
   [HttpPost("{id:guid}/deny")]
   [Authorize(Roles = nameof(UserRole.Administrador))]
-  public async Task<ActionResult<LeaveRequestResponse>> Deny(Guid id)
+  public async Task<ActionResult<LeaveRequestResponse>> Deny(Guid id, DenyRequestRequest request)
   {
-    var request = await _requestsService.DenyAsync(id, CurrentUserId);
-    return Ok(LeaveRequestResponse.FromEntity(request));
+    var result = await _requestsService.DenyAsync(id, CurrentUserId, request.Motivo);
+    return Ok(LeaveRequestResponse.FromEntity(result));
   }
 }

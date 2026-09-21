@@ -66,12 +66,12 @@ public sealed class RequestsService : IRequestsService
     }
 
     public Task<LeaveRequest> ApproveAsync(Guid id, Guid reviewerId) =>
-        ReviewAsync(id, reviewerId, RequestStatus.Aprobada);
+        ReviewAsync(id, reviewerId, RequestStatus.Aprobada, motivoRechazo: null);
 
-    public Task<LeaveRequest> DenyAsync(Guid id, Guid reviewerId) =>
-        ReviewAsync(id, reviewerId, RequestStatus.Denegada);
+    public Task<LeaveRequest> DenyAsync(Guid id, Guid reviewerId, string motivo) =>
+        ReviewAsync(id, reviewerId, RequestStatus.Denegada, motivoRechazo: motivo);
 
-    private async Task<LeaveRequest> ReviewAsync(Guid id, Guid reviewerId, RequestStatus nuevoEstado)
+    private async Task<LeaveRequest> ReviewAsync(Guid id, Guid reviewerId, RequestStatus nuevoEstado, string? motivoRechazo)
     {
         var request = await _db.LeaveRequests
             .Include(r => r.Employee)
@@ -86,13 +86,17 @@ public sealed class RequestsService : IRequestsService
         request.Estado = nuevoEstado;
         request.ReviewedBy = reviewerId;
         request.ReviewedAt = DateTime.UtcNow;
+        request.MotivoRechazo = motivoRechazo;
         await _db.SaveChangesAsync();
 
         var accionTexto = nuevoEstado == RequestStatus.Aprobada ? "aprobada" : "denegada";
+        var cuerpo = nuevoEstado == RequestStatus.Denegada
+            ? $"Tu solicitud de {request.Tipo} fue {accionTexto}. Motivo: {motivoRechazo}"
+            : $"Tu solicitud de {request.Tipo} fue {accionTexto}.";
         await _emailSender.SendAsync(
             request.Employee.Correo,
             "Actualización de tu solicitud — MyOwnSpace",
-            $"Tu solicitud de {request.Tipo} fue {accionTexto}.");
+            cuerpo);
 
         return request;
     }

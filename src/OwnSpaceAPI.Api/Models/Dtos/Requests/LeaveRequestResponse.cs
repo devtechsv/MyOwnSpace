@@ -13,8 +13,9 @@ public record LeaveRequestResponse(
     RequestStatus Estado,
     DateTime CreatedAt,
     Guid? ReviewedBy,
-    DateTime? ReviewedAt)
+    DateTime? ReviewedAt,
+    string? MotivoRechazo)
 {
     public static LeaveRequestResponse FromEntity(LeaveRequest r) => new(
-        r.Id, r.EmployeeId, r.Tipo, r.FechaInicio, r.FechaFin, r.Motivo, r.Estado, r.CreatedAt, r.ReviewedBy, r.ReviewedAt);
+        r.Id, r.EmployeeId, r.Tipo, r.FechaInicio, r.FechaFin, r.Motivo, r.Estado, r.CreatedAt, r.ReviewedBy, r.ReviewedAt, r.MotivoRechazo);
 }

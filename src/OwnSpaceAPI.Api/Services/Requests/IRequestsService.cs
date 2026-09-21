@@ -9,5 +9,5 @@ public interface IRequestsService
     Task<List<LeaveRequest>> ListAllAsync(RequestStatus? estado);
     Task<LeaveRequest> CreateAsync(Guid employeeId, RequestType tipo, DateOnly fechaInicio, DateOnly fechaFin, string motivo);
     Task<LeaveRequest> ApproveAsync(Guid id, Guid reviewerId);
-    Task<LeaveRequest> DenyAsync(Guid id, Guid reviewerId);
+    Task<LeaveRequest> DenyAsync(Guid id, Guid reviewerId, string motivo);
 }
