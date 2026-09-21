@@ -30,6 +30,7 @@ public enum RequestType
     Emergencia,
     Enfermedad,
     PermisoPersonal,
+    Vacaciones,
     Otro,
 }
 
@@ -66,4 +67,31 @@ public enum RequestStatus
     Pendiente,
     Aprobada,
     Denegada,
+}
+
+// El converter de TimeOnly que trae System.Text.Json por defecto solo
+// acepta el formato ISO completo "HH:mm:ss" — un <input type="time"> de
+// HTML manda "HH:mm" (sin segundos), que el converter default rechaza
+// con 400. TimeOnly.TryParse es más permisivo (acepta ambos), así que
+// se usa acá en vez de confiar en el converter implícito.
+public sealed class TimeOnlyJsonConverter : JsonConverter<TimeOnly>
+{
+    private const string Format = "HH\\:mm";
+
+    public override TimeOnly Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var value = reader.GetString();
+        if (value is not null
+            && TimeOnly.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed;
+        }
+
+        throw new JsonException($"Hora inválida: '{value}'.");
+    }
+
+    public override void Write(Utf8JsonWriter writer, TimeOnly value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString(Format, System.Globalization.CultureInfo.InvariantCulture));
+    }
 }

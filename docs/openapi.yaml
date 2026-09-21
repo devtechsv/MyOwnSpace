@@ -15,6 +15,7 @@ tags:
   - name: auth
   - name: users
   - name: requests
+  - name: pto
 
 paths:
   /auth/login:
@@ -86,8 +87,14 @@ paths:
     post:
       tags: [auth]
       summary: >
-        Solicita el enlace de recuperación. Siempre responde 200, exista o
-        no el correo — nunca revela si un correo está registrado.
+        Emite una contraseña temporal y la envía por correo. Siempre
+        responde 200, exista o no el correo — nunca revela si un correo
+        está registrado. Si existe (y no está Desactivado), el usuario
+        queda Activo, con la temporal como su contraseña real y
+        mustChangePassword=true: puede loguearse de inmediato con ella,
+        pero solo puede llamar a /auth/change-password, /auth/logout o
+        /auth/session hasta que la cambie (ver el middleware de
+        Program.cs).
       security: []
       requestBody:
         required: true
@@ -98,30 +105,6 @@ paths:
       responses:
         '200':
           description: Solicitud aceptada (independientemente de si el correo existe).
-
-  /auth/set-password:
-    post:
-      tags: [auth]
-      summary: >
-        Define una nueva contraseña usando el token recibido por correo
-        (recuperación, invitación de usuario nuevo, o reseteo por un admin).
-        Pasa el usuario a estado Activo.
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SetPasswordRequest'
-      responses:
-        '200':
-          description: Contraseña actualizada.
-        '400':
-          description: Token inválido/expirado/ya usado, o contraseña que no cumple las reglas.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ValidationProblemDetails'
 
   /users:
     get:
@@ -197,8 +180,8 @@ paths:
       tags: [users]
       summary: >
         Un admin fuerza el reseteo de la contraseña de otro usuario (o la
-        propia). Vuelve al usuario a estado Pendiente y dispara un correo
-        con un nuevo token.
+        propia): emite una temporal nueva y la envía por correo — mismo
+        mecanismo y el mismo efecto que /auth/forgot-password.
       security: [{ cookieAuth: [Administrador] }]
       parameters:
         - $ref: '#/components/parameters/UserId'
@@ -264,7 +247,10 @@ paths:
   /requests:
     post:
       tags: [requests]
-      summary: Crea una solicitud propia. Queda en estado Pendiente.
+      summary: >
+        Crea una solicitud propia. Queda en estado Pendiente. No acepta
+        Tipo=Vacaciones — ese tipo tiene su propio flujo de autoservicio,
+        ver /pto/requests.
       security: [{ cookieAuth: [Empleado] }]
       requestBody:
         required: true
@@ -280,7 +266,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/LeaveRequest'
         '400':
-          description: fechaFin anterior a fechaInicio, u otro dato inválido.
+          description: fechaFin anterior a fechaInicio, Tipo=Vacaciones, u otro dato inválido.
           content:
             application/problem+json:
               schema:
@@ -332,6 +318,75 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
+  /pto/balance:
+    get:
+      tags: [pto]
+      summary: >
+        Balance de PTO disponible del empleado autenticado. Calculado al
+        vuelo (sin persistencia propia) a partir de FechaIngreso/
+        FechaDesactivacion — devengo de 5h por quincena, recortado al año
+        en curso (política "use it or lose it").
+      security: [{ cookieAuth: [Empleado] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PtoBalance'
+
+  /pto/requests:
+    post:
+      tags: [pto]
+      summary: >
+        Reserva PTO para una fecha (autoservicio, sin motivo ni
+        aprobación de un admin — distinto del flujo genérico de
+        /requests). Nace directo en estado Aprobada, con Tipo=Vacaciones.
+      security: [{ cookieAuth: [Empleado] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePtoRequestRequest'
+      responses:
+        '201':
+          description: PTO reservado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveRequest'
+        '400':
+          description: Horas fuera de rango (0, 8].
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Ya hay una reserva Aprobada para esa fecha, o el balance disponible no alcanza.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /pto/calendario:
+    get:
+      tags: [pto]
+      summary: >
+        Listado de solo lectura de todas las reservas de PTO (Vacaciones
+        Aprobada) del equipo, para planificación — no requiere ninguna
+        acción de aprobar/denegar.
+      security: [{ cookieAuth: [Administrador] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaveRequest'
+
 components:
   securitySchemes:
     cookieAuth:
@@ -372,7 +427,7 @@ components:
 
     RequestType:
       type: string
-      enum: [Emergencia, Enfermedad, "Permiso personal", Otro]
+      enum: [Emergencia, Enfermedad, "Permiso personal", Vacaciones, Otro]
 
     RequestStatus:
       type: string
@@ -380,22 +435,36 @@ components:
 
     User:
       type: object
-      required: [id, nombre, correo, rol, estado]
+      required: [id, nombre, correo, rol, estado, fechaIngreso]
       properties:
         id: { type: string, format: uuid }
         nombre: { type: string, maxLength: 200 }
         correo: { type: string, format: email, maxLength: 256 }
         rol: { $ref: '#/components/schemas/UserRole' }
         estado: { $ref: '#/components/schemas/UserStatus' }
+        fechaIngreso:
+          type: string
+          format: date
+          description: >
+            Cargada por el admin al dar de alta — punto de partida del
+            devengo de PTO de esta persona (ver /pto/balance).
 
     Session:
       type: object
-      required: [userId, nombre, rol, estado]
+      required: [userId, nombre, rol, estado, mustChangePassword]
       properties:
         userId: { type: string, format: uuid }
         nombre: { type: string }
         rol: { $ref: '#/components/schemas/UserRole' }
         estado: { $ref: '#/components/schemas/UserStatus' }
+        mustChangePassword:
+          type: boolean
+          description: >
+            true mientras la contraseña actual sea una temporal sin
+            cambiar (invitación, forgot-password, o reset de admin). Con
+            esto en true, el backend solo permite llamar a
+            /auth/change-password, /auth/logout y /auth/session — el resto
+            de /api responde 403.
 
     LeaveRequest:
       type: object
@@ -406,6 +475,16 @@ components:
         tipo: { $ref: '#/components/schemas/RequestType' }
         fechaInicio: { type: string, format: date }
         fechaFin: { type: string, format: date }
+        horaInicio: { type: string, pattern: '^\d{2}:\d{2}$', nullable: true, description: "Formato HH:mm. Van junto con horaFin o ninguna — una solicitud sin hora es de día completo." }
+        horaFin: { type: string, pattern: '^\d{2}:\d{2}$', nullable: true }
+        horasSolicitadas:
+          type: number
+          format: decimal
+          nullable: true
+          description: >
+            Solo aplica a Tipo=Vacaciones (módulo de PTO, ver
+            /pto/requests): 8 (jornada completa) o el valor
+            personalizado. Null para el resto de los tipos.
         motivo: { type: string, maxLength: 1000 }
         estado: { $ref: '#/components/schemas/RequestStatus' }
         createdAt: { type: string, format: date-time }
@@ -425,16 +504,10 @@ components:
       properties:
         correo: { type: string, format: email }
 
-    SetPasswordRequest:
-      type: object
-      required: [token, nuevaPassword]
-      properties:
-        token: { type: string }
-        nuevaPassword: { type: string, format: password, minLength: 10 }
 
     CreateUserRequest:
       type: object
-      required: [nombre, correo, rol]
+      required: [nombre, correo, rol, fechaIngreso]
       properties:
         nombre: { type: string, maxLength: 200 }
         correo: { type: string, format: email, maxLength: 256 }
@@ -442,6 +515,7 @@ components:
           allOf: [{ $ref: '#/components/schemas/UserRole' }]
           enum: [Empleado, Administrador]
           description: SuperAdmin no es asignable desde la UI todavía.
+        fechaIngreso: { type: string, format: date }
 
     UpdateUserRequest:
       type: object
@@ -456,10 +530,34 @@ components:
       type: object
       required: [tipo, fechaInicio, fechaFin, motivo]
       properties:
-        tipo: { $ref: '#/components/schemas/RequestType' }
+        tipo:
+          allOf: [{ $ref: '#/components/schemas/RequestType' }]
+          enum: [Emergencia, Enfermedad, "Permiso personal", Otro]
+          description: Vacaciones no es válido acá — usar /pto/requests.
         fechaInicio: { type: string, format: date }
         fechaFin: { type: string, format: date }
+        horaInicio: { type: string, pattern: '^\d{2}:\d{2}$', nullable: true, description: "Formato HH:mm, opcional. Van junto con horaFin o ninguna." }
+        horaFin: { type: string, pattern: '^\d{2}:\d{2}$', nullable: true }
         motivo: { type: string, maxLength: 1000 }
+
+    PtoBalance:
+      type: object
+      required: [horasDisponibles]
+      properties:
+        horasDisponibles:
+          type: number
+          format: decimal
+          description: Nunca negativo — recortado a 0 como piso defensivo.
+
+    CreatePtoRequestRequest:
+      type: object
+      required: [fecha, horas]
+      properties:
+        fecha: { type: string, format: date }
+        horas:
+          type: number
+          format: decimal
+          description: Mayor a 0 y hasta 8 (jornada completa) por fecha.
 
     ProblemDetails:
       type: object

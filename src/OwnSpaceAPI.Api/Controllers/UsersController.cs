@@ -31,7 +31,7 @@ public class UsersController : ControllerBase
         // request.Rol no puede ser null acá: [Required] + la validación
         // de modelo automática de [ApiController] ya rechazó la request
         // con 400 antes de que este método se ejecute si faltaba.
-        var user = await _usersService.CreateAsync(request.Nombre, request.Correo, request.Rol!.Value);
+        var user = await _usersService.CreateAsync(request.Nombre, request.Correo, request.Rol!.Value, request.FechaIngreso);
         return StatusCode(StatusCodes.Status201Created, UserResponse.FromEntity(user));
     }
 

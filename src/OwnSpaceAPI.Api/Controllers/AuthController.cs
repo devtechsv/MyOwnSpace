@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using OwnSpaceAPI.Api.Models.Dtos.Auth;
-using OwnSpaceAPI.Api.Models.Entities;
 using OwnSpaceAPI.Api.Services.Auth;
 
 namespace OwnSpaceAPI.Api.Controllers;
@@ -35,10 +34,10 @@ public class AuthController : ControllerBase
   {
     var user = await _authService.ValidateCredentialsAsync(request.Correo, request.Password);
 
-    var token = _jwtTokenService.GenerateToken(user.Id, user.Nombre, user.Rol, user.Estado, user.SecurityStamp);
+    var token = _jwtTokenService.GenerateToken(user.Id, user.Nombre, user.Rol, user.Estado, user.SecurityStamp, user.MustChangePassword);
     SetAccessTokenCookie(token);
 
-    return Ok(new SessionResponse(user.Id, user.Nombre, user.Rol, user.Estado));
+    return Ok(new SessionResponse(user.Id, user.Nombre, user.Rol, user.Estado, user.MustChangePassword));
   }
 
   [HttpGet("session")]
@@ -58,10 +57,10 @@ public class AuthController : ControllerBase
       return Unauthorized();
     }
 
-    var token = _jwtTokenService.GenerateToken(user.Id, user.Nombre, user.Rol, user.Estado, user.SecurityStamp);
+    var token = _jwtTokenService.GenerateToken(user.Id, user.Nombre, user.Rol, user.Estado, user.SecurityStamp, user.MustChangePassword);
     SetAccessTokenCookie(token);
 
-    return Ok(new SessionResponse(user.Id, user.Nombre, user.Rol, user.Estado));
+    return Ok(new SessionResponse(user.Id, user.Nombre, user.Rol, user.Estado, user.MustChangePassword));
   }
 
   [HttpPost("logout")]
@@ -83,16 +82,7 @@ public class AuthController : ControllerBase
   [EnableRateLimiting("auth")]
   public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
   {
-    await _passwordResetService.RequestResetAsync(request.Correo);
-    return Ok();
-  }
-
-  [HttpPost("set-password")]
-  [AllowAnonymous]
-  [EnableRateLimiting("auth")]
-  public async Task<IActionResult> SetPassword(SetPasswordRequest request)
-  {
-    await _passwordResetService.SetPasswordAsync(request.Token, request.NuevaPassword);
+    await _passwordResetService.IssueTemporaryPasswordAsync(request.Correo);
     return Ok();
   }
 
@@ -105,8 +95,10 @@ public class AuthController : ControllerBase
 
     // Cambiar la contraseña regenera el securityStamp (invalida otras
     // sesiones) — hay que reemitir el token para que ESTA sesión, la
-    // que acaba de hacer el cambio, no quede deslogueada de rebote.
-    var token = _jwtTokenService.GenerateToken(user.Id, user.Nombre, user.Rol, user.Estado, user.SecurityStamp);
+    // que acaba de hacer el cambio, no quede deslogueada de rebote (y
+    // para que el must_change_password del token, ya en false, se
+    // refleje sin esperar a la próxima renovación de /auth/session).
+    var token = _jwtTokenService.GenerateToken(user.Id, user.Nombre, user.Rol, user.Estado, user.SecurityStamp, user.MustChangePassword);
     SetAccessTokenCookie(token);
 
     return NoContent();

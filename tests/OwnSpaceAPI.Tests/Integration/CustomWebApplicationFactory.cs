@@ -2,10 +2,19 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using OwnSpaceAPI.Api.Data;
+using OwnSpaceAPI.Api.Services;
 
 namespace OwnSpaceAPI.Tests.Integration;
+
+// No-op: en la suite de tests nunca hay que llamar de verdad a la API de
+// Resend (ni tiene sentido, ni debe depender de la red).
+file sealed class NoopEmailSender : IEmailSender
+{
+    public Task SendAsync(string destinatario, string asunto, string cuerpo) => Task.CompletedTask;
+}
 
 // Levanta la app real (pipeline HTTP completo: middlewares, [Authorize],
 // NotFoundOnForbidResultHandler, JWT) contra una base InMemory en vez de
@@ -26,6 +35,11 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         // desde el arranque. Nunca se conecta de verdad: ConfigureServices,
         // más abajo, reemplaza el DbContext entero por InMemory.
         builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=(local);Database=Ignored;Trusted_Connection=True;");
+        // Mismo motivo que ConnectionStrings arriba: Program.cs lee esto
+        // sincrónicamente antes de Build(), así que tiene que ir acá
+        // (UseSetting) y no en ConfigureAppConfiguration.
+        builder.UseSetting("Resend:ApiKey", "test-key-de-integracion");
+        builder.UseSetting("Resend:FromAddress", "test@example.com");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -48,6 +62,9 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
             }
 
             services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(_dbName));
+
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton<IEmailSender, NoopEmailSender>();
         });
     }
 }

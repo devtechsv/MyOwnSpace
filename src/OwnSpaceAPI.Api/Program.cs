@@ -14,6 +14,7 @@ using OwnSpaceAPI.Api.Services.Auth;
 using OwnSpaceAPI.Api.Services.Exceptions;
 using OwnSpaceAPI.Api.Services.Requests;
 using OwnSpaceAPI.Api.Services.Users;
+using OwnSpaceAPI.Api.Services.Pto;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,12 +41,28 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(conn
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<IPasswordHashingService, PasswordHashingService>();
-builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
+
+builder.Services.Configure<ResendOptions>(builder.Configuration.GetSection("Resend"));
+var resendApiKey = builder.Configuration["Resend:ApiKey"];
+var resendFromAddress = builder.Configuration["Resend:FromAddress"];
+if (string.IsNullOrWhiteSpace(resendApiKey) || string.IsNullOrWhiteSpace(resendFromAddress))
+{
+  throw new InvalidOperationException("Falta configurar Resend:ApiKey y Resend:FromAddress.");
+}
+builder.Services.AddHttpClient<IEmailSender, ResendEmailSender>(client =>
+{
+  client.BaseAddress = new Uri("https://api.resend.com/");
+  client.DefaultRequestHeaders.Authorization =
+      new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", resendApiKey);
+});
+
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IUsersService, UsersService>();
 builder.Services.AddScoped<IRequestsService, RequestsService>();
+builder.Services.AddScoped<IPtoBalanceService, PtoBalanceService>();
+builder.Services.AddScoped<IPtoRequestsService, PtoRequestsService>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, NotFoundOnForbidResultHandler>();
 
 const string FrontendCorsPolicy = "FrontendCorsPolicy";
@@ -194,6 +211,41 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRateLimiter();
 app.UseAuthentication();
+
+// Después de UseAuthentication (context.User ya refleja los claims del
+// JWT) y antes de UseAuthorization/MapControllers: mientras el usuario
+// tenga una contraseña temporal sin cambiar, solo puede llamar a
+// change-password/logout/session — cualquier otro endpoint de /api
+// devuelve 403. Sin esto, el "forzar el cambio" sería solo cosmético
+// del lado del frontend (cualquiera podría seguir usando la temporal
+// llamando a la API directo).
+app.Use(async (context, next) =>
+{
+  if (context.User.Identity?.IsAuthenticated == true
+      && context.Request.Path.StartsWithSegments("/api")
+      && bool.TryParse(context.User.FindFirstValue(OwnSpaceClaimTypes.MustChangePassword), out var mustChange)
+      && mustChange)
+  {
+    var path = context.Request.Path;
+    var permitido = path.StartsWithSegments("/api/v1/auth/change-password")
+        || path.StartsWithSegments("/api/v1/auth/logout")
+        || path.StartsWithSegments("/api/v1/auth/session");
+
+    if (!permitido)
+    {
+      context.Response.StatusCode = StatusCodes.Status403Forbidden;
+      await context.Response.WriteAsJsonAsync(new
+      {
+        title = "Debés cambiar tu contraseña temporal antes de continuar.",
+        status = StatusCodes.Status403Forbidden,
+      });
+      return;
+    }
+  }
+
+  await next();
+});
+
 app.UseAuthorization();
 
 app.MapControllers();

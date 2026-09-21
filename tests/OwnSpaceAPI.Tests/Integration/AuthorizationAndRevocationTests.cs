@@ -25,7 +25,8 @@ public class AuthorizationAndRevocationTests : IClassFixture<CustomWebApplicatio
     private HttpClient CreateClient() =>
         _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
 
-    private async Task<User> SeedUserAsync(UserRole rol, string password, UserStatus estado = UserStatus.Activo)
+    private async Task<User> SeedUserAsync(
+        UserRole rol, string password, UserStatus estado = UserStatus.Activo, bool mustChangePassword = false)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -38,6 +39,7 @@ public class AuthorizationAndRevocationTests : IClassFixture<CustomWebApplicatio
             Correo = $"{Guid.NewGuid():N}@devtch.com",
             Rol = rol,
             Estado = estado,
+            MustChangePassword = mustChangePassword,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -132,6 +134,42 @@ public class AuthorizationAndRevocationTests : IClassFixture<CustomWebApplicatio
         var response = await SendWithTokenAsync(client, HttpMethod.Get, "/api/v1/users", token);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MustChangePassword_BloqueaElRestoDeLaApiHastaCambiarLaContrasenaYAhiSeDestraba()
+    {
+        var user = await SeedUserAsync(UserRole.Empleado, "Temporal123!", mustChangePassword: true);
+        var client = CreateClient();
+        var token = await LoginAndGetTokenAsync(client, user.Correo, "Temporal123!");
+
+        // Un endpoint de negocio cualquiera (no está en la lista blanca
+        // del middleware) tiene que dar 403 mientras no cambie la
+        // contraseña temporal.
+        var bloqueado = await SendWithTokenAsync(client, HttpMethod.Get, "/api/v1/requests/mine", token);
+        Assert.Equal(HttpStatusCode.Forbidden, bloqueado.StatusCode);
+
+        // Pero /auth/session sí sigue permitido (está en la lista blanca).
+        var sesion = await SendWithTokenAsync(client, HttpMethod.Get, "/api/v1/auth/session", token);
+        Assert.Equal(HttpStatusCode.OK, sesion.StatusCode);
+
+        // Cambiar la contraseña (también en la lista blanca) saca el bloqueo.
+        var cambioRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/change-password");
+        cambioRequest.Headers.Add("Cookie", $"accessToken={token}");
+        cambioRequest.Content = JsonContent.Create(new
+        {
+            passwordActual = "Temporal123!",
+            passwordNueva = "MiPropiaElegida456!",
+        });
+        var cambioResponse = await client.SendAsync(cambioRequest);
+        Assert.Equal(HttpStatusCode.NoContent, cambioResponse.StatusCode);
+
+        var nuevoToken = cambioResponse.Headers.GetValues("Set-Cookie")
+            .Single(c => c.StartsWith("accessToken="))
+            .Split(';')[0].Split('=', 2)[1];
+
+        var yaPermitido = await SendWithTokenAsync(client, HttpMethod.Get, "/api/v1/requests/mine", nuevoToken);
+        Assert.Equal(HttpStatusCode.OK, yaPermitido.StatusCode);
     }
 
     [Fact]

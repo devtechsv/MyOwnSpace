@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OwnSpaceAPI.Api.Data;
 
@@ -11,9 +12,11 @@ using OwnSpaceAPI.Api.Data;
 namespace OwnSpaceAPI.Api.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260921190527_ReplacePasswordResetTokenWithMustChangePassword")]
+    partial class ReplacePasswordResetTokenWithMustChangePassword
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -50,10 +53,6 @@ namespace OwnSpaceAPI.Api.Data.Migrations
 
                     b.Property<TimeOnly?>("HoraInicio")
                         .HasColumnType("time");
-
-                    b.Property<decimal?>("HorasSolicitadas")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
 
                     b.Property<string>("Motivo")
                         .IsRequired()
@@ -108,12 +107,6 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateOnly?>("FechaDesactivacion")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly>("FechaIngreso")
-                        .HasColumnType("date");
 
                     b.Property<bool>("MustChangePassword")
                         .HasColumnType("bit");

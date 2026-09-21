@@ -20,7 +20,7 @@ public sealed class UsersService : IUsersService
     public async Task<List<User>> ListAsync() =>
         await _db.Users.OrderBy(u => u.Nombre).ToListAsync();
 
-    public async Task<User> CreateAsync(string nombre, string correo, UserRole rol)
+     public async Task<User> CreateAsync(string nombre, string correo, UserRole rol, DateOnly fechaIngreso)
     {
         if (rol == UserRole.SuperAdmin)
         {
@@ -42,6 +42,7 @@ public sealed class UsersService : IUsersService
             Rol = rol,
             Estado = UserStatus.Pendiente,
             PasswordHash = null,
+            FechaIngreso = fechaIngreso,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -64,7 +65,7 @@ public sealed class UsersService : IUsersService
         // Dispara la invitación a definir contraseña reutilizando el
         // mismo mecanismo de "olvidé mi contraseña" (Tarea 12) — mismo
         // token de un solo uso, mismo IEmailSender.
-        await _passwordResetService.RequestResetAsync(user.Correo);
+        await _passwordResetService.IssueTemporaryPasswordAsync(user.Correo);
 
         return user;
     }
@@ -118,22 +119,19 @@ public sealed class UsersService : IUsersService
         return user;
     }
 
-     public async Task ResetPasswordAsync(Guid id)
+    public async Task ResetPasswordAsync(Guid id)
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
         EnsureNotSuperAdmin(user);
 
-        // Limpiar el hash es lo que hace que el reset sea real: si no,
-        // la contraseña vieja sigue funcionando hasta que el usuario
-        // complete el link (que además puede no llegar nunca, hoy).
-        user.PasswordHash = null;
-        user.Estado = UserStatus.Pendiente;
-        user.SecurityStamp = Guid.NewGuid().ToString("N");
-        user.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-
-        await _passwordResetService.RequestResetAsync(user.Correo);
+        // IssueTemporaryPasswordAsync ya se encarga de reemplazar el
+        // hash, rotar el securityStamp y dejar al usuario en condiciones
+        // de loguearse — no hace falta ningún paso intermedio acá (el
+        // botón de esto en el admin solo se muestra para usuarios
+        // Activo, así que nunca pisa la rama "no-op" pensada para
+        // Desactivado en el flujo anónimo de forgot-password).
+        await _passwordResetService.IssueTemporaryPasswordAsync(user.Correo);
     }
 
     public async Task<User> ToggleStatusAsync(Guid id)
@@ -155,7 +153,9 @@ public sealed class UsersService : IUsersService
             await EnsureNotLastActiveAdminAsync(user);
         }
 
-        user.Estado = user.Estado == UserStatus.Activo ? UserStatus.Desactivado : UserStatus.Activo;
+        var pasaADesactivado = user.Estado == UserStatus.Activo;
+        user.Estado = pasaADesactivado ? UserStatus.Desactivado : UserStatus.Activo;
+        user.FechaDesactivacion = pasaADesactivado ? DateOnly.FromDateTime(DateTime.UtcNow) : null;
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

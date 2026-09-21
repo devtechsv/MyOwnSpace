@@ -87,6 +87,7 @@ public sealed class AuthService : IAuthService
         }
 
         user.PasswordHash = _passwordHasher.Hash(user, passwordNueva);
+        user.MustChangePassword = false;
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

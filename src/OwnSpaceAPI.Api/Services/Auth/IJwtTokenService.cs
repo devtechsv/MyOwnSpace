@@ -10,5 +10,5 @@ public interface IJwtTokenService
     // mismo método. El securityStamp viaja como claim y se valida en
     // cada request (Program.cs, OnTokenValidated) — cambiarlo revoca
     // todas las sesiones existentes de ese usuario.
-    string GenerateToken(Guid userId, string nombre, UserRole rol, UserStatus estado, string securityStamp);
+    string GenerateToken(Guid userId, string nombre, UserRole rol, UserStatus estado, string securityStamp, bool mustChangePassword);
 }

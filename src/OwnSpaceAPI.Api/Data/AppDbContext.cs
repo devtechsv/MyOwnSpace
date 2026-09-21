@@ -12,7 +12,6 @@ public class AppDbContext : DbContext
 
   public DbSet<User> Users => Set<User>();
   public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
-  public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -29,9 +28,12 @@ public class AppDbContext : DbContext
       entity.Property(u => u.Correo).HasMaxLength(256).IsRequired().UseCollation("Latin1_General_CI_AS");
       entity.Property(u => u.SecurityStamp).HasMaxLength(64).IsRequired();
       entity.HasIndex(u => u.Correo).IsUnique();
+      entity.Property(u => u.FechaIngreso).IsRequired();
 
       entity.Property(u => u.Rol).HasConversion<string>().HasMaxLength(20);
       entity.Property(u => u.Estado).HasConversion<string>().HasMaxLength(20);
+
+
 
       entity.ToTable(t => t.HasCheckConstraint(
         "CK_Users_Rol",
@@ -44,6 +46,7 @@ public class AppDbContext : DbContext
     modelBuilder.Entity<LeaveRequest>(entity =>
     {
       entity.Property(r => r.Motivo).HasMaxLength(1000).IsRequired();
+      entity.Property(r => r.HorasSolicitadas).HasPrecision(5, 2);
       entity.Property(r => r.MotivoRechazo).HasMaxLength(1000);
       // "Permiso personal" tiene espacio — el enum de C# no puede
       // llamarse así (es PermisoPersonal), así que acá se traduce a
@@ -61,7 +64,7 @@ public class AppDbContext : DbContext
 
       entity.ToTable(t => t.HasCheckConstraint(
         "CK_LeaveRequests_Tipo",
-        "[Tipo] IN ('Emergencia', 'Enfermedad', 'Permiso personal', 'Otro')"));
+        "[Tipo] IN ('Emergencia', 'Enfermedad', 'Permiso personal', 'Vacaciones', 'Otro')"));
       entity.ToTable(t => t.HasCheckConstraint(
         "CK_LeaveRequests_Estado",
         "[Estado] IN ('Pendiente', 'Aprobada', 'Denegada')"));
@@ -81,20 +84,6 @@ public class AppDbContext : DbContext
         .HasForeignKey(r => r.ReviewedBy)
         .OnDelete(DeleteBehavior.Restrict);
     });
-
-    modelBuilder.Entity<PasswordResetToken>(entity =>
-        {
-          // Sin esto, cada set-password hacía un table scan buscando el
-          // hash del token — no es único a propósito (la colisión es
-          // astronómicamente improbable con 256 bits random, pero no es
-          // una regla de negocio que valga la pena forzar a nivel DB).
-          entity.HasIndex(t => t.TokenHash);
-
-          entity.HasOne(t => t.User)
-              .WithMany()
-              .HasForeignKey(t => t.UserId)
-              .OnDelete(DeleteBehavior.Cascade);
-        });
   }
 
 }

@@ -9,6 +9,8 @@ public record LeaveRequestResponse(
     [property: JsonConverter(typeof(RequestTypeJsonConverter))] RequestType Tipo,
     DateOnly FechaInicio,
     DateOnly FechaFin,
+    [property: JsonConverter(typeof(TimeOnlyJsonConverter))] TimeOnly? HoraInicio,
+    [property: JsonConverter(typeof(TimeOnlyJsonConverter))] TimeOnly? HoraFin,
     string Motivo,
     RequestStatus Estado,
     DateTime CreatedAt,
@@ -17,5 +19,5 @@ public record LeaveRequestResponse(
     string? MotivoRechazo)
 {
     public static LeaveRequestResponse FromEntity(LeaveRequest r) => new(
-        r.Id, r.EmployeeId, r.Tipo, r.FechaInicio, r.FechaFin, r.Motivo, r.Estado, r.CreatedAt, r.ReviewedBy, r.ReviewedAt, r.MotivoRechazo);
+        r.Id, r.EmployeeId, r.Tipo, r.FechaInicio, r.FechaFin, r.HoraInicio, r.HoraFin, r.Motivo, r.Estado, r.CreatedAt, r.ReviewedBy, r.ReviewedAt, r.MotivoRechazo);
 }

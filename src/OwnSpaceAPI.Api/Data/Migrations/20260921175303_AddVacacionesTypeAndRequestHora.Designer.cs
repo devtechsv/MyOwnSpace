@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OwnSpaceAPI.Api.Data;
 
@@ -11,9 +12,11 @@ using OwnSpaceAPI.Api.Data;
 namespace OwnSpaceAPI.Api.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260921175303_AddVacacionesTypeAndRequestHora")]
+    partial class AddVacacionesTypeAndRequestHora
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -51,10 +54,6 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                     b.Property<TimeOnly?>("HoraInicio")
                         .HasColumnType("time");
 
-                    b.Property<decimal?>("HorasSolicitadas")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
                     b.Property<string>("Motivo")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -89,6 +88,37 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OwnSpaceAPI.Api.Models.Entities.PasswordResetToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasswordResetTokens");
+                });
+
             modelBuilder.Entity("OwnSpaceAPI.Api.Models.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -108,15 +138,6 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateOnly?>("FechaDesactivacion")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly>("FechaIngreso")
-                        .HasColumnType("date");
-
-                    b.Property<bool>("MustChangePassword")
-                        .HasColumnType("bit");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -168,6 +189,17 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                     b.Navigation("Employee");
 
                     b.Navigation("Reviewer");
+                });
+
+            modelBuilder.Entity("OwnSpaceAPI.Api.Models.Entities.PasswordResetToken", b =>
+                {
+                    b.HasOne("OwnSpaceAPI.Api.Models.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("OwnSpaceAPI.Api.Models.Entities.User", b =>

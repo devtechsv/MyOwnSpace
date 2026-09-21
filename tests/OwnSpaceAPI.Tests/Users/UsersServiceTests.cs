@@ -13,14 +13,11 @@ public class UsersServiceTests
     {
         public string? UltimoCorreoInvitado { get; private set; }
 
-        public Task RequestResetAsync(string correo)
+        public Task IssueTemporaryPasswordAsync(string correo)
         {
             UltimoCorreoInvitado = correo;
             return Task.CompletedTask;
         }
-
-        public Task SetPasswordAsync(string token, string nuevaPassword) =>
-            throw new NotSupportedException("No usado en estos tests.");
     }
 
     private static AppDbContext CreateContext() =>
@@ -35,6 +32,7 @@ public class UsersServiceTests
         Correo = correo,
         Rol = rol,
         Estado = estado,
+        FechaIngreso = new DateOnly(2020, 1, 1),
         CreatedAt = DateTime.UtcNow,
         UpdatedAt = DateTime.UtcNow,
     };
@@ -46,7 +44,7 @@ public class UsersServiceTests
         var passwordResetService = new FakePasswordResetService();
         var service = new UsersService(db, passwordResetService);
 
-        var user = await service.CreateAsync("Nuevo Empleado", "nuevo@devtch.com", UserRole.Empleado);
+        var user = await service.CreateAsync("Nuevo Empleado", "nuevo@devtch.com", UserRole.Empleado, new DateOnly(2026, 1, 1));
 
         Assert.Equal(UserStatus.Pendiente, user.Estado);
         Assert.Null(user.PasswordHash);
@@ -63,7 +61,7 @@ public class UsersServiceTests
         var service = new UsersService(db, new FakePasswordResetService());
 
         await Assert.ThrowsAsync<ConflictException>(
-            () => service.CreateAsync("Otra Persona", "ana.martinez@devtch.com", UserRole.Empleado));
+            () => service.CreateAsync("Otra Persona", "ana.martinez@devtch.com", UserRole.Empleado, new DateOnly(2026, 1, 1)));
     }
 
     [Fact]
@@ -73,7 +71,7 @@ public class UsersServiceTests
         var service = new UsersService(db, new FakePasswordResetService());
 
         await Assert.ThrowsAsync<BadRequestException>(
-            () => service.CreateAsync("Alguien", "alguien@devtch.com", UserRole.SuperAdmin));
+            () => service.CreateAsync("Alguien", "alguien@devtch.com", UserRole.SuperAdmin, new DateOnly(2026, 1, 1)));
     }
 
     [Fact]
@@ -161,8 +159,12 @@ public class UsersServiceTests
     }
 
     [Fact]
-    public async Task ResetPasswordAsync_DejaAlUsuarioPendienteYDisparaInvitacion()
+    public async Task ResetPasswordAsync_DisparaLaEmisionDeUnaContraseñaTemporalParaElCorreo()
     {
+        // El "dejar Pendiente"/setear el hash ya no lo hace UsersService
+        // — lo delega por completo a IssueTemporaryPasswordAsync (probado
+        // en PasswordResetServiceTests.cs). Acá solo importa que se
+        // dispare para el correo correcto.
         await using var db = CreateContext();
         var user = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com", estado: UserStatus.Activo);
         db.Users.Add(user);
@@ -172,8 +174,6 @@ public class UsersServiceTests
         var service = new UsersService(db, passwordResetService);
         await service.ResetPasswordAsync(user.Id);
 
-        var actualizado = await db.Users.SingleAsync(u => u.Id == user.Id);
-        Assert.Equal(UserStatus.Pendiente, actualizado.Estado);
         Assert.Equal("ana.martinez@devtch.com", passwordResetService.UltimoCorreoInvitado);
     }
 
@@ -212,6 +212,35 @@ public class UsersServiceTests
         var actualizado = await service.ToggleStatusAsync(user.Id);
 
         Assert.Equal(UserStatus.Activo, actualizado.Estado);
+    }
+
+    [Fact]
+    public async Task ToggleStatusAsync_AlDesactivar_RegistraFechaDesactivacion()
+    {
+        await using var db = CreateContext();
+        var user = CrearUsuario("Carlos Rivas", "carlos.rivas@devtch.com", estado: UserStatus.Activo);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService());
+        var actualizado = await service.ToggleStatusAsync(user.Id);
+
+        Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow), actualizado.FechaDesactivacion);
+    }
+
+    [Fact]
+    public async Task ToggleStatusAsync_AlReactivar_LimpiaFechaDesactivacion()
+    {
+        await using var db = CreateContext();
+        var user = CrearUsuario("Marta Gómez", "marta.gomez@devtch.com", estado: UserStatus.Desactivado);
+        user.FechaDesactivacion = new DateOnly(2026, 3, 1);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService());
+        var actualizado = await service.ToggleStatusAsync(user.Id);
+
+        Assert.Null(actualizado.FechaDesactivacion);
     }
 
     [Fact]

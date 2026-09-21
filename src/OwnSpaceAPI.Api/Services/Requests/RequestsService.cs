@@ -40,11 +40,35 @@ public sealed class RequestsService : IRequestsService
   }
 
     public async Task<LeaveRequest> CreateAsync(
-        Guid employeeId, RequestType tipo, DateOnly fechaInicio, DateOnly fechaFin, string motivo)
+        Guid employeeId, RequestType tipo, DateOnly fechaInicio, DateOnly fechaFin,
+        TimeOnly? horaInicio, TimeOnly? horaFin, string motivo)
     {
+        // Vacaciones tiene su propio flujo de autoservicio (POST
+        // /pto/requests, ver PtoRequestsService) — nace directo Aprobada
+        // y valida contra el balance de PTO. Si este endpoint genérico la
+        // aceptara, se podría crear una Vacaciones Pendiente esquivando
+        // por completo esa validación de balance.
+        if (tipo == RequestType.Vacaciones)
+        {
+            throw new BadRequestException("Vacaciones se gestiona exclusivamente desde /pto/requests.");
+        }
+
         if (fechaFin < fechaInicio)
         {
             throw new BadRequestException("La fecha de fin no puede ser anterior a la fecha de inicio.");
+        }
+
+        if (horaInicio.HasValue != horaFin.HasValue)
+        {
+            throw new BadRequestException("Si cargás hora de inicio, también hace falta la hora de fin (y viceversa).");
+        }
+
+        // Comparar horas solo tiene sentido dentro del mismo día — en un
+        // rango de varios días, horaInicio/horaFin describen el inicio del
+        // primer día y el fin del último, no un intervalo continuo.
+        if (horaInicio.HasValue && horaFin.HasValue && fechaInicio == fechaFin && horaFin <= horaInicio)
+        {
+            throw new BadRequestException("La hora de fin no puede ser anterior o igual a la hora de inicio.");
         }
 
         var request = new LeaveRequest
@@ -54,6 +78,8 @@ public sealed class RequestsService : IRequestsService
             Tipo = tipo,
             FechaInicio = fechaInicio,
             FechaFin = fechaFin,
+            HoraInicio = horaInicio,
+            HoraFin = horaFin,
             Motivo = motivo,
             Estado = RequestStatus.Pendiente,
             CreatedAt = DateTime.UtcNow,

@@ -441,3 +441,203 @@ A pedido explícito del usuario, Claude reescribió el archivo directamente en l
 **Cobertura no agregada — límite real encontrado:** se intentó cubrir también la condición de carrera del punto 6 (`DbUpdateException` → `Conflict`) simulándola con un `SaveChangesInterceptor` que inserta el correo "ganador" justo antes del `SaveChangesAsync` bajo prueba. El proveedor **EF Core InMemory no aplica índices únicos que no sean la clave primaria** (confirmado con un test descartable: dos `DbContext` separados insertando el mismo correo NO tiran `DbUpdateException`), así que el escenario no es reproducible con la infraestructura de tests actual sin sumar un proveedor relacional (p. ej. SQLite en memoria) solo para este caso. El try/catch en el código queda como manejo defensivo verificado por lectura, no por test automatizado — documentado acá para no reportarlo como cubierto cuando no lo está.
 
 **Dependencies:** todas las tareas de la Fase 4/5 (opera sobre el mismo código).
+
+---
+
+## Post-cierre — Tipo "Vacaciones" + hora opcional en solicitudes (2026-09-21)
+
+**Contexto:** dos pedidos del usuario tras usar la app: (1) "Vacaciones" ya aparecía seleccionable en el dropdown del frontend pero tiraba error al enviar — faltaba en 3 de los 4 lugares donde vive un tipo de solicitud; (2) poder cargar una hora de inicio/fin opcional al crear una solicitud, visible (solo lectura) al revisarla.
+
+**Cambios:**
+1. `RequestType` — agregado `Vacaciones` al enum (`Enums.cs`), al `CHECK` constraint `CK_LeaveRequests_Tipo` (`AppDbContext.cs`) y a `docs/openapi.yaml`. No necesitó caso especial en `RequestTypeJsonConverter` (a diferencia de `PermisoPersonal`) porque no tiene espacio en el valor real.
+2. `LeaveRequest.HoraInicio`/`HoraFin` — nuevas columnas `TimeOnly?` (SQL `time`, nullable). Opcionales: sin ellas, la solicitud sigue siendo de día completo como antes.
+3. Nuevo `TimeOnlyJsonConverter` (`Enums.cs`) — el converter de `TimeOnly` que trae `System.Text.Json` por defecto solo acepta `"HH:mm:ss"` completo; un `<input type="time">` de HTML manda `"HH:mm"` (sin segundos), que el converter default rechaza con 400. Confirmado el problema con un test descartable (`JsonSerializer.Deserialize<TimeOnly>("\"14:00\"")` tira `JsonException`) antes de escribir el converter propio, que usa `TimeOnly.TryParse` (más permisivo) y siempre escribe en formato `"HH:mm"`.
+4. Validación en `RequestsService.CreateAsync`: `HoraInicio`/`HoraFin` van juntas o ninguna (400 si solo viene una); si ambas vienen y `FechaInicio == FechaFin`, `HoraFin` debe ser estrictamente posterior a `HoraInicio` (400 si no). Sin chequeo de horas cuando el rango cruza varios días (`HoraInicio`/`HoraFin` describen el primer y último día, no son los extremos de un único intervalo).
+5. `CreateLeaveRequestRequest`/`LeaveRequestResponse` — `HoraInicio`/`HoraFin` agregados (nullable, no `[Required]`).
+
+**Frontend:** `Vacaciones` agregado al `TIPOS` del schema zod (`useCreateRequestForm.ts` — el dropdown ya lo tenía, pero el schema lo rechazaba y por eso "tiraba error"); dos `<input type="time">` opcionales en `CreateRequestModal.tsx`, con las mismas dos reglas de validación replicadas en zod y en el mock adapter (paridad mock/backend); ambas tablas de solicitudes (`admin/RequestsTable.tsx`, `employee/RequestsTable.tsx`) muestran la hora debajo de la fecha cuando está presente, sin editor — el admin la ve, no la cambia.
+
+**Migración:** `AddVacacionesTypeAndRequestHora` — agrega `HoraInicio`/`HoraFin` (`time`, nullable) y recrea `CK_LeaveRequests_Tipo` con `Vacaciones` incluido. Generada y aplicada contra SQL Server real.
+
+**Verification:** backend `dotnet build` (0/0) + `dotnet test` 77/77 (72 existentes + 5 nuevos en `RequestsServiceTests`: Vacaciones crea bien, hora válida se guarda, solo-hora-inicio → 400, hora-fin ≤ hora-inicio mismo día → 400, rango multi-día no compara horas entre sí). Frontend `tsc --noEmit` limpio, ESLint limpio, `jest` 199/199 (195 existentes + 4 nuevos en `CreateRequestModal.test.tsx`). Verificación manual end-to-end contra el backend real corriendo (no solo InMemory): login real, `POST /requests` con `Vacaciones` sin hora → 201; con `horaInicio`/`horaFin` en formato `"14:00"` (el que manda un `<input type="time">`) → 201 con esos mismos valores de vuelta; solo `horaInicio` → 400 con el mensaje esperado; `horaFin` ≤ `horaInicio` mismo día → 400 con el mensaje esperado. Quedaron 2 solicitudes `Pendiente` de esta prueba manual en la base de desarrollo (no hay endpoint de borrado de solicitudes) — el admin puede aprobarlas/denegarlas normalmente o ignorarlas.
+
+**Dependencies:** Fase 5 (módulo `requests`).
+
+---
+
+## Post-cierre — Envío real de correo con Resend (2026-09-21)
+
+**Contexto:** `IEmailSender` solo tenía el stub `LoggingEmailSender` (loguea, no envía nada de verdad — ver Tarea 8). El usuario pidió que "olvidé mi contraseña" y "reenviar contraseña" (admin) funcionaran de verdad, usando Resend (resend.com) como proveedor.
+
+**Cambios:**
+1. `Services/ResendEmailSender.cs` (nuevo) — `IEmailSender` real vía la API HTTP de Resend (`POST https://api.resend.com/emails`, `Authorization: Bearer <ApiKey>`). Si Resend rechaza el envío, solo loguea (destinatario + status, nunca el cuerpo — tiene el token) y no relanza: un correo que no salió no debe tumbar el flujo de negocio (el usuario puede reintentar "olvidé mi contraseña").
+2. `Program.cs` — `LoggingEmailSender` reemplazado por `ResendEmailSender` como implementación real de `IEmailSender` (vía `AddHttpClient<IEmailSender, ResendEmailSender>`), con guard de arranque igual al de `ConnectionStrings`/`Jwt:SigningKey`: si falta `Resend:ApiKey` o `Resend:FromAddress`, la app no arranca. `LoggingEmailSender.cs` queda en el código (no se borra, sigue teniendo su test propio) pero ya no se registra en DI.
+3. `appsettings.json`/`appsettings.Development.json` — sección `Resend` nueva. En Development: `FromAddress` precargado con el sandbox de Resend (`onboarding@resend.dev`, sin verificar dominio); `ApiKey` la completó el usuario directamente en el archivo (gitignoreado, nunca pasó por el chat).
+4. Tests de integración (`CustomWebApplicationFactory.cs`) — el nuevo guard de arranque necesitó `UseSetting("Resend:ApiKey", ...)` / `UseSetting("Resend:FromAddress", ...)`, mismo motivo que `ConnectionStrings:DefaultConnection` (se lee sincrónicamente antes de `Build()`, `ConfigureAppConfiguration` no alcanza a tiempo). Se agregó también un `NoopEmailSender` registrado en `ConfigureServices` para que la suite nunca dependa de la red real.
+
+**Nota de seguridad durante la verificación manual:** al probar `forgot-password` contra un correo semilla (`ana.martinez@devtch.com`), Resend lo rechazó con 403 — y el mensaje de error de Resend **incluyó en texto plano el correo verificado de la cuenta** (`apereira@devtch.com`), algo que el usuario había dicho explícitamente que no quería compartir por chat un momento antes. Se le avisó de inmediato (no se usó el dato sin decir nada) y se pidió confirmación explícita antes de seguir — el usuario confirmó que estaba bien usarlo, ya expuesto por la propia respuesta de Resend y no por algo buscado.
+
+**Verification:** backend `dotnet build` (0/0) + `dotnet test` 77/77 (sin tests nuevos — es integración con un servicio externo, no lógica de negocio nueva; cubierto por el `NoopEmailSender` en la suite de integración). Verificación manual real contra Resend (no solo el 403 de sandbox): con `Resend:ApiKey` real configurada, (1) `POST /users` con `correo=apereira@devtch.com` → 201 y Resend respondió 200 (correo de invitación real enviado); (2) `POST /auth/forgot-password` con esa misma cuenta → 200 y Resend 200; (3) `POST /users/{id}/reset-password` (admin) → 200 y Resend 200. Los tres flujos que el usuario pidió ("olvidé mi contraseña", "reenviar contraseña" del admin, y de yapa la invitación al crear usuario, que comparte el mismo mecanismo) confirmados con entrega real, no solo con el stub de logging.
+
+**Dato pendiente de decisión del usuario:** quedó creado en la base de desarrollo un usuario real, "Alejandro Pereira (prueba Resend)" (`apereira@devtch.com`, rol Empleado, estado Pendiente por el flujo de invitación). No hay endpoint de borrado de usuarios (solo `toggle-status`/edición) — el usuario decide si lo conserva, lo edita o lo desactiva.
+
+**Dependencies:** Task 8 (`IEmailSender` + stub), Task 12 (mecanismo de reset), Task 16 (`reset-password` de admin).
+
+---
+
+## Post-cierre — Contraseña temporal en vez de token de un solo uso (2026-09-21)
+
+**Contexto:** pedido explícito del usuario — "En lugar de enviar un token, sería de enviar una contraseña temporal". Reemplaza el mecanismo de `PasswordResetToken` + `POST /auth/set-password` (el usuario recibía un token y elegía su propia contraseña en `/set-password`) en los **tres** flujos que lo compartían (invitación de usuario nuevo, "olvidé mi contraseña", "reenviar contraseña" de admin) por: el backend genera una contraseña temporal, la escribe directo como la contraseña real del usuario, y la manda por correo. Confirmado con el usuario que la contraseña temporal **obliga a cambiarla en el primer login** (recomendado, dado que viajó en texto plano por correo) y que el mecanismo de token viejo se **elimina del todo** (no queda como código muerto).
+
+**Cambios — backend:**
+1. `User.MustChangePassword` (bool, nuevo) — se prende al emitir una temporal, se apaga en `ChangePasswordAsync` al elegir una propia.
+2. `PasswordResetService.IssueTemporaryPasswordAsync(correo)` (reemplaza `RequestResetAsync` + `SetPasswordAsync`) — genera una temporal de 12 caracteres que ya cumple `PasswordRules` (Fisher-Yates sobre 4 categorías garantizadas + relleno al azar), la hashea como `PasswordHash`, pone `Estado = Activo` (ya puede loguearse, sin paso intermedio) y `MustChangePassword = true`, rota el `SecurityStamp`, y la manda por correo. Mismo criterio de "nunca revelar si el correo existe o está Desactivado" que antes.
+3. Entidad `PasswordResetToken` eliminada del todo (archivo, `DbSet`, config de `AppDbContext`, índice). `SetPasswordRequest` (DTO) eliminado. `POST /auth/set-password` eliminado de `AuthController`.
+4. `UsersService.ResetPasswordAsync` simplificado: ya no pasa por un estado intermedio `Pendiente`/`PasswordHash = null` — delega entero a `IssueTemporaryPasswordAsync` (el botón de esto en el admin ya solo se muestra para usuarios `Activo`, así que nunca depende de la rama "no-op" para `Desactivado`).
+5. **Enforcement real, no solo de UI**: nuevo middleware en `Program.cs` (después de `UseAuthentication`, antes de `UseAuthorization`) que, si el claim `must_change_password` del JWT es `true`, solo deja pasar `POST /auth/change-password`, `POST /auth/logout` y `GET /auth/session` — cualquier otro endpoint de `/api` responde 403. Sin esto, "forzar el cambio" hubiera sido solo cosmético del lado del frontend (cualquiera podría haber seguido usando la temporal llamando a la API directo).
+6. Bug propio encontrado y corregido antes de que llegara a producción: `bool.ToString()` en C# da `"True"`/`"False"` (mayúscula), pero el primer borrador del middleware comparaba contra `"true"` en minúscula — nunca hubiera matcheado. Corregido con `bool.TryParse` en vez de comparación de string.
+7. `JwtTokenService.GenerateToken`/`SessionResponse` — nuevo parámetro/campo `mustChangePassword`, propagado en los 3 call-sites de `AuthController` (`Login`, `GetSession`, `ChangePassword` — este último para que el token se reemita ya sin el flag apenas el usuario termina de cambiarla).
+8. Migración `ReplacePasswordResetTokenWithMustChangePassword` — dropea `PasswordResetTokens`, agrega `Users.MustChangePassword` (`bit NOT NULL DEFAULT 0`). Generada y aplicada contra SQL Server real.
+9. `docs/openapi.yaml`/`docs/er-diagram.md` actualizados (schema `Session` con `mustChangePassword`, `/auth/set-password` eliminado, notas del ER sin `PasswordResetTokens`).
+
+**Cambios — frontend:**
+1. Eliminados del todo: `pages/set-password.tsx`, `components/pages/set-password/` (form, hook, tests), `SetPasswordPayload`, `auth.api.ts#setPassword`, `auth.http-adapter.ts#setPassword`, `mockAuthAdapter.setPassword`.
+2. `Session.mustChangePassword` (nuevo campo, requerido) — viaja en cada login/refresh de sesión.
+3. `ChangePasswordModal` — nueva prop `forced`: sin botón "Cancelar", sin cierre por Escape (reusa el `closeDisabled` de `useModalAlly`), con un mensaje explicando por qué. Sigue siendo el mismo componente que ya usaba el menú de usuario para el cambio voluntario — no se creó una página nueva de formulario, solo un modo del existente.
+4. Página nueva `pages/change-password-required.tsx` — renderiza `ChangePasswordModal` en modo `forced`; su `getServerSideProps` redirige de vuelta al home normal si alguien llega ahí sin tener pendiente el cambio (URL escrita a mano).
+5. `middlewares/with-auth.tsx` — único punto central (no hay layout global de páginas autenticadas en este proyecto, confirmado antes de tocar nada) que redirige a `/change-password-required` cuando `session.mustChangePassword` es `true`, salvo en esa misma página (evita loop).
+6. Mock adapter: `forgotPassword`/`mockUsersAdapter.resetPassword` ahora simulan el mismo efecto que el backend real (`Activo` + `mustChangePassword: true`) en vez de `Pendiente`, para paridad mock/backend.
+
+**Verification:**
+- Backend: `dotnet build` (0/0) + `dotnet test` **77/77** — incluye 5 tests nuevos de `PasswordResetServiceTests` (temporal cumple las reglas propias en 20 corridas al azar, rota el `SecurityStamp`, correo inexistente/Desactivado no hace nada ni envía nada) y **1 test de integración HTTP real** nuevo en `AuthorizationAndRevocationTests.cs` que prueba el pipeline completo: login con la temporal → un endpoint de negocio cualquiera da 403 → `/auth/session` sigue permitido → `POST /auth/change-password` da 200 y reemite el token → el mismo endpoint que antes daba 403 ahora da 200.
+- Frontend: `tsc --noEmit` limpio, ESLint limpio (0 errores), `jest` **202/202** (191 existentes ajustados + 11 nuevos: `ChangePasswordModal` en modo forzado, `change-password-required`'s `getServerSideProps`, el gate de `with-auth.tsx`).
+- **Verificación manual real, sin acceso al correo del usuario** (no se puede leer la contraseña temporal real sin acceso a la bandeja): se verificó contra SQL Server real que `POST /auth/forgot-password` deja al usuario `Activo`/`MustChangePassword=1`/con un hash nuevo, y que Resend acepta el envío (200) — la prueba de login-con-la-temporal-y-desbloqueo se cubrió con el test de integración HTTP real de arriba en vez de con un curl manual, precisamente porque el diseño no permite que nadie más que el dueño del correo vea la temporal (ni siquiera el propio desarrollador leyendo logs, a propósito).
+- **Nota de seguridad ocurrida durante la verificación**: al probar `forgot-password` contra un correo de prueba, la respuesta de error de Resend expuso en texto plano el correo real verificado de la cuenta del usuario — se le avisó de inmediato antes de usarlo para nada, y se pidió confirmación explícita, que el usuario dio.
+- **Pendiente de que el usuario confirme en el navegador** (no pude hacerlo yo mismo sin el valor real de la temporal): que el login con la temporal efectivamente redirige a `/change-password-required` y que, tras cambiarla, cae en su home normal.
+
+**Dependencies:** Post-cierre "Envío real de correo con Resend" (arriba) — usa el mismo `IEmailSender`.
+
+---
+
+## Spec pendiente — Módulo de Gestión de PTO (Paid Time Off) (2026-09-21)
+
+**Estado: solo especificación, todavía sin implementar. No tocar código hasta indicación explícita del usuario.**
+
+### Requerimiento original del usuario
+
+> Implementar un módulo de autogestión de tiempo libre remunerado (PTO) que permita a los colaboradores consultar su saldo acumulado y solicitar horas o días libres a través de una interfaz interactiva de calendario, automatizando el devengo quincenal de horas y el reinicio de balance anual.
+>
+> - Devengo/Acumulación: cada colaborador acumula 5 horas de PTO por quincena.
+> - Vigencia y Expiración: las horas son acumulables únicamente durante el año en curso. Al cierre del año (31 de diciembre) el balance no disfrutado expira; el 1 de enero se reinicia a 0 (política "use it or lose it").
+> - Consumo: el usuario solo puede solicitar PTO si cuenta con balance suficiente disponible.
+> - Vista de calendario: visualización mensual del calendario laboral + balance actual. Al seleccionar una fecha específica se despliega un modal con dos opciones: "Jornada completa" (8h) o "Tiempo personalizado" (horas a definir).
+> - Confirmación y descuento: al confirmar, las horas se descuentan del balance y la fecha queda marcada en el calendario.
+
+### Decisiones confirmadas con el usuario (todas por `AskUserQuestion` o respuesta directa, ninguna asumida sin confirmar)
+
+1. **Autoservicio inmediato, sin aprobación de admin.** Al confirmar en el modal, la solicitud queda `Aprobada` al instante y el balance se descuenta en el momento — no pasa por `Pendiente` ni por revisión de un admin. Motivo: el requerimiento dice "al confirmar la solicitud... se descuentan", no "al aprobar".
+2. **Reutiliza `LeaveRequests`, no se crean tablas nuevas de PTO.** El `Tipo = Vacaciones`, que ya existe en el enum, es la solicitud de PTO. Sin ledger, sin tabla de balance propia.
+3. **Balance calculado on-the-fly, sin jobs/cron.** El devengo quincenal y el reinicio anual salen de una fórmula evaluada en cada consulta (ver abajo) — no hay infraestructura de scheduler en el proyecto y no hace falta agregarla.
+4. **Vacaciones deja de vivir en el flujo genérico de solicitudes.** No es un tipo más del formulario genérico (`POST /requests`, `CreateRequestModal` del frontend). Motivo explícito del usuario: los demás tipos (Emergencia, Enfermedad, Permiso personal, Otro) piden hora obligatoria; Vacaciones no pide hora en absoluto — solo la fecha y que el balance acumulado alcance. Son estructuralmente distintos, no dos caminos inconsistentes para lo mismo.
+5. **`Users.FechaIngreso` lo carga el admin al dar de alta al empleado.** Es el punto de partida del devengo de esa persona.
+6. **El contador de devengo se detiene de inmediato al desactivar al empleado.** Necesita un campo propio (`FechaDesactivacion`) para congelar el cálculo con precisión — `UpdatedAt` no sirve porque lo tocan otras operaciones sin relación (ej. cambio de contraseña).
+7. **Selección en el calendario: un día a la vez.** El empleado hace click en una fecha específica, confirma, y si quiere reservar otro día repite la acción — no hay selector de rango de fechas en una sola solicitud (coincide con la letra del requerimiento: "al seleccionar una fecha específica").
+8. **Cancelación: irreversible en esta versión.** No hay endpoint para liberar un día ya confirmado. El consumo parcial del balance (tomar 7 de 15 horas/días acumulados, dejar el resto para después) ya sale gratis del modelo — cada solicitud descuenta solo lo que pide.
+9. **El admin necesita visibilidad de las vacaciones del equipo, en una vista separada** de `/admin/requests` (no mezclada con el flujo de aprobación, porque acá no hay nada que aprobar) — para planificación.
+10. **Quincena = corte estándar**: día 15 y último día de cada mes.
+
+### Modelo de datos (campos nuevos, sin tablas nuevas)
+
+**`Users`** — 2 campos nuevos:
+- `FechaIngreso: DateOnly` — obligatorio, lo carga el admin al crear el usuario (`CreateUserRequest` gana este campo).
+- `FechaDesactivacion: DateOnly?` — se completa solo al ejecutar `toggle-status` hacia `Desactivado`; se limpia si se reactiva.
+
+**`LeaveRequests`** — 1 campo nuevo:
+- `HorasSolicitadas: decimal` — para `Tipo = Vacaciones`: 8 (jornada completa) o el valor personalizado que eligió el empleado. Para el resto de los tipos no aplica (no se toca su comportamiento actual). `HoraInicio`/`HoraFin` (agregados en el post-cierre anterior) quedan siempre `null` en las solicitudes de Vacaciones — no se usan para este flujo.
+
+### Regla de cálculo de balance (sin persistencia propia, evaluada en cada consulta)
+
+```
+inicioDevengo   = max(FechaIngreso, 1-enero-del-año-en-curso)
+finDevengo      = min(hoy, FechaDesactivacion ?? hoy)
+quincenas       = cortes de quincena (día 15 / último día de mes) ya pasados entre inicioDevengo y finDevengo
+horasAcumuladas = quincenas × 5
+horasConsumidas = SUM(HorasSolicitadas) de LeaveRequests
+                   WHERE Tipo = Vacaciones AND Estado = Aprobada
+                   AND FechaInicio dentro del año en curso
+balanceDisponible = horasAcumuladas − horasConsumidas
+```
+
+El reinicio anual ("use it or lose it") no necesita borrar ni resetear nada: el filtro "dentro del año en curso" en `horasConsumidas` y el `max(..., 1-enero)` en `inicioDevengo` ya implementan que el saldo no usado de un año deja de contar apenas cambia el año.
+
+### Componentes de backend a construir
+
+- `CreateUserRequest` gana `FechaIngreso` (obligatorio).
+- `UsersService.ToggleStatusAsync` escribe/limpia `FechaDesactivacion` según el sentido del toggle.
+- `IPtoBalanceService.CalcularBalance(employeeId)` — implementa la fórmula de arriba.
+- Endpoint nuevo, separado del flujo genérico de `requests`: `POST /pto/requests` — recibe `fecha` + `horas` (8 fijo o personalizado), valida contra el balance disponible (rechaza si no alcanza, 409 o 400 a definir en implementación), crea la `LeaveRequest` con `Tipo=Vacaciones`, `Estado=Aprobada` directo, `ReviewedBy`/`ReviewedAt` a definir (posible: null, ya que nadie revisó), dispara correo de confirmación (mismo `IEmailSender`/Resend ya integrado).
+- `GET /pto/balance` — balance del usuario autenticado.
+- `GET /pto/calendario` (o nombre similar) — listado de solo lectura para admin, de las vacaciones reservadas por todo el equipo (reutiliza el filtro por nombre de empleado ya construido en el frontend).
+- Migración EF: `FechaIngreso`, `FechaDesactivacion`, `HorasSolicitadas`.
+- Tests unitarios de `IPtoBalanceService`: ingreso a mitad de año, cambio de año (balance consumido el año pasado no debe descontar del año nuevo), empleado desactivado a mitad de período (el contador no debe seguir sumando después de `FechaDesactivacion`), balance insuficiente al crear una solicitud.
+- Tests de integración HTTP de punta a punta del nuevo endpoint de creación.
+
+### Fuera de alcance (v1)
+
+- Cancelar/liberar un día de PTO ya confirmado.
+- Selección de rango de fechas en una sola solicitud.
+- Cualquier job/cron — todo se calcula al vuelo.
+
+### Fases propuestas
+
+1. Backend: migraciones + `IPtoBalanceService` con tests unitarios de los casos borde.
+2. Backend: endpoint de creación autoservicio + endpoint de balance + endpoint de calendario de admin, con tests de integración.
+3. Frontend: calendario + modal + widget de balance sobre mocks (paridad con backend), ajuste de `CreateRequestModal` (retirar `Vacaciones` del dropdown genérico) y del formulario de alta de usuario (`FechaIngreso`).
+4. Frontend: integración real contra la API + vista de admin.
+5. Verificación end-to-end + actualización de `openapi.yaml`/`er-diagram.md`/`todo.md`.
+
+**Dependencies:** Fase 4 (`users`) y Fase 5 (`requests`) ya cerradas; Post-cierre "Contraseña temporal" (arriba), sin relación directa pero es el estado actual del código sobre el que se construiría esto.
+
+---
+
+## Post-cierre — Módulo PTO, Fases 1-5 completas (2026-09-21)
+
+**Fases 1-2 (backend)** implementadas en modo guiado (código compartido, aplicado por el usuario, revisado por Claude — con 2 excepciones puntuales a pedido explícito: la migración y el archivo de tests, que Claude aplicó directo) y verificadas: `dotnet build` 0/0, `dotnet test` **99/99** (91 de Fase 1 + 8 de `PtoRequestsServiceTests` de Fase 2). Migración `AddPtoFieldsToUsersAndRequests` aplicada contra SQL Server real (`Users.FechaIngreso`/`FechaDesactivacion`, `LeaveRequests.HorasSolicitadas`).
+
+**Bug encontrado y corregido durante la aplicación (Fase 1):** `IPtoRequestsService.cs`/`PtoRequestsService.cs`/`PtoRequestsServiceTests.cs` quedaron guardados en `Models/Dtos/Pto/` en vez de `Services/Pto/`/`tests/OwnSpaceAPI.Tests/Pto/` — mismo tipo de error de ubicación que ya había pasado con `IPasswordResetService.cs` (Tareas 12/15). El de `PtoRequestsServiceTests.cs` rompía la compilación de verdad (quedó dentro del proyecto `OwnSpaceAPI.Api`, que no referencia xUnit). Movidos a su lugar.
+
+**Bug propio encontrado y corregido en los tests (Fase 2):** un test de "supera el balance" reutilizaba el empleado con mucho balance acumulado (ingreso en 2020) y pedía `balance + 1` horas — ese número siempre superaba el tope de 8h/día, así que el test disparaba `BadRequestException` en vez de `ConflictException`, sin aislar los dos chequeos. Corregido con un empleado de `FechaIngreso` en el futuro (balance 0 garantizado) pidiendo 1h.
+
+**Fase 4 (verificación manual end-to-end contra el backend real, no InMemory):** con `ana.martinez@devtch.com`/`Empleado123!` — `GET /pto/balance` devolvió `85.00`, coincidiendo exacto con el cálculo a mano a partir de su `FechaIngreso` real en SQL Server (2026-01-01); `POST /pto/requests` (jornada completa, hoy) → `201`, `Aprobada`, `HorasSolicitadas=8.00`, confirmado también leyendo la fila directo de la base; `GET /pto/balance` after → `77.00` (descuento real); segunda reserva misma fecha → `409` real; 10 horas → `400` real. Con `julio.perez@devtch.com`/`Admin123!`, `GET /pto/calendario` trajo la reserva de Ana — y de paso mostró en vivo el gap de abajo (una `Vacaciones` vieja creada por el flujo genérico también aparece ahí, prueba de que el hueco es explotable de verdad, no solo teórico).
+
+**Fase 5 (docs):** `docs/openapi.yaml` — tag `pto` nuevo, 3 paths (`/pto/balance`, `/pto/requests`, `/pto/calendario`), schemas `PtoBalance`/`CreatePtoRequestRequest`, `fechaIngreso` agregado a `User`/`CreateUserRequest`, `horasSolicitadas` agregado a `LeaveRequest`. Validado con `js-yaml` (parsea sin error, 16 paths/16 schemas) y un chequeo de que todos los `$ref` resuelven contra un schema/parameter real. `docs/er-diagram.md` — `FechaIngreso`/`FechaDesactivacion` en `Users`, `HorasSolicitadas` en `LeaveRequests`, dos notas de diseño nuevas (balance sin tabla/ledger, PTO autoservicio sin aprobación). De paso se corrigió una referencia muerta a "el token de `PasswordResetTokens`" que había quedado en la nota de `Id` como GUID, desde el batch de "contraseña temporal" que eliminó esa tabla.
+
+**Gap conocido, todavía sin cerrar:** `RequestsService.CreateAsync` (`POST /requests`, el endpoint genérico) sigue aceptando `Tipo=Vacaciones` sin ningún chequeo de balance — confirmado explotable en la verificación manual de arriba. Pendiente: agregar un guard (400 si `Tipo=Vacaciones` en el endpoint genérico) — no se tocó en este batch a pedido del usuario, queda para una próxima vuelta.
+
+**Dependencies:** Fase 1-2 de este mismo módulo (arriba).
+
+---
+
+## Post-cierre — Gap de Vacaciones en el endpoint genérico, cerrado (2026-09-21)
+
+A pedido explícito del usuario ("Puedes cerrarlo"), Claude implementó directo.
+
+**Cambio:** `RequestsService.CreateAsync` (`POST /requests`) ahora rechaza `Tipo=Vacaciones` con `BadRequestException` (400) — ese tipo tiene su propio flujo de autoservicio (`POST /pto/requests`) con su propio chequeo de balance; dejarlo pasar por acá permitía crear una `Vacaciones` `Pendiente` esquivando esa validación por completo (confirmado explotable en la verificación manual de la Fase 4).
+
+**Paridad en el mock del frontend:** `mockRequestsAdapter.create` ganó el mismo guard, mismo mensaje de error, siguiendo el criterio ya establecido de que el mock replica las reglas de negocio reales del backend.
+
+**`docs/openapi.yaml`:** `CreateLeaveRequestRequest.tipo` ahora excluye `Vacaciones` de su enum (mismo patrón que `CreateUserRequest.rol` excluye `SuperAdmin`), y la descripción del 400 de `POST /requests` menciona el nuevo motivo de rechazo.
+
+**Tests actualizados:**
+- Backend: `CreateAsync_ConVacaciones_CreaLaSolicitudPendiente` reescrito a `CreateAsync_ConVacaciones_TiraBadRequest` (ahora afirma el rechazo). `CreateAsync_ConHoraEnUnRangoDeVariosDias_NoComparaHorasEntreDiasDistintos` cambió su `Tipo` de prueba de `Vacaciones` a `Otro` (solo usaba Vacaciones como tipo de conveniencia, sin relación con lo que en verdad prueba).
+- Frontend: test nuevo en `mock-adapter.test.ts` confirmando el rechazo con el mismo mensaje.
+
+**Verification:**
+- Backend: `dotnet build` 0/0, `dotnet test` **99/99** (mismo total — un test cambió de propósito, no se sumó cantidad neta).
+- Frontend: `tsc` limpio, `npm test` **228/228** (227 + 1 nuevo).
+- `openapi.yaml` re-validado con `js-yaml` (16/16, sin `$ref` rotas).
+- **Verificación manual contra el backend real** (no solo tests): `POST /requests` con `Tipo=Vacaciones` → `400` real con el mensaje esperado; `Tipo=Otro` en el mismo endpoint → `201` normal, confirmando que el resto del flujo genérico sigue intacto.
+
+Con esto, el módulo de PTO queda cerrado sin cabos sueltos conocidos.
+
+**Dependencies:** Post-cierre "Módulo PTO, Fases 1-5 completas" (arriba).

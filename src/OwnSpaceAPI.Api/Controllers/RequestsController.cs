@@ -36,7 +36,8 @@ public class RequestsController : ControllerBase
     // modelo automática de [ApiController] ya rechazó la request con 400
     // antes de que este método se ejecute si faltaba.
     var created = await _requestsService.CreateAsync(
-        CurrentUserId, request.Tipo!.Value, request.FechaInicio, request.FechaFin, request.Motivo);
+        CurrentUserId, request.Tipo!.Value, request.FechaInicio, request.FechaFin,
+        request.HoraInicio, request.HoraFin, request.Motivo);
     return StatusCode(StatusCodes.Status201Created, LeaveRequestResponse.FromEntity(created));
   }
 

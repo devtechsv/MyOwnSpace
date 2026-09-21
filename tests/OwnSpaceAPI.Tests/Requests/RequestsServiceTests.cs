@@ -67,7 +67,8 @@ public class RequestsServiceTests
 
     var service = new RequestsService(db, new FakeEmailSender());
     var creada = await service.CreateAsync(
-        ana.Id, RequestType.Enfermedad, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 21), "Reposo médico");
+        ana.Id, RequestType.Enfermedad, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 21),
+        horaInicio: null, horaFin: null, "Reposo médico");
 
     Assert.Equal(RequestStatus.Pendiente, creada.Estado);
     Assert.Equal(ana.Id, creada.EmployeeId);
@@ -84,7 +85,97 @@ public class RequestsServiceTests
     var service = new RequestsService(db, new FakeEmailSender());
 
     await Assert.ThrowsAsync<BadRequestException>(() => service.CreateAsync(
-        ana.Id, RequestType.Otro, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 19), "Motivo"));
+        ana.Id, RequestType.Otro, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 19),
+        horaInicio: null, horaFin: null, "Motivo"));
+  }
+
+  [Fact]
+  public async Task CreateAsync_ConVacaciones_TiraBadRequest()
+  {
+    // Vacaciones tiene su propio flujo de autoservicio (POST
+    // /pto/requests, ver PtoRequestsServiceTests) — este endpoint
+    // genérico la rechaza para que nadie la cree esquivando el chequeo
+    // de balance de PTO.
+    await using var db = CreateContext();
+    var ana = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
+    db.Users.Add(ana);
+    await db.SaveChangesAsync();
+
+    var service = new RequestsService(db, new FakeEmailSender());
+
+    await Assert.ThrowsAsync<BadRequestException>(() => service.CreateAsync(
+        ana.Id, RequestType.Vacaciones, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 27),
+        horaInicio: null, horaFin: null, "Vacaciones familiares"));
+
+    Assert.Empty(db.LeaveRequests);
+  }
+
+  [Fact]
+  public async Task CreateAsync_ConHoraDeInicioYFinValidas_LasGuarda()
+  {
+    await using var db = CreateContext();
+    var ana = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
+    db.Users.Add(ana);
+    await db.SaveChangesAsync();
+
+    var service = new RequestsService(db, new FakeEmailSender());
+    var creada = await service.CreateAsync(
+        ana.Id, RequestType.PermisoPersonal, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 20),
+        horaInicio: new TimeOnly(14, 0), horaFin: new TimeOnly(17, 0), "Trámite personal");
+
+    Assert.Equal(new TimeOnly(14, 0), creada.HoraInicio);
+    Assert.Equal(new TimeOnly(17, 0), creada.HoraFin);
+  }
+
+  [Fact]
+  public async Task CreateAsync_ConSoloHoraDeInicio_TiraBadRequest()
+  {
+    await using var db = CreateContext();
+    var ana = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
+    db.Users.Add(ana);
+    await db.SaveChangesAsync();
+
+    var service = new RequestsService(db, new FakeEmailSender());
+
+    await Assert.ThrowsAsync<BadRequestException>(() => service.CreateAsync(
+        ana.Id, RequestType.PermisoPersonal, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 20),
+        horaInicio: new TimeOnly(14, 0), horaFin: null, "Trámite personal"));
+  }
+
+  [Fact]
+  public async Task CreateAsync_ConHoraFinAnteriorOIgualAHoraInicioElMismoDia_TiraBadRequest()
+  {
+    await using var db = CreateContext();
+    var ana = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
+    db.Users.Add(ana);
+    await db.SaveChangesAsync();
+
+    var service = new RequestsService(db, new FakeEmailSender());
+
+    await Assert.ThrowsAsync<BadRequestException>(() => service.CreateAsync(
+        ana.Id, RequestType.PermisoPersonal, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 20),
+        horaInicio: new TimeOnly(17, 0), horaFin: new TimeOnly(14, 0), "Trámite personal"));
+  }
+
+  [Fact]
+  public async Task CreateAsync_ConHoraEnUnRangoDeVariosDias_NoComparaHorasEntreDiasDistintos()
+  {
+    await using var db = CreateContext();
+    var ana = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
+    db.Users.Add(ana);
+    await db.SaveChangesAsync();
+
+    var service = new RequestsService(db, new FakeEmailSender());
+    // HoraInicio (17:00, primer día) > HoraFin (09:00, último día) —
+    // sería inválido si se comparara como un solo intervalo, pero acá
+    // describen días distintos, así que no debe rechazarse. Tipo=Otro
+    // porque Vacaciones ya no pasa por este endpoint genérico.
+    var creada = await service.CreateAsync(
+        ana.Id, RequestType.Otro, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 22),
+        horaInicio: new TimeOnly(17, 0), horaFin: new TimeOnly(9, 0), "Otro");
+
+    Assert.Equal(new TimeOnly(17, 0), creada.HoraInicio);
+    Assert.Equal(new TimeOnly(9, 0), creada.HoraFin);
   }
 
   [Fact]
