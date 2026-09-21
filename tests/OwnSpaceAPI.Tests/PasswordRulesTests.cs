@@ -57,6 +57,13 @@ public class PasswordRulesTests
     }
 
     [Fact]
+    public void Regla_NoGenerica_RechazaLasEntradasAgregadasParaIgualarLaListaDelFrontend()
+    {
+        Assert.False(PasswordRules.Evaluate("devtech123!").Single(r => r.Id == "not-generic").Met);
+        Assert.False(PasswordRules.Evaluate("DEVTECH123!").Single(r => r.Id == "not-generic").Met);
+    }
+
+    [Fact]
     public void Regla_NoGenerica_RechazaLaMismaContraseniaActual()
     {
         var contexto = new PasswordRuleContext { PasswordActual = "Temporal123!" };

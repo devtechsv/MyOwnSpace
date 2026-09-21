@@ -13,6 +13,11 @@ public sealed record PasswordRuleResult(string Id, string Label, bool Met);
 
 public static class PasswordRules
 {
+  // Duplicada a mano en src/lib/password-rules.ts del frontend (esta
+  // lista de acá es la autoridad real; la del frontend solo da feedback
+  // en vivo en el formulario) — mantener las dos listas iguales si se
+  // edita una. "12345" se sacó: nunca hizo nada, 5 caracteres ya
+  // rechaza por la regla de longitud mínima antes de llegar acá.
   private static readonly HashSet<string> ContrasenasGenericas = new(StringComparer.OrdinalIgnoreCase)
     {
         "password123!",
@@ -20,8 +25,8 @@ public static class PasswordRules
         "123456789!",
         "qwerty123!",
         "admin1234!",
+        "devtech123!",
         "bienvenido1!",
-        "12345",
         "contrasena",
         "contraseña",
         "incorrecta",
