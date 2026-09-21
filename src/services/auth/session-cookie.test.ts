@@ -9,6 +9,7 @@ const sampleSession = {
   nombre: 'Ana Martínez',
   rol: 'Empleado' as const,
   estado: 'Activo' as const,
+  mustChangePassword: false,
 };
 
 describe('session-cookie', () => {

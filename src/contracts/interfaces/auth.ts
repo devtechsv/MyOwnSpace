@@ -10,15 +10,11 @@ export interface Session {
   nombre: string;
   rol: UserRole;
   estado: UserStatus;
+  mustChangePassword: boolean;
 }
 
 export interface ForgotPasswordPayload {
   correo: string;
-}
-
-export interface SetPasswordPayload {
-  token: string;
-  nuevaPassword: string;
 }
 
 export interface ChangePasswordPayload {

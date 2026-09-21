@@ -9,10 +9,11 @@ jest.mock('@/services/api-services', () => ({
 
 const refreshSessionMock = API.auth.refreshSession as jest.Mock;
 
-function createContext(): GetServerSidePropsContext {
+function createContext(resolvedUrl = '/'): GetServerSidePropsContext {
   return {
     req: { cookies: { accessToken: 'token', refreshToken: undefined } },
     res: {},
+    resolvedUrl,
   } as unknown as GetServerSidePropsContext;
 }
 
@@ -21,6 +22,7 @@ const empleadoSession = {
   nombre: 'Ana Martínez',
   rol: 'Empleado',
   estado: 'Activo',
+  mustChangePassword: false,
 };
 
 const adminSession = { ...empleadoSession, userId: 'u1', rol: 'Administrador' };
@@ -111,6 +113,33 @@ describe('withAuth (rutas protegidas)', () => {
     expect(result).toEqual({
       props: { titulo: 'Mis solicitudes', session: empleadoSession },
     });
+  });
+
+  it('con mustChangePassword, redirige a /change-password-required en vez de llamar a fn', async () => {
+    refreshSessionMock.mockResolvedValue({
+      status: 'valid',
+      session: { ...empleadoSession, mustChangePassword: true },
+    });
+    const fn = jest.fn();
+
+    const result = await withAuth(fn)(createContext('/admin/requests'));
+
+    expect(result).toEqual({
+      redirect: { destination: '/change-password-required', permanent: false },
+    });
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('con mustChangePassword, la propia página /change-password-required no redirige (evita el loop)', async () => {
+    refreshSessionMock.mockResolvedValue({
+      status: 'valid',
+      session: { ...empleadoSession, mustChangePassword: true },
+    });
+    const fn = jest.fn().mockResolvedValue({ props: {} });
+
+    await withAuth(fn)(createContext('/change-password-required'));
+
+    expect(fn).toHaveBeenCalled();
   });
 
   it('no toca un resultado de redirect ni de notFound (no tienen `props`)', async () => {

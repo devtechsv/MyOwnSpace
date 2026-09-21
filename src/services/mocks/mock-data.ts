@@ -10,6 +10,7 @@ export const mockUsers: User[] = [
     correo: 'julio.perez@devtch.com',
     rol: 'Administrador',
     estado: 'Activo',
+    fechaIngreso: '2022-01-10',
   },
   {
     id: 'u2',
@@ -17,6 +18,7 @@ export const mockUsers: User[] = [
     correo: 'laura.sanchez@devtch.com',
     rol: 'Administrador',
     estado: 'Activo',
+    fechaIngreso: '2022-03-01',
   },
   {
     id: 'u3',
@@ -24,6 +26,7 @@ export const mockUsers: User[] = [
     correo: 'ana.martinez@devtch.com',
     rol: 'Empleado',
     estado: 'Activo',
+    fechaIngreso: '2023-06-15',
   },
   {
     id: 'u4',
@@ -31,6 +34,7 @@ export const mockUsers: User[] = [
     correo: 'carlos.rivas@devtch.com',
     rol: 'Empleado',
     estado: 'Activo',
+    fechaIngreso: '2024-02-01',
   },
   {
     id: 'u5',
@@ -38,6 +42,7 @@ export const mockUsers: User[] = [
     correo: 'sofia.nunez@devtch.com',
     rol: 'Empleado',
     estado: 'Pendiente',
+    fechaIngreso: '2025-01-01',
   },
   {
     id: 'u6',
@@ -45,6 +50,7 @@ export const mockUsers: User[] = [
     correo: 'marta.gomez@devtch.com',
     rol: 'Empleado',
     estado: 'Desactivado',
+    fechaIngreso: '2021-05-01',
   },
 ];
 

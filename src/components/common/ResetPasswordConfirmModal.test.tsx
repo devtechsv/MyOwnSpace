@@ -70,7 +70,7 @@ describe('ResetPasswordConfirmModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('"Sí, restablecer" deja al usuario Pendiente y llama a onSuccess/onClose', async () => {
+  it('"Sí, restablecer" emite una temporal (Activo + mustChangePassword) y llama a onSuccess/onClose', async () => {
     const onClose = jest.fn();
     const onSuccess = jest.fn();
     render(
@@ -90,6 +90,8 @@ describe('ResetPasswordConfirmModal', () => {
     expect(onClose).toHaveBeenCalled();
 
     const usuarios = await mockUsersAdapter.list();
-    expect(usuarios.find((u) => u.id === 'u1')?.estado).toBe('Pendiente');
+    const actualizado = usuarios.find((u) => u.id === 'u1');
+    expect(actualizado?.estado).toBe('Activo');
+    expect(actualizado?.mustChangePassword).toBe(true);
   });
 });

@@ -28,6 +28,7 @@ const sampleSession = {
   nombre: 'Julio Pérez',
   rol: 'Administrador' as const,
   estado: 'Activo' as const,
+  mustChangePassword: false,
 };
 
 describe('refreshSession', () => {

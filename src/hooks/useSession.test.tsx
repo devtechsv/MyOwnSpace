@@ -18,6 +18,7 @@ describe('useSession', () => {
       nombre: 'Julio Pérez',
       rol: 'Administrador' as const,
       estado: 'Activo' as const,
+      mustChangePassword: false,
     };
 
     render(

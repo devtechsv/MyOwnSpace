@@ -10,6 +10,7 @@ const session = {
   nombre: 'Julio Pérez',
   rol: 'Administrador' as const,
   estado: 'Activo' as const,
+  mustChangePassword: false,
 };
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -79,6 +80,41 @@ describe('useAdminRequests', () => {
     expect(result.current.requests.find((r) => r.id === 'r3')?.estado).toBe(
       'Aprobada',
     );
+  });
+
+  it('nombreQuery filtra las solicitudes por nombre de empleado (sin distinguir mayúsculas) sin achicar totalCount', async () => {
+    const { result } = renderHook(() => useAdminRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setFiltro('Todas');
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const totalSinFiltrar = result.current.requests.length;
+    expect(result.current.totalCount).toBe(totalSinFiltrar);
+
+    act(() => {
+      result.current.setNombreQuery('ana mart');
+    });
+
+    expect(result.current.requests.length).toBeGreaterThan(0);
+    expect(
+      result.current.requests.every((r) => r.employeeName === 'Ana Martínez'),
+    ).toBe(true);
+    // El conteo de la pestaña no se achica mientras se escribe el filtro.
+    expect(result.current.totalCount).toBe(totalSinFiltrar);
+  });
+
+  it('nombreQuery sin coincidencias deja la lista vacía sin tirar error', async () => {
+    const { result } = renderHook(() => useAdminRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setNombreQuery('nombre que no existe');
+    });
+
+    expect(result.current.requests).toHaveLength(0);
   });
 
   it('deny saca la solicitud de la lista y la deja Denegada con el motivo en el mock', async () => {

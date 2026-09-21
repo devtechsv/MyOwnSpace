@@ -840,3 +840,121 @@ Feedback directo del usuario probando en vivo: el tooltip (`title`) no es descub
 **Solución final:** cada fila con estado Denegada es ahora un `<button>` (`aria-expanded`, `aria-label` dinámico "Ver/Ocultar motivo del rechazo — ...") que al clickearse despliega/colapsa un panel con el motivo completo, con una flechita que rota para indicar el estado. Se sacó la prop `title` de `StatusBadge` (quedó sin uso). Aplicado igual en las tablas de empleado y de admin — cualquier click en la fila (no solo el badge) abre el desplegable, decisión explícita del usuario sobre el área clickeable. Cada fila se expande/colapsa de forma independiente (no es un acordeón de "solo una abierta a la vez").
 
 **Verificación:** `npm run typecheck`, `npm run lint` (0 errores) y `npm test` (193/193 — los 2 tests del punto anterior se reescribieron para simular el click y verificar que el motivo está oculto antes y visible después, en vez de asumirlo siempre visible).
+
+---
+
+## Filtro por nombre de empleado en /admin/requests, tipo "Vacaciones", hora opcional en solicitudes, correo real con Resend, y contraseña temporal (2026-09-21)
+
+Varios pedidos seguidos del usuario en la misma sesión, cada uno chico por separado pero documentados juntos porque comparten fecha y varios tocan el mismo código de auth.
+
+**Filtro por nombre (admin/requests):** input de búsqueda client-side sobre la lista ya cargada (el nombre del empleado ya vive en cada fila vía el join contra `GET /users` que ya hacía `useAdminRequests`) — sin cambios de backend. El contador de la pestaña activa no se achica mientras se escribe.
+
+**"Vacaciones" + hora opcional:** ver el lado del detalle en `OwnSpaceAPI/tasks/todo.md` — acá solo el resumen frontend: `Vacaciones` agregado al `TIPOS` de `useCreateRequestForm.ts` (el dropdown ya lo tenía, pero el schema zod lo rechazaba — por eso "tiraba error" al enviar). Dos `<input type="time">` opcionales en `CreateRequestModal.tsx`, con las mismas dos reglas de validación (van juntas o ninguna; si es el mismo día, hora de fin > hora de inicio) replicadas en zod y en el mock adapter. Ambas tablas de solicitudes muestran la hora bajo la fecha cuando está presente, solo lectura.
+
+**Envío real de correo (Resend):** sin cambios de frontend — es 100% backend (`ResendEmailSender`), el frontend ya llamaba a los mismos endpoints.
+
+**Contraseña temporal en vez de token:** eliminado del todo `pages/set-password.tsx` y todo `components/pages/set-password/` (la página ya no tiene sentido — no se emiten tokens). `Session.mustChangePassword` (campo nuevo, requerido). `ChangePasswordModal` ganó una prop `forced` (sin "Cancelar", sin cierre por Escape, con mensaje explicando por qué) — se reusó el mismo componente que ya usaba el menú de usuario para el cambio voluntario, no se hizo una pantalla nueva de formulario. Página nueva `pages/change-password-required.tsx` que lo renderiza en modo forzado. El gate vive en un solo lugar, `middlewares/with-auth.tsx` (no hay layout global de páginas autenticadas en este proyecto — confirmado antes de tocar nada, ver el código de `with-auth.tsx`), que redirige ahí cuando `session.mustChangePassword` es `true`, salvo en esa misma página.
+
+**Verification:** `tsc --noEmit` limpio, ESLint limpio (0 errores), `npm test` **202/202** (191 existentes ajustados a los nuevos contratos/comportamiento + 11 nuevos: 4 del filtro por nombre y Vacaciones/hora — ya contados en un batch anterior — más los del `ChangePasswordModal` forzado, el `getServerSideProps` de `change-password-required`, y el gate de `with-auth`). Nota: el flujo de login-con-contraseña-temporal-y-redirección no se pudo probar manualmente en el navegador desde acá (la temporal solo la ve quien tiene acceso al correo real) — cubierto en su lugar con un test de integración HTTP real del lado del backend; queda pendiente que el usuario lo confirme una vez en el navegador.
+
+**Dependencies:** todo lo de auth/sesión de tareas anteriores (login, change-password, `with-auth`, `useModalAlly`).
+
+---
+
+## Spec pendiente — Módulo de Gestión de PTO (Paid Time Off) (2026-09-21)
+
+**Estado: solo especificación, todavía sin implementar. No tocar código hasta indicación explícita del usuario.**
+
+Reglas de negocio, decisiones confirmadas, modelo de datos y fórmula de balance documentadas en detalle en `OwnSpaceAPI/tasks/todo.md` (misma fecha) — acá solo el resumen y la parte de frontend, para no duplicar la fuente de verdad de las reglas de negocio.
+
+### Resumen de las decisiones que afectan al frontend
+
+1. Autoservicio inmediato: al confirmar en el modal, la solicitud queda aprobada al instante — sin paso de revisión de un admin.
+2. Vacaciones deja de vivir en `CreateRequestModal` (formulario genérico). Es su propio módulo: no pide Motivo ni hora, solo fecha + horas (jornada completa u horas personalizadas).
+3. Selección en el calendario: un día a la vez (no rango de fechas en una sola solicitud).
+4. Cancelación: fuera de alcance v1, irreversible una vez confirmada.
+5. El admin ve las vacaciones del equipo en una vista separada de `/admin/requests` (acá no hay nada que aprobar/denegar).
+6. El alta de usuario (`CreateUserModal`) gana el campo `FechaIngreso`, obligatorio — es lo que el backend usa como punto de partida del devengo de esa persona.
+
+### Componentes de frontend a construir
+
+- **Página/vista nueva para el empleado** (ej. `/pto`): calendario mensual + balance disponible visible arriba (llamando a `GET /pto/balance`).
+- **Modal de solicitud** al hacer click en un día: dos opciones, "Jornada completa" (8h fijo) y "Tiempo personalizado" (input numérico de horas) — botón de confirmar deshabilitado si excede el balance disponible. Llama al endpoint nuevo (`POST /pto/requests`, a confirmar el nombre exacto en implementación).
+- **Marcado en el calendario**: días ya reservados se pintan como "PTO tomado" — sin badge de Pendiente/Aprobada/Denegada como en las otras solicitudes (acá el estado siempre es el mismo, no aporta información mostrarlo como si pudiera cambiar).
+- **`CreateRequestModal`**: se retira `Vacaciones` del dropdown de `RequestType` — deja de ser uno de los tipos genéricos.
+- **Vista nueva para el admin** (separada de `/admin/requests`): calendario/listado de solo lectura de las vacaciones reservadas por todo el equipo, para planificación — reutiliza el filtro por nombre de empleado que ya existe ahí.
+- **`CreateUserModal`**: nuevo campo `FechaIngreso` (obligatorio) en el formulario de alta.
+- **Contratos nuevos** en `contracts/interfaces/`: tipo de balance de PTO, payload de creación de solicitud de PTO; `User`/`CreateUserPayload` ganan `fechaIngreso`.
+- **Mock adapter**: nuevo `mockPtoAdapter` (o extensión de `mockUsersAdapter`/`mockRequestsAdapter`, a definir en implementación) con la misma fórmula de balance que el backend, para paridad mock/real.
+
+### Fuera de alcance (v1)
+
+- Cancelar/liberar un día ya confirmado.
+- Selector de rango de fechas en el modal (solo un día a la vez).
+
+### Fases propuestas (mismas que el lado backend, ver el detalle allá)
+
+1–2. Backend (migraciones, servicio de balance, endpoints, tests).
+3. Frontend sobre mocks: calendario + modal + widget de balance, `CreateRequestModal` sin Vacaciones, `CreateUserModal` con `FechaIngreso`.
+4. Frontend integrado contra la API real + vista de admin.
+5. Verificación end-to-end + docs.
+
+**Dependencies:** módulo `employee`/`admin` de solicitudes y usuarios ya cerrados; `CreateRequestModal`/`CreateUserModal` existentes (se modifican, no se recrean).
+
+---
+
+## Fase 3 completada — Frontend del módulo PTO sobre mocks (2026-09-21)
+
+A pedido explícito del usuario ("por esta vez, tu implementarlo"), Claude implementó directamente en vez de compartir código para aplicar (modo agilidad puntual — ver [[feedback-myownspace-workflow]], el modo guiado sigue siendo el default para features nuevas).
+
+**Contratos nuevos:**
+- `contracts/interfaces/pto.ts` — `PtoBalance`, `CreatePtoRequestPayload`.
+- `User`/`CreateUserPayload` ganan `fechaIngreso` (obligatorio, campo real del backend). `User` también gana `fechaDesactivacion` (opcional, mock-only — el backend real nunca lo expone en `UserResponse`, es un detalle interno del cálculo de balance).
+- `LeaveRequest` gana `horasSolicitadas` (opcional, solo aplica a `Tipo=Vacaciones`).
+
+**`lib/pto-balance-calculator.ts`** (nuevo) — port a TypeScript de `PtoBalanceCalculator.cs` del backend (mismo algoritmo de quincenas/devengo), para que el mock pueda calcular el balance sin backend real. Tests en espejo de los del backend (ingreso a mitad de año, cambio de año, desactivación).
+
+**Mock adapter:** `mockPtoAdapter` nuevo (`getBalance`, `create`, `listCalendario`) con las mismas 3 reglas que `PtoRequestsService` real (tope 8h, no duplicar fecha, no superar balance). `mockUsersAdapter.create` ahora persiste `fechaIngreso`; `toggleStatus` ahora registra/limpia `fechaDesactivacion` (mismo criterio de paridad mock/backend que ya se aplicó para otras reglas de negocio en esta sesión).
+
+**Capa de API:** `services/pto/pto.api.ts` + `pto.http-adapter.ts`, con el mismo switch `USE_REAL_API` que ya usan `users`/`requests` — a diferencia de como se construyeron esos dos originalmente (mock primero, HTTP adapter agregado después en un batch aparte), acá se construyeron los dos juntos desde el arranque porque la infraestructura de switch ya existe en el proyecto; Fase 4 se reduce a prender el flag y verificar a mano.
+
+**Vacaciones sale del flujo genérico:** `useCreateRequestForm.ts` (`TIPOS`) y `CreateRequestModal.tsx` (`TIPO_OPTIONS`) ya no incluyen `'Vacaciones'` — tiene su propio módulo.
+
+**`CreateUserModal.tsx`:** campo nuevo `Fecha de ingreso` (obligatorio). De paso se corrigió el texto informativo del modal, que seguía describiendo el mecanismo de token viejo ("recibirá un correo para definir su contraseña... pasará a Activo") en vez del de contraseña temporal ya vigente — mismo tipo de copy desactualizada que ya se había corregido en `ForgotPasswordSent.tsx`.
+
+**Módulo nuevo `components/pages/pto/`:** `usePto` (balance + reservas propias, reutiliza `GET /requests/mine` filtrando `Vacaciones`/`Aprobada` client-side — no hizo falta un endpoint de "mis reservas de PTO" aparte), `PtoCalendar` (calendario mensual con navegación prev/next, días reservados marcados visualmente), `RequestPtoModal`/`useRequestPtoForm` (radio "Jornada completa (8h)" / "Personalizado", con input de horas condicional). Página nueva `pages/pto.tsx` (`withAuth({roles:['Empleado']})`).
+
+**Módulo nuevo `components/pages/admin/` (PTO):** `useAdminPto`/`PtoTeamTable`, listado de solo lectura del equipo (sin badges de estado — todas las filas son siempre `Aprobada`, mostrar un badge de estado ahí sería engañoso, ver discusión de la Fase 3 en el spec). Reutiliza el patrón de filtro por nombre ya construido en `/admin/requests`. Página nueva `pages/admin/pto.tsx` (`withAuth({roles:['Administrador']})`).
+
+**`Sidebar.tsx`:** nuevo link "Mi PTO" (`/pto`) para Empleado, nuevo ítem "PTO" (`/admin/pto`) en la navegación de Administrador.
+
+**Bug preexistente encontrado y corregido, sin relación con PTO:** `pages/change-password-required.test.tsx` vivía dentro de `src/pages/` — Next.js trata cualquier `.tsx` ahí como una ruta, y `npm run build` (Turbopack) fallaba con "Export getServerSideProps doesn't exist in target module" al intentar compilarlo como página. Mismo tipo de error ya documentado y corregido una vez para `pages/404.test.tsx` (Tarea 9) — esta vez pasó desapercibido porque el batch que creó el archivo (contraseña temporal) verificó `tsc`/`eslint`/`jest` pero no corrió `npm run build`. Movido a `src/__tests__/pages/change-password-required.test.tsx`.
+
+**Verification:**
+- `npm run typecheck`: limpio.
+- `npm run lint`: 0 errores (2 warnings informativos del React Compiler sobre `watch()` de `react-hook-form` — mismo patrón ya aceptado en `ChangePasswordModal.tsx`).
+- `npm test`: **227/227** (193 existentes ajustados a `fechaIngreso` + 34 nuevos: calculadora de balance, `mockPtoAdapter`, `RequestPtoModal`, `PtoCalendar`, más los ajustes de `CreateRequestModal`/`CreateUserModal`).
+- `npm run build`: exitoso — `/pto` y `/admin/pto` aparecen como rutas dinámicas nuevas junto al resto.
+
+**Gap encontrado, no corregido en este batch (requiere tocar el backend):** `RequestsService.CreateAsync` (el endpoint genérico `POST /requests`) todavía acepta `Tipo=Vacaciones` sin ningún chequeo de balance — la UI ya no lo ofrece, pero un cliente que llame a la API directo podría seguir creando una solicitud de Vacaciones `Pendiente` por ese camino, evitando por completo el módulo de PTO y su validación de balance. Queda pendiente agregar un guard en el backend (rechazar `Tipo=Vacaciones` en `POST /requests` con 400, o similar) — no se tocó acá para no reabrir verificación del backend en medio de un batch de frontend.
+
+**Dependencies:** Fases 1-2 del backend (migraciones, `IPtoBalanceService`, `PtoRequestsService`, endpoints `/pto/*`).
+
+---
+
+## Post-cierre — Calendario laboral + paginación en /admin/pto, gap de Vacaciones cerrado (2026-09-21)
+
+Tres pedidos seguidos del usuario tras un repaso de "qué queda pendiente" del módulo PTO. Implementado por Claude directo, a pedido explícito.
+
+**Gap de `Tipo=Vacaciones` por el endpoint genérico, cerrado:** `mockRequestsAdapter.create` ganó el mismo guard que `RequestsService.CreateAsync` (backend, ver `OwnSpaceAPI/tasks/todo.md`) — rechaza `Vacaciones` con el mismo mensaje, para que el mock no diverja del backend real.
+
+**"Calendario laboral" (`PtoCalendar.tsx`):** los fines de semana ya no son clickeables para reservar — se renderizan como botón deshabilitado con `aria-label` distinto ("No disponible — fin de semana, {fecha}"). Los feriados quedan fuera de alcance a propósito: necesitarían una fuente de datos que hoy no existe en el proyecto. Un fin de semana que YA tiene una reserva (dato preexistente, de antes de esta restricción) se sigue mostrando y dejando clickear — la restricción solo aplica a reservar uno nuevo. Exportado `esFinDeSemana(year, month, day)` desde el mismo archivo, reusado en los tests para no depender de qué día real se corran.
+
+**Filtro de mes + paginación en `/admin/pto`:** `useAdminPto` gana `mesFiltro` (default: mes actual — sin esto la tabla crecía sin límite a medida que se acumulan meses) con un botón "Ver todos" para sacarlo, y paginación de 15 filas con "Anterior"/"Siguiente". Cambiar cualquier filtro (nombre o mes) vuelve a la página 1 automáticamente.
+
+**Verification:**
+- Backend: `dotnet build` 0/0, `dotnet test` 99/99 (sin cambios de este batch — el gap ya se había cerrado del lado del backend en el paso anterior).
+- Frontend: `tsc` limpio, ESLint 0 errores, `npm test` **234/234** (228 + 6 nuevos: 3 de `PtoCalendar` para fines de semana + 4 de `useAdminPto` para filtro/paginación, menos ajustes a los 2 tests existentes de `PtoCalendar` que asumían "hoy" siempre hábil), `npm run build` exitoso.
+- **Nota de test:** los 2 tests nuevos de `useAdminPto` que crean 16 reservas secuenciales (para forzar una segunda página) superaban el timeout default de Jest (5s) por la latencia simulada del mock (150ms × 16 ≈ 2.4s) — se les subió el timeout a 15s en vez de paralelizar los `create` (paralelizarlos sería incorrecto: el mock muta un array en memoria sin lock, dos escrituras concurrentes podrían perder la del otro).
+
+**Dependencies:** Post-cierre "Módulo PTO, Fases 1-5 completas" (backend) y "Fase 3 completada" (arriba).

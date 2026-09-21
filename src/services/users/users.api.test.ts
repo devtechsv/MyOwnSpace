@@ -20,6 +20,7 @@ describe('users.api.create', () => {
       nombre: 'Nuevo Empleado',
       correo: 'nuevo.empleado@devtch.com',
       rol: 'Empleado',
+      fechaIngreso: '2026-01-01',
     });
 
     expect(nuevo.estado).toBe('Pendiente');
@@ -31,18 +32,20 @@ describe('users.api.create', () => {
         nombre: 'Otro',
         correo: 'julio.perez@devtch.com',
         rol: 'Empleado',
+        fechaIngreso: '2026-01-01',
       }),
     ).rejects.toThrow('Ya existe un usuario con ese correo.');
   });
 });
 
 describe('users.api.resetPassword', () => {
-  it('deja al usuario en estado Pendiente', async () => {
+  it('emite una temporal: queda Activo y con mustChangePassword', async () => {
     await usersApi.resetPassword('u1'); // Julio Pérez, Activo en los fixtures
 
     const usuarios = await mockUsersAdapter.list();
     const julio = usuarios.find((u) => u.id === 'u1');
-    expect(julio?.estado).toBe('Pendiente');
+    expect(julio?.estado).toBe('Activo');
+    expect(julio?.mustChangePassword).toBe(true);
   });
 
   it('rechaza si el id de usuario no existe', async () => {

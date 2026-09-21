@@ -84,6 +84,12 @@ export function CreateUserModal({ isOpen, onClose, onCreated }: Props) {
             error={errors.rol?.message}
             {...register('rol')}
           />
+          <TextInput
+            label='Fecha de ingreso'
+            type='date'
+            error={errors.fechaIngreso?.message}
+            {...register('fechaIngreso')}
+          />
 
           <div className='flex gap-2.5 p-3.5 rounded-xl bg-turquoise-blue-50 dark:bg-turquoise-blue-950/20'>
             <svg
@@ -102,9 +108,8 @@ export function CreateUserModal({ isOpen, onClose, onCreated }: Props) {
               <line x1='12' y1='8' x2='12.01' y2='8' />
             </svg>
             <span className='text-xs leading-relaxed text-foreground'>
-              El usuario quedará en estado <strong>Pendiente</strong> y
-              recibirá un correo para definir su contraseña. Si el usuario inicia
-              sesión por primera vez, pasará a Activo.
+              El usuario recibirá una contraseña temporal por correo y
+              deberá cambiarla al iniciar sesión por primera vez.
             </span>
           </div>
 

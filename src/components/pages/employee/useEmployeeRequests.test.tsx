@@ -9,6 +9,7 @@ const session = {
   nombre: 'Ana Martínez',
   rol: 'Empleado' as const,
   estado: 'Activo' as const,
+  mustChangePassword: false,
 };
 
 function wrapper({ children }: { children: ReactNode }) {

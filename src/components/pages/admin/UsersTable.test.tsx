@@ -8,6 +8,7 @@ const activo: User = {
   correo: 'julio.perez@devtch.com',
   rol: 'Administrador',
   estado: 'Activo',
+  fechaIngreso: '2022-01-10',
 };
 
 const pendiente: User = {
@@ -16,6 +17,7 @@ const pendiente: User = {
   correo: 'sofia.nunez@devtch.com',
   rol: 'Empleado',
   estado: 'Pendiente',
+  fechaIngreso: '2025-01-01',
 };
 
 const desactivado: User = {
@@ -24,6 +26,7 @@ const desactivado: User = {
   correo: 'marta.gomez@devtch.com',
   rol: 'Empleado',
   estado: 'Desactivado',
+  fechaIngreso: '2021-05-01',
 };
 
 describe('UsersTable', () => {

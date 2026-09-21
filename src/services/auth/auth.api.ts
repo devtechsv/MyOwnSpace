@@ -3,7 +3,6 @@ import {
   ForgotPasswordPayload,
   LoginPayload,
   Session,
-  SetPasswordPayload,
   ChangePasswordPayload
 } from '@/contracts/interfaces/auth';
 import { mockAuthAdapter } from '@/services/mocks/mock-adapter';
@@ -50,11 +49,6 @@ async function forgotPassword(payload: ForgotPasswordPayload): Promise<void> {
   return adapter.forgotPassword(payload);
 }
 
-async function setPassword(payload: SetPasswordPayload): Promise<void> {
-  const adapter = USE_REAL_API ? httpAuthAdapter : mockAuthAdapter;
-  return adapter.setPassword(payload);
-}
-
 async function changePassword(payload: ChangePasswordPayload): Promise<void> {
   const adapter = USE_REAL_API ? httpAuthAdapter : mockAuthAdapter;
   return adapter.changePassword(payload);
@@ -65,7 +59,6 @@ const auth = {
   login,
   logout,
   forgotPassword,
-  setPassword,
   changePassword
 };
 

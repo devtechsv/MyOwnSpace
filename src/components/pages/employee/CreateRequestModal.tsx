@@ -14,7 +14,6 @@ const TIPO_OPTIONS = [
   { value: 'Emergencia', label: 'Emergencia' },
   { value: 'Enfermedad', label: 'Enfermedad' },
   { value: 'Permiso personal', label: 'Permiso personal' },
-  { value: 'Vacaciones', label: 'Vacaciones' },
   { value: 'Otro', label: 'Otro' },
 ];
 
@@ -101,6 +100,21 @@ export function CreateRequestModal({ isOpen, onClose, onCreated }: Props) {
               type='date'
               error={errors.fechaFin?.message}
               {...register('fechaFin')}
+            />
+          </div>
+
+          <div className='flex gap-3'>
+            <TextInput
+              label='Hora desde (opcional)'
+              type='time'
+              error={errors.horaInicio?.message}
+              {...register('horaInicio')}
+            />
+            <TextInput
+              label='Hora hasta (opcional)'
+              type='time'
+              error={errors.horaFin?.message}
+              {...register('horaFin')}
             />
           </div>
 

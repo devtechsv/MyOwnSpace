@@ -22,6 +22,9 @@ function fillValidForm() {
   fireEvent.change(screen.getByLabelText('Correo electrónico'), {
     target: { value: 'nuevo.empleado@devtch.com' },
   });
+  fireEvent.change(screen.getByLabelText('Fecha de ingreso'), {
+    target: { value: '2026-01-01' },
+  });
 }
 
 beforeEach(() => {
@@ -67,6 +70,9 @@ describe('CreateUserModal', () => {
     });
     fireEvent.change(screen.getByLabelText('Correo electrónico'), {
       target: { value: 'julio.perez@devtch.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Fecha de ingreso'), {
+      target: { value: '2026-01-01' },
     });
     fireEvent.click(screen.getByRole('button', { name: /crear usuario/i }));
 

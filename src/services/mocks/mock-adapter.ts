@@ -12,9 +12,10 @@ import {
   ForgotPasswordPayload,
   LoginPayload,
   Session,
-  SetPasswordPayload,
   ChangePasswordPayload
 } from '@/contracts/interfaces/auth';
+import { CreatePtoRequestPayload, PtoBalance } from '@/contracts/interfaces/pto';
+import { calcularHorasAcumuladas } from '@/lib/pto-balance-calculator';
 import { mockRequests, mockUsers } from './mock-data';
 
 // Este adaptador implementa las mismas firmas que tendrán las llamadas
@@ -106,33 +107,30 @@ export const mockAuthAdapter = {
       nombre: user.nombre,
       rol: user.rol,
       estado: user.estado,
+      mustChangePassword: user.mustChangePassword ?? false,
     };
     return delay(session);
   },
 
-  async forgotPassword(_payload: ForgotPasswordPayload): Promise<void> {
+  async forgotPassword(payload: ForgotPasswordPayload): Promise<void> {
     // Siempre resuelve igual, exista o no el correo (SPEC.md: nunca
-    // revelar si un correo está registrado).
-    return delay(undefined);
-  },
-
-  async setPassword(payload: SetPasswordPayload): Promise<void> {
-    // Sin backend real no hay un JWT/token opaco que resolver: el mock
-    // trata `token` directamente como el id del usuario (así el flujo
-    // de "definir contraseña" es probable de punta a punta). Cuando
-    // exista la API real, el token identificará al usuario del lado
-    // del servidor y esta función solo cambiará de implementación acá.
-    const user = users.find((u) => u.id === payload.token);
-    if (!user) {
-      throw new Error('El enlace no es válido o ya expiró.');
+    // revelar si un correo está registrado) — pero si existe, simula la
+    // contraseña temporal real: queda Activo y con mustChangePassword.
+    const correoNormalizado = payload.correo.trim().toLowerCase();
+    const user = users.find((u) => u.correo.toLowerCase() === correoNormalizado);
+    if (user && user.estado !== 'Desactivado') {
+      user.estado = 'Activo';
+      user.mustChangePassword = true;
     }
-    user.estado = 'Activo';
     return delay(undefined);
   },
 
   async changePassword(_payload: ChangePasswordPayload): Promise<void> {
-    // El mock no valida la contraseña actual (no la tiene guardada) —
-    // siempre resuelve, igual que forgotPassword/setPassword.
+    // El mock no tiene forma de saber quién está logueado (la sesión
+    // vive en una cookie fuera de este módulo, no en `users`) ni
+    // contraseñas reales para validar la "actual" — siempre resuelve,
+    // igual que forgotPassword. La limpieza real de mustChangePassword
+    // pasa server-side contra el backend real.
     return delay(undefined);
   },
 };
@@ -154,9 +152,26 @@ export const mockRequestsAdapter = {
   },
 
   async create(payload: CreateLeaveRequestPayload): Promise<LeaveRequest> {
+    if (payload.tipo === 'Vacaciones') {
+      // Igual que el backend real: Vacaciones tiene su propio flujo de
+      // autoservicio (mockPtoAdapter.create) — este camino genérico la
+      // rechaza para que nadie la cree esquivando el chequeo de balance.
+      throw new Error('Vacaciones se gestiona exclusivamente desde /pto/requests.');
+    }
     if (payload.fechaFin < payload.fechaInicio) {
       // Igual que el backend real: rechaza un rango de fechas invertido.
       throw new Error('La fecha de fin no puede ser anterior a la fecha de inicio.');
+    }
+    if (Boolean(payload.horaInicio) !== Boolean(payload.horaFin)) {
+      throw new Error('Si cargás hora de inicio, también hace falta la hora de fin (y viceversa).');
+    }
+    if (
+      payload.horaInicio &&
+      payload.horaFin &&
+      payload.fechaInicio === payload.fechaFin &&
+      payload.horaFin <= payload.horaInicio
+    ) {
+      throw new Error('La hora de fin no puede ser anterior o igual a la hora de inicio.');
     }
     const nueva: LeaveRequest = {
       id: nextId('r', requests),
@@ -164,6 +179,8 @@ export const mockRequestsAdapter = {
       tipo: payload.tipo,
       fechaInicio: payload.fechaInicio,
       fechaFin: payload.fechaFin,
+      horaInicio: payload.horaInicio,
+      horaFin: payload.horaFin,
       motivo: payload.motivo,
       estado: 'Pendiente',
       createdAt: new Date().toISOString(),
@@ -199,6 +216,7 @@ export const mockUsersAdapter = {
       correo: payload.correo,
       rol: payload.rol,
       estado: 'Pendiente',
+      fechaIngreso: payload.fechaIngreso,
     };
     users = [...users, nuevo];
     return delay(clone(nuevo));
@@ -220,8 +238,11 @@ export const mockUsersAdapter = {
   },
 
   async resetPassword(id: string): Promise<void> {
+    // Igual que el backend real: emite una temporal directamente, sin
+    // paso intermedio por Pendiente.
     const target = findUserOrThrow(id);
-    target.estado = 'Pendiente';
+    target.estado = 'Activo';
+    target.mustChangePassword = true;
     return delay(undefined);
   },
 
@@ -232,7 +253,77 @@ export const mockUsersAdapter = {
       // Activo/Desactivado para alternar todavía.
       throw new Error('El usuario está Pendiente — no tiene Activo/Desactivado para alternar.');
     }
-    target.estado = target.estado === 'Activo' ? 'Desactivado' : 'Activo';
+    const pasaADesactivado = target.estado === 'Activo';
+    target.estado = pasaADesactivado ? 'Desactivado' : 'Activo';
+    // Igual que el backend real: congela/reanuda el devengo de PTO.
+    target.fechaDesactivacion = pasaADesactivado
+      ? new Date().toISOString().slice(0, 10)
+      : undefined;
     return delay(clone(target));
+  },
+};
+
+export const mockPtoAdapter = {
+  async getBalance(employeeId: string): Promise<PtoBalance> {
+    const user = findUserOrThrow(employeeId);
+    const hoy = new Date().toISOString().slice(0, 10);
+    const acumuladas = calcularHorasAcumuladas(
+      user.fechaIngreso,
+      user.fechaDesactivacion,
+      hoy,
+    );
+    const consumidas = requests
+      .filter(
+        (r) =>
+          r.employeeId === employeeId &&
+          r.tipo === 'Vacaciones' &&
+          r.estado === 'Aprobada' &&
+          r.fechaInicio.slice(0, 4) === hoy.slice(0, 4),
+      )
+      .reduce((acc, r) => acc + (r.horasSolicitadas ?? 0), 0);
+    return delay({ horasDisponibles: Math.max(0, acumuladas - consumidas) });
+  },
+
+  async create(employeeId: string, payload: CreatePtoRequestPayload): Promise<LeaveRequest> {
+    // Mismas 3 reglas que el backend real (PtoRequestsService.CrearAsync).
+    if (payload.horas <= 0 || payload.horas > 8) {
+      throw new Error(
+        'Las horas tienen que ser mayores a 0 y no pueden superar 8 (jornada completa).',
+      );
+    }
+    const yaReservado = requests.some(
+      (r) =>
+        r.employeeId === employeeId &&
+        r.tipo === 'Vacaciones' &&
+        r.estado === 'Aprobada' &&
+        r.fechaInicio === payload.fecha,
+    );
+    if (yaReservado) {
+      throw new Error('Ya tenés PTO reservado para esa fecha.');
+    }
+    const { horasDisponibles } = await mockPtoAdapter.getBalance(employeeId);
+    if (payload.horas > horasDisponibles) {
+      throw new Error('No tenés balance de PTO suficiente para esa cantidad de horas.');
+    }
+
+    const nueva: LeaveRequest = {
+      id: nextId('r', requests),
+      employeeId,
+      tipo: 'Vacaciones',
+      fechaInicio: payload.fecha,
+      fechaFin: payload.fecha,
+      horasSolicitadas: payload.horas,
+      motivo: 'Vacaciones — autoservicio (sin motivo)',
+      estado: 'Aprobada',
+      createdAt: new Date().toISOString(),
+    };
+    requests = [...requests, nueva];
+    return delay(clone(nueva));
+  },
+
+  async listCalendario(): Promise<LeaveRequest[]> {
+    return delay(
+      clone(requests.filter((r) => r.tipo === 'Vacaciones' && r.estado === 'Aprobada')),
+    );
   },
 };

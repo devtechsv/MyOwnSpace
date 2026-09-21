@@ -2,9 +2,11 @@ import {
   mockAuthAdapter,
   mockRequestsAdapter,
   mockUsersAdapter,
+  mockPtoAdapter,
   resetMockState,
 } from './mock-adapter';
 import { mockUsers, mockRequests } from './mock-data';
+import { calcularHorasAcumuladas } from '@/lib/pto-balance-calculator';
 
 beforeEach(() => {
   resetMockState();
@@ -22,6 +24,7 @@ describe('mockAuthAdapter', () => {
       nombre: 'Ana Martínez',
       rol: 'Empleado',
       estado: 'Activo',
+      mustChangePassword: false,
     });
   });
 
@@ -70,26 +73,22 @@ describe('mockAuthAdapter', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('setPassword deja Activo al usuario cuyo id coincide con el token', async () => {
-    await expect(
-      mockAuthAdapter.setPassword({
-        token: 'u5', // Sofía Nuñez, Pendiente en los fixtures
-        nuevaPassword: 'Dt#2026reto',
-      }),
-    ).resolves.toBeUndefined();
+  it('forgotPassword deja Activo y con mustChangePassword al usuario cuyo correo existe', async () => {
+    await mockAuthAdapter.forgotPassword({ correo: 'sofia.nunez@devtch.com' }); // u5, Pendiente en los fixtures
 
     const usuarios = await mockUsersAdapter.list();
     const sofia = usuarios.find((u) => u.id === 'u5');
     expect(sofia?.estado).toBe('Activo');
+    expect(sofia?.mustChangePassword).toBe(true);
   });
 
-  it('setPassword rechaza si el token no coincide con ningún usuario', async () => {
-    await expect(
-      mockAuthAdapter.setPassword({
-        token: 'no-existe',
-        nuevaPassword: 'Dt#2026reto',
-      }),
-    ).rejects.toThrow();
+  it('forgotPassword no reactiva a un usuario Desactivado', async () => {
+    await mockAuthAdapter.forgotPassword({ correo: 'marta.gomez@devtch.com' }); // u6, Desactivado
+
+    const usuarios = await mockUsersAdapter.list();
+    const marta = usuarios.find((u) => u.id === 'u6');
+    expect(marta?.estado).toBe('Desactivado');
+    expect(marta?.mustChangePassword).toBeFalsy();
   });
 });
 
@@ -167,6 +166,18 @@ describe('mockRequestsAdapter', () => {
       }),
     ).rejects.toThrow();
   });
+
+  it('create rechaza Tipo=Vacaciones, igual que el backend real (tiene su propio flujo en /pto)', async () => {
+    await expect(
+      mockRequestsAdapter.create({
+        employeeId: 'u4',
+        tipo: 'Vacaciones',
+        fechaInicio: '2026-10-05',
+        fechaFin: '2026-10-05',
+        motivo: 'Vacaciones',
+      }),
+    ).rejects.toThrow('Vacaciones se gestiona exclusivamente desde /pto/requests.');
+  });
 });
 
 describe('mockUsersAdapter', () => {
@@ -180,6 +191,7 @@ describe('mockUsersAdapter', () => {
       nombre: 'Nuevo Empleado',
       correo: 'nuevo.empleado@devtch.com',
       rol: 'Empleado',
+      fechaIngreso: '2026-01-01',
     });
 
     expect(created.estado).toBe('Pendiente');
@@ -195,6 +207,7 @@ describe('mockUsersAdapter', () => {
         nombre: 'Otro Nombre',
         correo: 'ana.martinez@devtch.com', // ya existe en los fixtures
         rol: 'Empleado',
+        fechaIngreso: '2026-01-01',
       }),
     ).rejects.toThrow('Ya existe un usuario con ese correo.');
   });
@@ -205,6 +218,7 @@ describe('mockUsersAdapter', () => {
         nombre: 'Otro Nombre',
         correo: 'ANA.MARTINEZ@DEVTCH.COM',
         rol: 'Empleado',
+        fechaIngreso: '2026-01-01',
       }),
     ).rejects.toThrow();
   });
@@ -218,12 +232,13 @@ describe('mockUsersAdapter', () => {
     expect(updated.correo).toBe('ana.martinez@devtch.com');
   });
 
-  it('resetPassword deja al usuario en estado Pendiente', async () => {
+  it('resetPassword emite una temporal: queda Activo y con mustChangePassword', async () => {
     await mockUsersAdapter.resetPassword('u1');
 
     const list = await mockUsersAdapter.list();
     const julio = list.find((u) => u.id === 'u1');
-    expect(julio?.estado).toBe('Pendiente');
+    expect(julio?.estado).toBe('Activo');
+    expect(julio?.mustChangePassword).toBe(true);
   });
 
   it('toggleStatus alterna entre Activo y Desactivado', async () => {
@@ -238,5 +253,78 @@ describe('mockUsersAdapter', () => {
     await expect(
       mockUsersAdapter.toggleStatus('u5'), // Sofía Núñez, Pendiente en los fixtures
     ).rejects.toThrow();
+  });
+
+  it('toggleStatus registra fechaDesactivacion al desactivar y la limpia al reactivar', async () => {
+    const desactivado = await mockUsersAdapter.toggleStatus('u3');
+    expect(desactivado.fechaDesactivacion).toBe(new Date().toISOString().slice(0, 10));
+
+    const reactivado = await mockUsersAdapter.toggleStatus('u3');
+    expect(reactivado.fechaDesactivacion).toBeUndefined();
+  });
+});
+
+describe('mockPtoAdapter', () => {
+  it('getBalance calcula el balance con la misma fórmula que el backend real', async () => {
+    // u4 (Carlos Rivas) ingresó en 2024-02-01 en los fixtures — sin
+    // desactivación, sin consumo, el balance tiene que coincidir
+    // exactamente con calcularHorasAcumuladas.
+    const { horasDisponibles } = await mockPtoAdapter.getBalance('u4');
+    const hoy = new Date().toISOString().slice(0, 10);
+    const esperado = calcularHorasAcumuladas('2024-02-01', undefined, hoy);
+
+    expect(horasDisponibles).toBe(esperado);
+  });
+
+  it('create rechaza horas fuera de rango (0, 8]', async () => {
+    await expect(mockPtoAdapter.create('u4', { fecha: '2026-01-01', horas: 0 })).rejects.toThrow();
+    await expect(mockPtoAdapter.create('u4', { fecha: '2026-01-02', horas: 8.5 })).rejects.toThrow();
+  });
+
+  it('create rechaza una segunda reserva para la misma fecha', async () => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    await mockPtoAdapter.create('u4', { fecha: hoy, horas: 4 });
+
+    await expect(mockPtoAdapter.create('u4', { fecha: hoy, horas: 2 })).rejects.toThrow(
+      'Ya tenés PTO reservado para esa fecha.',
+    );
+  });
+
+  it('create rechaza si las horas superan el balance disponible', async () => {
+    // Ingreso en el futuro: balance 0 garantizado, sin depender de qué
+    // día se corra el test (mismo criterio que el test análogo del
+    // backend real).
+    const mañana = new Date();
+    mañana.setDate(mañana.getDate() + 1);
+    const nuevo = await mockUsersAdapter.create({
+      nombre: 'Sin Balance',
+      correo: 'sin.balance@devtch.com',
+      rol: 'Empleado',
+      fechaIngreso: mañana.toISOString().slice(0, 10),
+    });
+
+    await expect(
+      mockPtoAdapter.create(nuevo.id, { fecha: new Date().toISOString().slice(0, 10), horas: 1 }),
+    ).rejects.toThrow('No tenés balance de PTO suficiente para esa cantidad de horas.');
+  });
+
+  it('create descuenta el balance realmente', async () => {
+    const antes = await mockPtoAdapter.getBalance('u4');
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    await mockPtoAdapter.create('u4', { fecha: hoy, horas: 4 });
+
+    const despues = await mockPtoAdapter.getBalance('u4');
+    expect(despues.horasDisponibles).toBe(antes.horasDisponibles - 4);
+  });
+
+  it('listCalendario devuelve solo Vacaciones Aprobada, de todos los empleados', async () => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    await mockPtoAdapter.create('u4', { fecha: hoy, horas: 4 });
+
+    const equipo = await mockPtoAdapter.listCalendario();
+
+    expect(equipo.every((r) => r.tipo === 'Vacaciones' && r.estado === 'Aprobada')).toBe(true);
+    expect(equipo.some((r) => r.employeeId === 'u4' && r.fechaInicio === hoy)).toBe(true);
   });
 });

@@ -112,6 +112,22 @@ export function withAuth<P extends { [key: string]: any }>(
       return { notFound: true };
     }
 
+    // Chequeo único acá (en vez de en cada página): con una contraseña
+    // temporal sin cambiar, cualquier página protegida redirige a
+    // /change-password-required — excepto esa misma página, para no
+    // entrar en loop.
+    if (
+      result.session.mustChangePassword &&
+      ctx.resolvedUrl.split('?')[0] !== '/change-password-required'
+    ) {
+      return {
+        redirect: {
+          destination: '/change-password-required',
+          permanent: false,
+        },
+      };
+    }
+
     const pageResult = await fn(ctx, { user: result.session, tokens });
     return withSessionProp(pageResult, result.session);
   };

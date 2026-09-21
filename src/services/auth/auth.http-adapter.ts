@@ -5,7 +5,6 @@ import {
   ForgotPasswordPayload,
   LoginPayload,
   Session,
-  SetPasswordPayload,
 } from '@/contracts/interfaces/auth';
 
 
@@ -28,10 +27,6 @@ export const httpAuthAdapter = {
 
   async forgotPassword(payload: ForgotPasswordPayload): Promise<void> {
     await apiClient.post('/auth/forgot-password', payload);
-  },
-
-  async setPassword(payload: SetPasswordPayload): Promise<void> {
-    await apiClient.post('/auth/set-password', payload);
   },
 
   // Corre server-side (getServerSideProps). El JWT es opaco para el

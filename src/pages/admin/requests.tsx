@@ -18,8 +18,19 @@ const TABS: { key: AdminRequestsFilter; label: string }[] = [
 ];
 
 const AdminRequestsPage: NextPage<Props> = () => {
-  const { requests, isLoading, error, actioningId, approve, deny, filtro, setFiltro } =
-    useAdminRequests();
+  const {
+    requests,
+    totalCount,
+    isLoading,
+    error,
+    actioningId,
+    approve,
+    deny,
+    filtro,
+    setFiltro,
+    nombreQuery,
+    setNombreQuery,
+  } = useAdminRequests();
 
   return (
     <AppShell sidebar={<Sidebar />}>
@@ -32,25 +43,36 @@ const AdminRequestsPage: NextPage<Props> = () => {
         </p>
       </div>
 
-      <div className='flex gap-2 mb-5'>
-        {TABS.map((tab) => {
-          const isActive = filtro === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type='button'
-              onClick={() => setFiltro(tab.key)}
-              className={
-                isActive
-                  ? 'px-4 py-2 rounded-full bg-turquoise-blue-500 text-white text-sm font-semibold'
-                  : 'px-4 py-2 rounded-full border border-border text-muted text-sm font-medium'
-              }
-            >
-              {tab.label}
-              {isActive && !isLoading ? ` · ${requests.length}` : ''}
-            </button>
-          );
-        })}
+      <div className='flex flex-wrap items-center justify-between gap-3 mb-5'>
+        <div className='flex gap-2'>
+          {TABS.map((tab) => {
+            const isActive = filtro === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type='button'
+                onClick={() => setFiltro(tab.key)}
+                className={
+                  isActive
+                    ? 'px-4 py-2 rounded-full bg-turquoise-blue-500 text-white text-sm font-semibold'
+                    : 'px-4 py-2 rounded-full border border-border text-muted text-sm font-medium'
+                }
+              >
+                {tab.label}
+                {isActive && !isLoading ? ` · ${totalCount}` : ''}
+              </button>
+            );
+          })}
+        </div>
+
+        <input
+          type='search'
+          value={nombreQuery}
+          onChange={(e) => setNombreQuery(e.target.value)}
+          placeholder='Buscar por nombre de empleado…'
+          aria-label='Buscar por nombre de empleado'
+          className='w-64 px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground placeholder:text-muted appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+        />
       </div>
 
       <RequestsTable

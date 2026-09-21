@@ -19,6 +19,7 @@ const empleadoSession = {
   nombre: 'Ana Martínez',
   rol: 'Empleado' as const,
   estado: 'Activo' as const,
+  mustChangePassword: false,
 };
 
 const adminSession = {
@@ -26,6 +27,7 @@ const adminSession = {
   nombre: 'Julio Pérez',
   rol: 'Administrador' as const,
   estado: 'Activo' as const,
+  mustChangePassword: false,
 };
 
 function renderSidebar(session: Session | null, props = {}) {

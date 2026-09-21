@@ -49,19 +49,13 @@ describe('auth.api.logout', () => {
   });
 });
 
-describe('auth.api.forgotPassword / setPassword', () => {
+describe('auth.api.forgotPassword', () => {
   it('forgotPassword resuelve sin lanzar, exista o no el correo', async () => {
     await expect(
       authApi.forgotPassword({ correo: 'ana.martinez@devtch.com' }),
     ).resolves.toBeUndefined();
     await expect(
       authApi.forgotPassword({ correo: 'no-existe@devtch.com' }),
-    ).resolves.toBeUndefined();
-  });
-
-  it('setPassword resuelve sin lanzar cuando el token es un id de usuario válido', async () => {
-    await expect(
-      authApi.setPassword({ token: 'u5', nuevaPassword: 'Dt#2026reto' }),
     ).resolves.toBeUndefined();
   });
 });

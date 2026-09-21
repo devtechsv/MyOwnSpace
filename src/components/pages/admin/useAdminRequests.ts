@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/hooks/useSession';
 import API from '@/services/api-services';
 import { LeaveRequest, RequestStatus } from '@/contracts/interfaces/request';
@@ -15,6 +15,7 @@ export function useAdminRequests() {
   const session = useSession();
   const [filtro, setFiltro] = useState<AdminRequestsFilter>('Pendiente');
   const [requests, setRequests] = useState<AdminRequestRow[]>([]);
+  const [nombreQuery, setNombreQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
@@ -98,8 +99,18 @@ export function useAdminRequests() {
     [session, applyReviewResult],
   );
 
+  const filteredRequests = useMemo(() => {
+    const query = nombreQuery.trim().toLowerCase();
+    if (!query) return requests;
+    return requests.filter((r) => r.employeeName.toLowerCase().includes(query));
+  }, [requests, nombreQuery]);
+
   return {
-    requests,
+    requests: filteredRequests,
+    // Cuenta total del filtro de estado (tab), sin achicar por el
+    // buscador de nombre — así el número en la pestaña activa no
+    // cambia mientras se escribe.
+    totalCount: requests.length,
     isLoading,
     error,
     actioningId,
@@ -108,5 +119,7 @@ export function useAdminRequests() {
     reload: load,
     filtro,
     setFiltro,
+    nombreQuery,
+    setNombreQuery,
   };
 }

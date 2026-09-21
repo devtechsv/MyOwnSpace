@@ -10,6 +10,7 @@ const schema = z.object({
   nombre: z.string().min(1, 'Ingresá el nombre completo'),
   correo: z.string().min(1, 'Ingresá el correo').email('Correo inválido'),
   rol: z.enum(ROLES),
+  fechaIngreso: z.string().min(1, 'Ingresá la fecha de ingreso'),
 });
 
 export type CreateUserInputs = z.infer<typeof schema>;

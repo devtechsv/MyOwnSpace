@@ -9,6 +9,7 @@ const julio: User = {
   correo: 'julio.perez@devtch.com',
   rol: 'Administrador',
   estado: 'Activo',
+  fechaIngreso: '2022-01-10',
 };
 
 function renderModal(

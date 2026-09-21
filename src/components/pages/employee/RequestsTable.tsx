@@ -76,6 +76,11 @@ export function RequestsTable({ requests, isLoading, error }: Props) {
             </span>
             <span className='text-sm text-muted'>
               {formatFecha(request.fechaInicio)}
+              {request.horaInicio && request.horaFin && (
+                <span className='block text-xs'>
+                  {request.horaInicio}–{request.horaFin}
+                </span>
+              )}
             </span>
             <span className='text-sm text-muted truncate pr-3' title={request.motivo}>
               {request.motivo}
