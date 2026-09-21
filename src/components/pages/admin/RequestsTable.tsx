@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AdminRequestRow } from './useAdminRequests';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { DenyRequestModal } from './DenyRequestModal';
+import { cx } from '@/helpers/cx';
 
 interface Props {
   requests: AdminRequestRow[];
@@ -29,6 +30,7 @@ export function RequestsTable({
   onDeny,
 }: Props) {
   const [denyingRequest, setDenyingRequest] = useState<AdminRequestRow | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   if (isLoading) {
     return <p className='text-sm text-muted'>Cargando solicitudes…</p>;
@@ -42,6 +44,18 @@ export function RequestsTable({
     return (
       <p className='text-sm text-muted'>No hay solicitudes para este filtro.</p>
     );
+  }
+
+  function toggleExpanded(id: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   }
 
   return (
@@ -66,11 +80,11 @@ export function RequestsTable({
 
       {requests.map((request) => {
         const isActioning = actioningId === request.id;
-        return (
-          <div
-            key={request.id}
-            className='grid grid-cols-[1.4fr_1.1fr_1fr_2fr_1.3fr] px-5 py-4 border-b border-border last:border-b-0 items-center'
-          >
+        const isDenegada = request.estado === 'Denegada' && Boolean(request.motivoRechazo);
+        const isExpanded = isDenegada && expandedIds.has(request.id);
+
+        const cells = (
+          <>
             <div className='flex items-center gap-2.5'>
               <span className='w-7 h-7 rounded-full bg-surface-field text-muted flex items-center justify-center text-[11px] font-semibold shrink-0'>
                 {request.employeeInitials}
@@ -131,12 +145,56 @@ export function RequestsTable({
                 </button>
               </div>
             ) : (
-              <span>
-                <StatusBadge
-                  status={request.estado}
-                  title={request.estado === 'Denegada' ? request.motivoRechazo : undefined}
-                />
-              </span>
+              <div className='flex items-center gap-2'>
+                <StatusBadge status={request.estado} />
+                {isDenegada && (
+                  <svg
+                    width='14'
+                    height='14'
+                    viewBox='0 0 24 24'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='2.5'
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    className={cx(
+                      'text-muted shrink-0 transition-transform',
+                      isExpanded && 'rotate-180',
+                    )}
+                  >
+                    <polyline points='6 9 12 15 18 9' />
+                  </svg>
+                )}
+              </div>
+            )}
+          </>
+        );
+
+        return (
+          <div key={request.id} className='border-b border-border last:border-b-0'>
+            {isDenegada ? (
+              <button
+                type='button'
+                onClick={() => toggleExpanded(request.id)}
+                aria-expanded={isExpanded}
+                aria-label={`${isExpanded ? 'Ocultar' : 'Ver'} motivo del rechazo — ${request.employeeName}`}
+                className='w-full grid grid-cols-[1.4fr_1.1fr_1fr_2fr_1.3fr] px-5 py-4 items-center text-left hover:bg-surface-field/60'
+              >
+                {cells}
+              </button>
+            ) : (
+              <div className='grid grid-cols-[1.4fr_1.1fr_1fr_2fr_1.3fr] px-5 py-4 items-center'>
+                {cells}
+              </div>
+            )}
+
+            {isExpanded && (
+              <div className='px-5 pb-4'>
+                <p className='text-xs text-muted leading-relaxed bg-surface-field rounded-lg p-3'>
+                  <span className='font-semibold text-foreground'>Motivo del rechazo: </span>
+                  {request.motivoRechazo}
+                </p>
+              </div>
             )}
           </div>
         );

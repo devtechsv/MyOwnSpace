@@ -10,13 +10,11 @@ const STYLES: Record<RequestStatus, string> = {
 
 interface Props {
   status: RequestStatus;
-  title?: string;
 }
 
-export function StatusBadge({ status, title }: Props) {
+export function StatusBadge({ status }: Props) {
   return (
     <span
-      title={title}
       className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${STYLES[status]}`}
     >
       {status}

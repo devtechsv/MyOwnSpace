@@ -148,9 +148,40 @@ describe('RequestsTable (admin)', () => {
     expect(
       screen.queryByRole('button', { name: /aprobar/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('el motivo del rechazo está oculto hasta hacer click en la fila, y no hay botones de Aprobar/Denegar', () => {
+    const denegada: AdminRequestRow = {
+      ...sample[0],
+      estado: 'Denegada',
+      motivoRechazo: 'No hay cobertura ese día.',
+    };
+    render(
+      <RequestsTable
+        requests={[denegada]}
+        isLoading={false}
+        error={null}
+        actioningId={null}
+        onApprove={jest.fn()}
+        onDeny={jest.fn()}
+      />,
+    );
+
     expect(
-      screen.queryByRole('button', { name: /denegar/i }),
+      screen.queryByText('No hay cobertura ese día.'),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^aprobar$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^denegar$/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /ver motivo del rechazo/i }),
+    );
+
+    expect(screen.getByText('No hay cobertura ese día.')).toBeInTheDocument();
   });
 
   it('deshabilita los botones de la fila en acción', () => {

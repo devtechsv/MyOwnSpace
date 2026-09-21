@@ -830,3 +830,13 @@ Pedido directo del usuario: cuando un admin deniega una solicitud, tiene que pod
 **Frontend:** nuevo `DenyRequestModal.tsx` (adopta `useModalAlly`, el hook compartido de accesibilidad que armamos en el punto anterior) con un textarea obligatorio — el botón de confirmar queda deshabilitado hasta que haya texto. El botón "Denegar" de la tabla de admin ahora abre este modal en vez de denegar directo. `StatusBadge` ganó una prop `title` opcional; tanto la tabla de admin como la del empleado muestran el motivo como tooltip nativo sobre el badge "Denegada" (mismo patrón que ya usa la columna Motivo).
 
 **Verificación:** backend `dotnet test` (68/68) y frontend `npm run typecheck`/`npm run lint` (0 errores)/`npm test` (191/191 — incluye tests nuevos para el modal: abre con "Denegar", confirmar con motivo llama a `onDeny(id, motivo)`, y no deja confirmar sin motivo). Migración generada y aplicada a la base local.
+
+---
+
+## Ajuste de UX: motivo del rechazo como desplegable, no tooltip (2026-09-21)
+
+Feedback directo del usuario probando en vivo: el tooltip (`title`) no es descubrible (hay que saber que hay que pasar el mouse) y no funciona en touch/mobile. Primer intento fue mostrar el motivo siempre visible como texto bajo el badge — mejor que el tooltip, pero empuja el layout de todas las filas todo el tiempo, incluso cuando nadie lo está mirando.
+
+**Solución final:** cada fila con estado Denegada es ahora un `<button>` (`aria-expanded`, `aria-label` dinámico "Ver/Ocultar motivo del rechazo — ...") que al clickearse despliega/colapsa un panel con el motivo completo, con una flechita que rota para indicar el estado. Se sacó la prop `title` de `StatusBadge` (quedó sin uso). Aplicado igual en las tablas de empleado y de admin — cualquier click en la fila (no solo el badge) abre el desplegable, decisión explícita del usuario sobre el área clickeable. Cada fila se expande/colapsa de forma independiente (no es un acordeón de "solo una abierta a la vez").
+
+**Verificación:** `npm run typecheck`, `npm run lint` (0 errores) y `npm test` (193/193 — los 2 tests del punto anterior se reescribieron para simular el click y verificar que el motivo está oculto antes y visible después, en vez de asumirlo siempre visible).
