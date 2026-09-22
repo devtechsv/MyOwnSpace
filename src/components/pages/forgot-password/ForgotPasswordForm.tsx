@@ -46,7 +46,7 @@ const ForgotPasswordForm = () => {
           ¿Olvidaste tu contraseña?
         </h1>
         <p className='text-center text-sm text-muted mt-1.5 mb-7 leading-relaxed'>
-          Ingresá tu correo y te enviaremos las instrucciones para
+          Ingresa tu correo y te enviaremos las instrucciones para
           restablecerla.
         </p>
 

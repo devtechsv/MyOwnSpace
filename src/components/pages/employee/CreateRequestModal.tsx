@@ -129,7 +129,7 @@ export function CreateRequestModal({ isOpen, onClose, onCreated }: Props) {
               id='motivo'
               rows={3}
               className='w-full px-3.5 py-3 border border-border rounded-[10px] bg-surface-field text-sm text-foreground focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40 resize-none'
-              placeholder='Describí brevemente el motivo de tu solicitud...'
+              placeholder='Describe brevemente el motivo de tu solicitud...'
               {...register('motivo')}
             />
             {errors.motivo && (

@@ -57,9 +57,9 @@ describe('CreateUserModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /crear usuario/i }));
 
     expect(
-      await screen.findByText('Ingresá el nombre completo'),
+      await screen.findByText('Ingresa el nombre completo'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Ingresá el correo')).toBeInTheDocument();
+    expect(screen.getByText('Ingresa el correo')).toBeInTheDocument();
   });
 
   it('con un correo ya existente, muestra el error en el campo Correo', async () => {

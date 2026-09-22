@@ -23,7 +23,7 @@ export function useEmployeeRequests() {
       const data = await API.requests.listByEmployee(session.userId);
       setRequests(data);
     } catch {
-      setError('No pudimos cargar tus solicitudes. Intentá de nuevo.');
+      setError('No pudimos cargar tus solicitudes. Intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }

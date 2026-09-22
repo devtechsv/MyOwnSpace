@@ -262,7 +262,7 @@ Se corrigió el origen (`AppDbContext.cs`), se borró la migración rota (`dotne
 
 **Acceptance criteria:**
 - [x] Un usuario `Empleado` autenticado que llama a un endpoint de `Administrador` recibe 404, no 401/403
-- [x] Un request sin cookie a un endpoint protegido sigue respondiendo 401 (eso sí debe distinguirse de "no tenés el rol")
+- [x] Un request sin cookie a un endpoint protegido sigue respondiendo 401 (eso sí debe distinguirse de "no tienes el rol")
 
 **Verification:** prueba manual real contra `GET /users`: admin → 200; empleado autenticado → **404**; sin cookie → 401. Los tres casos confirmados con `curl` y sesiones reales (login como Julio y como Sofía).
 
@@ -398,7 +398,7 @@ Se corrigió el origen (`AppDbContext.cs`), se borró la migración rota (`dotne
 **Problemas reales encontrados y corregidos:**
 1. El archivo había quedado en `src/OwnSpaceAPI.Api/README.md` en vez de la raíz de `OwnSpaceAPI/` (donde GitHub lo muestra automáticamente al entrar al repo).
 2. Varios bloques de código Markdown sin el ` ``` ` de cierre (el bloque JSON se mezclaba con el texto siguiente; los comandos `dotnet ef database update` y `dotnet run` no tenían fences en absoluto).
-3. El texto "Abrí .../swagger" aparecía duplicado (una vez mal pegado al comando de arriba, otra vez como su propio paso).
+3. El texto "Abre .../swagger" aparecía duplicado (una vez mal pegado al comando de arriba, otra vez como su propio paso).
 4. La sección de comandos usaba `* Comandos:` en vez de un encabezado `## Comandos`.
 5. Faltaba la sección final "Estructura".
 

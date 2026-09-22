@@ -12,7 +12,7 @@ describe('404', () => {
     ).toHaveAttribute('href', '/');
   });
 
-  it('no dice nada que sugiera "existe pero no tenés acceso"', () => {
+  it('no dice nada que sugiera "existe pero no tienes acceso"', () => {
     render(<NotFoundPage />);
 
     expect(screen.queryByText(/acceso|permiso|autorizado/i)).not.toBeInTheDocument();

@@ -30,7 +30,7 @@ export function ToggleStatusConfirmModal({ user, onClose, onSuccess }: Props) {
       onSuccess?.();
       onClose();
     } catch {
-      setError('No pudimos actualizar el estado. Intentá de nuevo.');
+      setError('No pudimos actualizar el estado. Intenta de nuevo.');
       setIsSubmitting(false);
     }
   };

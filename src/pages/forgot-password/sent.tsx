@@ -10,7 +10,7 @@ const ForgotPasswordSentPage: NextPage<Props> = () => {
   return (
     <>
       <Head>
-        <title>Revisá tu correo — MyOwnSpace</title>
+        <title>Revisa tu correo — MyOwnSpace</title>
       </Head>
       <ForgotPasswordSent />
     </>

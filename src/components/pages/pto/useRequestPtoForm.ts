@@ -15,7 +15,7 @@ const schema = z
       data.modo === 'completa' ||
       (Boolean(data.horasPersonalizadas) && Number(data.horasPersonalizadas) > 0),
     {
-      message: 'Ingresá una cantidad de horas mayor a 0',
+      message: 'Ingresa una cantidad de horas mayor a 0',
       path: ['horasPersonalizadas'],
     },
   )

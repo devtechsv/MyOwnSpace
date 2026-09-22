@@ -21,7 +21,7 @@ describe('ForgotPasswordForm', () => {
       screen.getByRole('button', { name: /enviar instrucciones/i }),
     );
 
-    expect(await screen.findByText('Ingresá tu correo')).toBeInTheDocument();
+    expect(await screen.findByText('Ingresa tu correo')).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });
 

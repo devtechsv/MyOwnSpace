@@ -34,8 +34,8 @@ describe('LoginForm', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /ingresar/i }));
 
-    expect(await screen.findByText('Ingresá tu correo')).toBeInTheDocument();
-    expect(screen.getByText('Ingresá tu contraseña')).toBeInTheDocument();
+    expect(await screen.findByText('Ingresa tu correo')).toBeInTheDocument();
+    expect(screen.getByText('Ingresa tu contraseña')).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });
 

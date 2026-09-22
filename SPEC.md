@@ -157,7 +157,7 @@ El proyecto no tiene test runner configurado todavía. Se propone:
 - Hardcodear URLs o credenciales del backend real en el código (usar `NEXT_PUBLIC_API_URL`, ya existente).
 - Implementar lógica de negocio del backend en el frontend (ej. verificación real de contraseña, generación de tokens) — el frontend solo valida forma/formato en el cliente; la verdad de negocio vive en la API.
 - Revelar en la UI si un correo existe o no en el sistema (ya resuelto en el mockup de "Olvidé mi contraseña" con mensaje genérico) — mantener ese comportamiento cuando se implemente.
-- Mostrar un mensaje de "no tenés permiso" en rutas restringidas — siempre 404 genérico, por la regla de seguridad de `OwnSpace.md`.
+- Mostrar un mensaje de "no tienes permiso" en rutas restringidas — siempre 404 genérico, por la regla de seguridad de `OwnSpace.md`.
 
 ---
 
@@ -174,7 +174,7 @@ El proyecto no tiene test runner configurado todavía. Se propone:
 - El token expira a las 2 horas de inactividad → al expirar, la próxima navegación redirige a `/login?expired=1` y el login muestra el banner correspondiente.
 - "Olvidé mi contraseña" nunca confirma si el correo existe; siempre muestra el mismo mensaje de confirmación.
 - "Definir nueva contraseña" valida en vivo los 6 requisitos (`lib/password-rules.ts`) y deshabilita "Guardar" hasta que todos se cumplan.
-- Ruta inexistente o sin permiso → página 404 genérica, nunca un mensaje que confirme "existe pero no tenés acceso".
+- Ruta inexistente o sin permiso → página 404 genérica, nunca un mensaje que confirme "existe pero no tienes acceso".
 - Toggle de modo oscuro/claro funcional y persistente (`useTheme`, `localStorage`), disponible desde el login.
 
 **Contratos de datos:**

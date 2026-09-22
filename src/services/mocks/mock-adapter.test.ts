@@ -324,7 +324,7 @@ describe('mockPtoAdapter', () => {
     await mockPtoAdapter.create('u4', { fecha: hoy, horas: 4 });
 
     await expect(mockPtoAdapter.create('u4', { fecha: hoy, horas: 2 })).rejects.toThrow(
-      'Ya tenés PTO reservado para esa fecha.',
+      'Ya tienes PTO reservado para esa fecha.',
     );
   });
 
@@ -343,7 +343,7 @@ describe('mockPtoAdapter', () => {
 
     await expect(
       mockPtoAdapter.create(nuevo.id, { fecha: new Date().toISOString().slice(0, 10), horas: 1 }),
-    ).rejects.toThrow('No tenés balance de PTO suficiente para esa cantidad de horas.');
+    ).rejects.toThrow('No tienes balance de PTO suficiente para esa cantidad de horas.');
   });
 
   it('create descuenta el balance realmente', async () => {

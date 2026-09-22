@@ -346,11 +346,11 @@ export const mockPtoAdapter = {
         r.fechaInicio === payload.fecha,
     );
     if (yaReservado) {
-      throw new Error('Ya tenés PTO reservado para esa fecha.');
+      throw new Error('Ya tienes PTO reservado para esa fecha.');
     }
     const { horasDisponibles } = await mockPtoAdapter.getBalance(employeeId);
     if (payload.horas > horasDisponibles) {
-      throw new Error('No tenés balance de PTO suficiente para esa cantidad de horas.');
+      throw new Error('No tienes balance de PTO suficiente para esa cantidad de horas.');
     }
 
     const nueva: LeaveRequest = {

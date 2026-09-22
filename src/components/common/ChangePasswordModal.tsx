@@ -79,7 +79,7 @@ export function ChangePasswordModal({ isOpen, onClose, forced = false }: Props) 
 
         {forced && (
           <p className='text-sm text-muted mb-4 text-center'>
-            Entraste con una contraseña temporal — elegí una propia para
+            Entraste con una contraseña temporal — elige una propia para
             seguir usando MyOwnSpace.
           </p>
         )}

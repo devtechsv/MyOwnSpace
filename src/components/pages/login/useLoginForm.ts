@@ -7,8 +7,8 @@ import API from '@/services/api-services';
 import { getHomeRoute } from '@/helpers/get-home-route';
 
 const schema = z.object({
-  email: z.string().min(1, 'Ingresá tu correo').email('Correo inválido'),
-  password: z.string().min(1, 'Ingresá tu contraseña'),
+  email: z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
+  password: z.string().min(1, 'Ingresa tu contraseña'),
 });
 
 export type LoginInputs = z.infer<typeof schema>;

@@ -10,8 +10,8 @@ Backend de MyOwnSpace (.NET 8 + Entity Framework Core + SQL Server). Ver `SPEC.m
 
 ## Setup
 
-1. Cloná el repo y parate dentro de `OwnSpaceAPI/`.
-2. Creá `src/OwnSpaceAPI.Api/appsettings.Development.json` (no se commitea) con tu connection string real, una clave de firma JWT propia, y el origen de tu frontend:
+1. Clona el repo y ubícate dentro de `OwnSpaceAPI/`.
+2. Crea `src/OwnSpaceAPI.Api/appsettings.Development.json` (no se commitea) con tu connection string real, una clave de firma JWT propia, y el origen de tu frontend:
 
    ```json
    {
@@ -29,19 +29,19 @@ Backend de MyOwnSpace (.NET 8 + Entity Framework Core + SQL Server). Ver `SPEC.m
    }
    ```
 
-3. Aplicá las migraciones (crea la base si no existe):
+3. Aplica las migraciones (crea la base si no existe):
 
    ```bash
    dotnet ef database update --project src/OwnSpaceAPI.Api --startup-project src/OwnSpaceAPI.Api
    ```
 
-4. Levantá la API:
+4. Levanta la API:
 
    ```bash
    dotnet run --project src/OwnSpaceAPI.Api --launch-profile https
    ```
 
-5. Abrí `https://localhost:7127/swagger` para ver y probar los endpoints.
+5. Abre `https://localhost:7127/swagger` para ver y probar los endpoints.
 
 En modo desarrollo, la base se siembra sola con datos de ejemplo (mismos usuarios/solicitudes que el mock del frontend) la primera vez que corre.
 

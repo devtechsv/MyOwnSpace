@@ -69,8 +69,8 @@ describe('CreateRequestModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /enviar solicitud/i }));
 
-    expect(await screen.findByText('Ingresá la fecha de inicio')).toBeInTheDocument();
-    expect(screen.getByText('Ingresá la fecha de fin')).toBeInTheDocument();
+    expect(await screen.findByText('Ingresa la fecha de inicio')).toBeInTheDocument();
+    expect(screen.getByText('Ingresa la fecha de fin')).toBeInTheDocument();
     expect(screen.getByText('Contanos brevemente el motivo')).toBeInTheDocument();
   });
 

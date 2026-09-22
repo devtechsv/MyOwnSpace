@@ -13,7 +13,7 @@ type WithAuthOptions = {
   public?: boolean;
   // Si se indica, solo estos roles pueden ver la página — cualquier
   // otro rol recibe un 404 genérico (nunca un mensaje que confirme
-  // "existe pero no tenés acceso", por la regla de seguridad de
+  // "existe pero no tienes acceso", por la regla de seguridad de
   // OwnSpace.md).
   roles?: UserRole[];
 };

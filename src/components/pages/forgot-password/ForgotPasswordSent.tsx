@@ -31,7 +31,7 @@ const ForgotPasswordSent = () => {
         </div>
 
         <h1 className='text-xl font-bold text-foreground mb-2.5'>
-          Revisá tu correo
+          Revisa tu correo
         </h1>
         <p className='text-sm text-muted leading-relaxed mb-7'>
           Si <strong className='text-foreground'>{correo}</strong> está

@@ -14,7 +14,7 @@ export function useAdminUsers() {
       const data = await API.users.list();
       setUsers(data);
     } catch {
-      setError('No pudimos cargar los usuarios. Intentá de nuevo.');
+      setError('No pudimos cargar los usuarios. Intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }

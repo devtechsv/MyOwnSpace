@@ -245,7 +245,7 @@
 **Acceptance criteria:**
 - [x] Sin token válido, cualquier ruta protegida redirige a `/login`
 - [x] Con token expirado (simulado), redirige a `/login?expired=1` y el banner correspondiente se muestra
-- [x] Ruta inexistente, o ruta que el rol actual no puede ver, siempre renderiza `404.tsx` con mensaje genérico — nunca un mensaje que confirme "existe pero no tenés acceso"
+- [x] Ruta inexistente, o ruta que el rol actual no puede ver, siempre renderiza `404.tsx` con mensaje genérico — nunca un mensaje que confirme "existe pero no tienes acceso"
 
 **Verification:**
 - [x] Tests pass: `npm run test -- with-auth` (8/8; suite completa 81/81, incluyendo `session-cookie` y `404`/`NotFoundPage`)
@@ -688,7 +688,7 @@
 **Discrepancias menores, documentadas como decisión consciente (no corregidas):**
 - `ResetPasswordConfirmModal`: el mockup dice "...con tu nueva contraseña"; la implementación real dice "...con la nueva contraseña" (la copia real evita el posesivo porque el mismo texto se reutiliza tanto para uno mismo como para resetear la contraseña de otro usuario). El mockup además incluye una oración aclaratoria sobre la reutilización del botón entre usuarios, que no se llevó a la implementación real porque el propio modal ya se diferencia dinámicamente vía el título (`¿Restablecer tu propia contraseña?` vs. `¿Restablecer la contraseña de {nombre}?`), haciendo esa aclaración redundante para el usuario final.
 
-**Pantallas revisadas sin discrepancias:** Login, Olvidé mi contraseña, Revisá tu correo, Definí tu nueva contraseña, 404, Dashboard Empleado, Dashboard Admin — Solicitudes, Modal Crear solicitud.
+**Pantallas revisadas sin discrepancias:** Login, Olvidé mi contraseña, Revisa tu correo, Definir nueva contraseña, 404, Dashboard Empleado, Dashboard Admin — Solicitudes, Modal Crear solicitud.
 
 **Dependencies:** Task 21
 

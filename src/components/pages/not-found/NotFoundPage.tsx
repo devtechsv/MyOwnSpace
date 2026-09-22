@@ -26,7 +26,7 @@ const NotFoundPage = () => {
         </h1>
         <p className='text-sm text-muted leading-relaxed mb-7'>
           La dirección a la que intentaste acceder no está disponible.
-          Revisá el enlace o volvé al inicio.
+          Revisa el enlace o vuelve al inicio.
         </p>
 
         <Button component={Link} href='/'>

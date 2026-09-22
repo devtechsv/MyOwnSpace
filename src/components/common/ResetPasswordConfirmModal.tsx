@@ -43,7 +43,7 @@ export function ResetPasswordConfirmModal({
       onSuccess?.();
       onClose();
     } catch {
-      setError('No pudimos restablecer la contraseña. Intentá de nuevo.');
+      setError('No pudimos restablecer la contraseña. Intenta de nuevo.');
       setIsSubmitting(false);
     }
   };

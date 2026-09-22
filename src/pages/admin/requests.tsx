@@ -57,7 +57,7 @@ const AdminRequestsPage: NextPage<Props> = () => {
           Solicitudes del equipo
         </h1>
         <p className='text-sm text-muted mt-1'>
-          Revisá y aprobá o denegá las solicitudes de permisos.
+          Revisa y aprueba o deniega las solicitudes de permisos.
         </p>
       </div>
 

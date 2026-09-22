@@ -13,8 +13,8 @@ const TIPOS = ['Emergencia', 'Enfermedad', 'Permiso personal', 'Otro'] as const;
 const schema = z
   .object({
     tipo: z.enum(TIPOS),
-    fechaInicio: z.string().min(1, 'Ingresá la fecha de inicio'),
-    fechaFin: z.string().min(1, 'Ingresá la fecha de fin'),
+    fechaInicio: z.string().min(1, 'Ingresa la fecha de inicio'),
+    fechaFin: z.string().min(1, 'Ingresa la fecha de fin'),
     // Opcionales — igual que en el backend, van juntas o ninguna.
     horaInicio: z.string().optional().or(z.literal('')),
     horaFin: z.string().optional().or(z.literal('')),
@@ -78,7 +78,7 @@ export function useCreateRequestForm({ onSuccess }: Options = {}) {
       reset();
       onSuccess?.();
     } catch {
-      setServerError('No pudimos crear la solicitud. Intentá de nuevo.');
+      setServerError('No pudimos crear la solicitud. Intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
     }

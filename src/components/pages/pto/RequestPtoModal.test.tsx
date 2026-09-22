@@ -66,7 +66,7 @@ describe('RequestPtoModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /confirmar/i }));
 
     expect(
-      await screen.findByText('Ingresá una cantidad de horas mayor a 0'),
+      await screen.findByText('Ingresa una cantidad de horas mayor a 0'),
     ).toBeInTheDocument();
   });
 
@@ -104,7 +104,7 @@ describe('RequestPtoModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /confirmar/i }));
 
     expect(
-      await screen.findByText('No tenés balance de PTO suficiente para esa cantidad de horas.'),
+      await screen.findByText('No tienes balance de PTO suficiente para esa cantidad de horas.'),
     ).toBeInTheDocument();
   });
 

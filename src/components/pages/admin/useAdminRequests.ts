@@ -105,7 +105,7 @@ export function useAdminRequests() {
       setRequests(enriched);
       setTotalCount(result.totalCount);
     } catch {
-      setError('No pudimos cargar las solicitudes. Intentá de nuevo.');
+      setError('No pudimos cargar las solicitudes. Intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }
@@ -127,7 +127,7 @@ export function useAdminRequests() {
         await API.requests.approve(id, session.userId);
         await load();
       } catch {
-        setError('No pudimos aprobar la solicitud. Intentá de nuevo.');
+        setError('No pudimos aprobar la solicitud. Intenta de nuevo.');
       } finally {
         setActioningId(null);
       }
@@ -143,7 +143,7 @@ export function useAdminRequests() {
         await API.requests.deny(id, session.userId, motivo);
         await load();
       } catch {
-        setError('No pudimos denegar la solicitud. Intentá de nuevo.');
+        setError('No pudimos denegar la solicitud. Intenta de nuevo.');
       } finally {
         setActioningId(null);
       }

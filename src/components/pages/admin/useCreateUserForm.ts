@@ -7,10 +7,10 @@ import API from '@/services/api-services';
 const ROLES = ['Empleado', 'Administrador'] as const;
 
 const schema = z.object({
-  nombre: z.string().min(1, 'Ingresá el nombre completo'),
-  correo: z.string().min(1, 'Ingresá el correo').email('Correo inválido'),
+  nombre: z.string().min(1, 'Ingresa el nombre completo'),
+  correo: z.string().min(1, 'Ingresa el correo').email('Correo inválido'),
   rol: z.enum(ROLES),
-  fechaIngreso: z.string().min(1, 'Ingresá la fecha de ingreso'),
+  fechaIngreso: z.string().min(1, 'Ingresa la fecha de ingreso'),
 });
 
 export type CreateUserInputs = z.infer<typeof schema>;

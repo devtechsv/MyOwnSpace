@@ -44,7 +44,7 @@ export function useAdminPto() {
       });
       setRows(enriched);
     } catch {
-      setError('No pudimos cargar el PTO del equipo. Intentá de nuevo.');
+      setError('No pudimos cargar el PTO del equipo. Intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }

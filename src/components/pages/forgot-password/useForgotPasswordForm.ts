@@ -6,7 +6,7 @@ import { z } from 'zod';
 import API from '@/services/api-services';
 
 const schema = z.object({
-  email: z.string().min(1, 'Ingresá tu correo').email('Correo inválido'),
+  email: z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
 });
 
 export type ForgotPasswordInputs = z.infer<typeof schema>;

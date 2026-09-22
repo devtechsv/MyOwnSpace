@@ -27,7 +27,7 @@ export function usePto() {
         todas.filter((r) => r.tipo === 'Vacaciones' && r.estado === 'Aprobada'),
       );
     } catch {
-      setError('No pudimos cargar tu PTO. Intentá de nuevo.');
+      setError('No pudimos cargar tu PTO. Intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }

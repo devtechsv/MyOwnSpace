@@ -62,7 +62,7 @@ public sealed class PtoRequestsService : IPtoRequestsService
                 && r.FechaInicio == fecha);
             if (yaReservado)
             {
-                throw new ConflictException("Ya tenés PTO reservado para esa fecha.");
+                throw new ConflictException("Ya tienes PTO reservado para esa fecha.");
             }
 
             var balanceDisponible = await _ptoBalanceService.CalcularBalanceAsync(employeeId);
@@ -107,7 +107,7 @@ public sealed class PtoRequestsService : IPtoRequestsService
             // en un DbUpdateException (si pasó durante SaveChangesAsync)
             // y a veces en un InvalidOperationException encima — por eso
             // hay que recorrer InnerException en vez de un catch directo.
-            throw new ConflictException("Hubo mucha actividad al mismo tiempo sobre tu PTO — intentá de nuevo.");
+            throw new ConflictException("Hubo mucha actividad al mismo tiempo sobre tu PTO — inténtalo de nuevo.");
         }
 
         await _emailSender.SendAsync(
