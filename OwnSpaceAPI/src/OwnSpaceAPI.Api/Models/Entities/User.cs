@@ -14,6 +14,11 @@ public class User
     // usuario puede loguearse con la temporal, pero no usar el resto de
     // la app hasta elegir una propia (ver el middleware en Program.cs).
     public bool MustChangePassword { get; set; }
+    // Vence la contraseña temporal (invitación, "olvidé mi contraseña",
+    // reset de admin) aunque nadie la use — sin esto quedaba válida para
+    // siempre. Solo tiene sentido mientras MustChangePassword es true; se
+    // limpia en ChangePasswordAsync junto con esa bandera.
+    public DateTime? TempPasswordExpiresAt { get; set; }
     //Cargado por el propio admin cuando se da de alta al empleado - empieza todo
     public DateOnly FechaIngreso { get; set; }
     // Completado al desactivar ToggleStatusAsync y se limpia si en caso se reactiva

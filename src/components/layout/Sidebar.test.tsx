@@ -1,10 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { deleteCookie, getCookie } from 'cookies-next';
+import { render, screen } from '@testing-library/react';
 import { Sidebar } from './Sidebar';
 import { SessionContext } from '@/hooks/useSession';
 import { Session } from '@/contracts/interfaces/auth';
-import { SESSION_COOKIE } from '@/services/auth/auth.api';
-import authApi from '@/services/auth/auth.api';
 import { resetMockState } from '@/services/mocks/mock-adapter';
 
 const pushMock = jest.fn();
@@ -41,7 +38,6 @@ function renderSidebar(session: Session | null, props = {}) {
 beforeEach(() => {
   resetMockState();
   pushMock.mockClear();
-  deleteCookie(SESSION_COOKIE);
   useRouterMock.mockReturnValue({ push: pushMock, pathname: '/' });
 });
 
@@ -51,20 +47,22 @@ describe('Sidebar', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('Empleado ve "Crear solicitud" y "Cerrar sesión", no navegación de admin', () => {
+  it('Empleado ve "Mis solicitudes"/"Mi PTO", no navegación de admin', () => {
     renderSidebar(empleadoSession);
 
-    expect(
-      screen.getByRole('button', { name: /crear solicitud/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /cerrar sesión/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /mis solicitudes/i })).toHaveAttribute(
+      'href',
+      '/',
+    );
+    expect(screen.getByRole('link', { name: /mi pto/i })).toHaveAttribute(
+      'href',
+      '/pto',
+    );
     expect(screen.queryByText('Solicitudes')).not.toBeInTheDocument();
     expect(screen.queryByText('Usuarios')).not.toBeInTheDocument();
   });
 
-  it('Administrador ve "Solicitudes"/"Usuarios" y "Cerrar sesión", no "Crear solicitud"', () => {
+  it('Administrador ve "Solicitudes"/"Usuarios", no navegación de empleado', () => {
     renderSidebar(adminSession);
 
     expect(screen.getByRole('link', { name: /solicitudes/i })).toHaveAttribute(
@@ -76,10 +74,7 @@ describe('Sidebar', () => {
       '/admin/users',
     );
     expect(
-      screen.getByRole('button', { name: /cerrar sesión/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /crear solicitud/i }),
+      screen.queryByRole('link', { name: /mi pto/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -93,29 +88,5 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /usuarios/i })).not.toHaveClass(
       'text-turquoise-blue-600',
     );
-  });
-
-  it('"Crear solicitud" llama a onCreateRequest', () => {
-    const onCreateRequest = jest.fn();
-    renderSidebar(empleadoSession, { onCreateRequest });
-
-    fireEvent.click(screen.getByRole('button', { name: /crear solicitud/i }));
-
-    expect(onCreateRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it('"Cerrar sesión" borra la cookie de sesión y redirige a /login', async () => {
-    await authApi.login({
-      correo: 'ana.martinez@devtch.com',
-      password: 'cualquiera',
-    });
-    expect(getCookie(SESSION_COOKIE)).toBeTruthy();
-
-    renderSidebar(empleadoSession);
-
-    fireEvent.click(screen.getByRole('button', { name: /cerrar sesión/i }));
-
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/login'));
-    expect(getCookie(SESSION_COOKIE)).toBeUndefined();
   });
 });

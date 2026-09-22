@@ -763,3 +763,23 @@ Segunda fase del plan de escalabilidad (ver Fase 1, arriba). Objetivo: que el fr
 Con esto se cierra el plan de escalabilidad de 3 fases (índices → nombre en la respuesta → paginación).
 
 **Dependencies:** Fase 1 y Fase 2 (arriba).
+
+---
+
+## Post-cierre — Auditoría de seguridad: 1 Alto + 4 Medios cerrados (2026-09-22)
+
+A pedido del usuario ("realiza nuevamente el test que se hizo en el proyecto anteriormente"), se corrió un audit de seguridad completo (agente `security-auditor`) sobre frontend + backend, categorizado en Crítico/Alto/Medio/Bajo. Resultado: 0 críticos, 1 alto, 4 medios, 3 bajos. Se cerraron el Alto y los 4 Medios a pedido explícito; los 3 Bajos quedan pendientes (no se pidieron).
+
+**[Alto] Rate limiter de "auth" colapsaba a un único bucket compartido detrás de un reverse proxy:** `Program.cs` particionaba la policy `"auth"` (login/forgot-password) por `Connection.RemoteIpAddress`, pero sin `UseForwardedHeaders` configurado — si el backend corre detrás de nginx (topología de producción probable, confirmada por el usuario), todas las requests llegan con la misma IP (la del proxy), y 10 intentos de cualquiera bastan para bloquear el login de todos. Fix: `app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = XForwardedFor | XForwardedProto })` como primer middleware del pipeline. Los defaults de `KnownNetworks`/`KnownProxies` (loopback) ya cubren nginx en la misma máquina/contenedor — si termina en un host/red distinta, hay que sumar esa IP/red. **Verificado en vivo:** 10 intentos simulando `X-Forwarded-For: 1.1.1.1` agotan su bucket (11º da 429), mientras `2.2.2.2` en simultáneo sigue funcionando — antes del fix ambos hubieran compartido el mismo bucket real (127.0.0.1).
+
+**[Medio] `/auth/change-password` sin rate limiting:** login y forgot-password ya tenían `[EnableRateLimiting("auth")]`, change-password no. Se le agregó la misma policy (comparte el budget de 10/min por IP con login/forgot-password — simplificación explícita, no una policy separada). Verificado en vivo: 429 tras agotar el budget compartido.
+
+**[Medio] Campos de contraseña sin `[MaxLength]`:** `LoginRequest.Password`, `ChangePasswordRequest.PasswordActual`/`PasswordNueva` ganaron `[MaxLength(200)]` (mismo patrón que ya tenían Motivo/Nombre/Correo) — sin esto, un "password" de varios MB amplifica el costo de CPU del hash PBKDF2 por request. `docs/openapi.yaml`: `LoginRequest.password` documentado con `maxLength: 200` (no existía un schema `ChangePasswordRequest` documentado — gap preexistente, no se creó acá, fuera de alcance de este batch). Verificado en vivo: password de 240 caracteres → 400 con el mensaje de validación esperado.
+
+**[Medio] Contraseñas temporales (invitación/reset/forgot-password) nunca vencían:** los tres flujos comparten `PasswordResetService.IssueTemporaryPasswordAsync`, así que un único cambio cubre los tres. Entidad `User` ganó `TempPasswordExpiresAt` (`DateTime?`), seteado a `UtcNow.AddHours(48)` al emitir una temporal (48h: cubre un fin de semana sin dejarla vigente indefinidamente). `AuthService.ValidateCredentialsAsync` rechaza el login si `MustChangePassword` + venció (mismo mensaje genérico "Correo o contraseña inválidos" que el resto de los casos — no se distingue el motivo, mismo criterio anti-enumeración que ya usa el resto del login). `ChangePasswordAsync` limpia el campo al cambiar la contraseña de verdad. Migración `AddTempPasswordExpiresAt` (columna nullable, sin datos que migrar), aplicada contra la base de desarrollo real.
+
+**Tests nuevos:** `PasswordResetServiceTests` (vencimiento a 48h), `AuthServiceTests` (login rechaza temporal vencida / acepta vigente, `ChangePasswordAsync` limpia el vencimiento) — 4 nuevos.
+
+**Verification:** `dotnet build` 0/0, `dotnet test` **109/109** (105 + 4). Migración aplicada a dev sin incidentes. Los 3 hallazgos Bajos (condición de carrera en balance de PTO, API key de Resend en disco sin rotar, comodines SQL LIKE sin escapar en el filtro de nombre) quedan explícitamente sin tocar — no se pidieron.
+
+**Dependencies:** ninguna.

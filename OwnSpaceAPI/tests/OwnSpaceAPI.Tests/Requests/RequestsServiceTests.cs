@@ -360,6 +360,24 @@ public class RequestsServiceTests
   }
 
   [Fact]
+  public async Task ListAllAsync_ConGuionBajoLiteralEnElNombre_NoLoTrataComoComodin()
+  {
+    // "_" es comodín de SQL LIKE (matchea cualquier caracter) — sin
+    // escaparlo, buscar "_" a secas matchearía el nombre de cualquiera.
+    await using var db = CreateContext();
+    var ana = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
+    var carlos = CrearUsuario("Carlos Rivas", "carlos.rivas@devtch.com");
+    db.Users.AddRange(ana, carlos);
+    db.LeaveRequests.AddRange(NuevaSolicitud(ana.Id), NuevaSolicitud(carlos.Id));
+    await db.SaveChangesAsync();
+
+    var service = new RequestsService(db, new FakeEmailSender());
+    var resultado = await service.ListAllAsync(estado: null, tipo: null, fecha: null, "_", page: 1, pageSize: 20);
+
+    Assert.Empty(resultado.Items);
+  }
+
+  [Fact]
   public async Task ListAllAsync_TotalCountReflejaLosFiltrosAplicados()
   {
     await using var db = CreateContext();

@@ -3,5 +3,5 @@ using System.ComponentModel.DataAnnotations;
 namespace OwnSpaceAPI.Api.Models.Dtos.Auth;
 
 public record ChangePasswordRequest(
-    [Required] string PasswordActual,
-    [Required] string PasswordNueva);
+    [Required, MaxLength(200)] string PasswordActual,
+    [Required, MaxLength(200)] string PasswordNueva);

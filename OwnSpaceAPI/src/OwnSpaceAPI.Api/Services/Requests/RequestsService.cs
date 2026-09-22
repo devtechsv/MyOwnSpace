@@ -78,11 +78,22 @@ public sealed class RequestsService : IRequestsService
             // (case-sensitive) bajo el proveedor InMemory que usan los
             // tests — Like sí es case-insensitive en los dos proveedores,
             // consistente con el collation CI de la base real.
-            query = query.Where(r => EF.Functions.Like(r.Employee.Nombre, $"%{nombre}%"));
+            // EscaparComodinesLike: sin esto, un admin que busca
+            // literalmente "_" o "%" (ej. parte de un correo/nombre raro)
+            // los recibe como comodines de LIKE en vez de caracteres
+            // literales — no es una inyección (EF sigue parametrizando el
+            // valor), solo un resultado de búsqueda incorrecto.
+            var patron = $"%{EscaparComodinesLike(nombre)}%";
+            query = query.Where(r => EF.Functions.Like(r.Employee.Nombre, patron));
         }
 
         return query;
     }
+
+    // El orden importa: "[" se escapa primero para no volver a escapar
+    // los corchetes que agregan los reemplazos de "%" y "_".
+    private static string EscaparComodinesLike(string valor) =>
+        valor.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
 
     private static async Task<PagedResult<LeaveRequest>> PaginarAsync(
         IOrderedQueryable<LeaveRequest> query, int page, int pageSize)

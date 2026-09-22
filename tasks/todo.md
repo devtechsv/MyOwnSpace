@@ -1074,3 +1074,21 @@ Contraparte frontend de la Fase 3 de escalabilidad (detalle completo, incluido b
 Con esto se cierra el plan de escalabilidad de 3 fases.
 
 **Dependencies:** Fase 1 y Fase 2 de escalabilidad (arriba), y el cambio de backend con el mismo nombre.
+
+---
+
+## Post-cierre — Auditoría de seguridad: headers de seguridad del frontend (2026-09-22)
+
+Contraparte frontend del audit de seguridad de la sesión (detalle completo, incluido el backend, en `OwnSpaceAPI/tasks/todo.md`). Hallazgo Medio: los headers de seguridad existentes (`X-Content-Type-Options`, `X-Frame-Options`, HSTS) solo se aplicaban a las respuestas JSON de la API — el HTML que sirve Next.js no tenía ninguno.
+
+**`next.config.js`** gana `async headers()`:
+- `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` en todos los ambientes (no dependen de nada, no rompen nada).
+- `Content-Security-Policy` y `Strict-Transport-Security` **solo en producción** — un CSP estricto sin `'unsafe-eval'` rompería el Fast Refresh/HMR de `next dev` (usa eval), y HSTS no tiene sentido servido por HTTP en desarrollo. Sin acceso a un navegador real en esta sesión para verificar interactivamente, se prefirió no arriesgar el entorno de desarrollo.
+- `connect-src` de la CSP se arma dinámico a partir de `NEXT_PUBLIC_API_URL` (mismo env var que ya usa `api-client.ts`) — la API vive en otro origen (puerto distinto en dev, dominio propio en prod), así que un `connect-src 'self'` a secas bloquearía cada fetch del browser al backend.
+- El único `<script>` inline de todo el proyecto (`_document.tsx`, evita el parpadeo de tema) se permite por **hash SHA-256** en vez de `'unsafe-inline'` — no tiene sentido debilitar la protección contra XSS (la razón principal para tener CSP) para un script que ni siquiera hace falta correr inline sin restricciones. El script se movió a `src/lib/theme-init-script.js` (CommonJS plano) para que `next.config.js` pueda hashear exactamente el mismo contenido que `_document.tsx` inyecta — si se edita el script, el hash se recalcula solo porque ambos leen la misma constante.
+
+**Verificación manual (sin navegador, vía `npm run build` + `npm run start` + `curl`):** headers presentes y con el valor esperado en la respuesta real; se extrajo el `<script>` inline servido en el HTML y se recalculó su hash SHA-256 a mano — coincide exactamente con el que la CSP declara, confirmando que el navegador lo va a poder ejecutar bajo esta política.
+
+**Verification:** `tsc` limpio, lint 0 errores, `npm test` **260/260** (sin tests nuevos — no hay test de `_document.tsx`), `npm run build` exitoso, verificación manual de headers en modo producción (arriba). Dev server detenido antes de buildear, reiniciado después.
+
+**Dependencies:** ninguna.

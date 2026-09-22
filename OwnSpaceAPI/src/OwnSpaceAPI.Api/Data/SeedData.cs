@@ -16,6 +16,7 @@ public static class SeedData
     {
         ["julio.perez@devtch.com"] = "Admin123!",
         ["ana.martinez@devtch.com"] = "Empleado123!",
+        ["sofia.nunez@devtch.com"] = "Empleado123!",
     };
 
     public static async Task EnsureDevPasswordsAsync(AppDbContext context, IPasswordHashingService hasher)

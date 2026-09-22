@@ -26,6 +26,16 @@
 }
 
 /*
+ * Sin esto, el rebote de overscroll en móvil (o cualquier hueco fuera
+ * de la app) muestra el blanco por defecto del navegador en vez del
+ * fondo del tema — bg-background solo se aplica al div raíz de AppShell.
+ */
+html,
+body {
+  background-color: rgb(var(--color-background));
+}
+
+/*
  * El navegador pinta los campos autocompletados con su propio fondo
  * (amarillo en Chrome/Edge), pisando bg-surface-field. Se neutraliza
  * con un box-shadow inset del mismo color que el campo.

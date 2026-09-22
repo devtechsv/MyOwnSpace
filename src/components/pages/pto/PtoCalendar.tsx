@@ -27,6 +27,7 @@ export function esFinDeSemana(year: number, monthZeroBased: number, day: number)
 
 export function PtoCalendar({ reservas, onSelectDate }: Props) {
   const hoy = new Date();
+  const hoyIso = toIso(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
   const [cursor, setCursor] = useState({
     year: hoy.getFullYear(),
     month: hoy.getMonth(),
@@ -93,18 +94,21 @@ export function PtoCalendar({ reservas, onSelectDate }: Props) {
           if (dia === null) return <span key={`vacio-${i}`} />;
           const fecha = toIso(cursor.year, cursor.month, dia);
           const reservado = reservasPorFecha.has(fecha);
-          // Un fin de semana ya reservado (ej. dato viejo, de antes de
-          // esta restricción) se sigue mostrando y dejando clickear —
+          const finDeSemana = esFinDeSemana(cursor.year, cursor.month, dia);
+          const pasado = fecha < hoyIso;
+          // Un día no disponible ya reservado (ej. dato viejo, de antes
+          // de esta restricción) se sigue mostrando y dejando clickear —
           // solo se bloquea reservar uno nuevo.
-          const noHabil = !reservado && esFinDeSemana(cursor.year, cursor.month, dia);
+          const noHabil = !reservado && (finDeSemana || pasado);
 
           if (noHabil) {
+            const motivo = finDeSemana ? 'fin de semana' : 'fecha pasada';
             return (
               <button
                 key={fecha}
                 type='button'
                 disabled
-                aria-label={`No disponible — fin de semana, ${fecha}`}
+                aria-label={`No disponible — ${motivo}, ${fecha}`}
                 className='h-10 rounded-lg text-sm text-muted/50 cursor-not-allowed'
               >
                 {dia}

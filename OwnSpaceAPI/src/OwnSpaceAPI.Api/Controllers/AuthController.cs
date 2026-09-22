@@ -88,6 +88,7 @@ public class AuthController : ControllerBase
 
   [HttpPost("change-password")]
   [Authorize]
+  [EnableRateLimiting("auth")]
   public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
   {
     var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

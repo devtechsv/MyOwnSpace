@@ -60,13 +60,36 @@ describe('RequestsTable (admin)', () => {
       />,
     );
 
-    expect(screen.getByText('Carlos Rivas')).toBeInTheDocument();
-    expect(screen.getByText('CR')).toBeInTheDocument();
-    expect(screen.getByText('Enfermedad')).toBeInTheDocument();
+    const fila = within(screen.getByTestId('fila-desktop'));
+    expect(fila.getByText('Carlos Rivas')).toBeInTheDocument();
+    expect(fila.getByText('CR')).toBeInTheDocument();
+    expect(fila.getByText('Enfermedad')).toBeInTheDocument();
+    expect(fila.getByRole('button', { name: /aprobar/i })).toBeInTheDocument();
+    expect(fila.getByRole('button', { name: /denegar/i })).toBeInTheDocument();
+  });
+
+  it('en pantallas angostas renderiza una tarjeta apilada con los mismos datos, etiquetados', () => {
+    render(
+      <RequestsTable
+        requests={sample}
+        isLoading={false}
+        error={null}
+        actioningId={null}
+        onApprove={jest.fn()}
+        onDeny={jest.fn()}
+      />,
+    );
+
+    const tarjeta = within(screen.getByTestId('fila-mobile'));
+    expect(tarjeta.getByText('Carlos Rivas')).toBeInTheDocument();
+    expect(tarjeta.getByText('Tipo')).toBeInTheDocument();
+    expect(tarjeta.getByText('Enfermedad')).toBeInTheDocument();
+    expect(tarjeta.getByText('Motivo')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /aprobar/i }),
+      tarjeta.getByText('Reposo médico, certificado adjunto'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /denegar/i })).toBeInTheDocument();
+    expect(tarjeta.getByRole('button', { name: /aprobar/i })).toBeInTheDocument();
+    expect(tarjeta.getByRole('button', { name: /denegar/i })).toBeInTheDocument();
   });
 
   it('"Aprobar" llama al callback con el id correcto', () => {
@@ -82,7 +105,11 @@ describe('RequestsTable (admin)', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /aprobar/i }));
+    fireEvent.click(
+      within(screen.getByTestId('fila-desktop')).getByRole('button', {
+        name: /aprobar/i,
+      }),
+    );
 
     expect(onApprove).toHaveBeenCalledWith('r6');
   });
@@ -100,7 +127,11 @@ describe('RequestsTable (admin)', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /denegar/i }));
+    fireEvent.click(
+      within(screen.getByTestId('fila-desktop')).getByRole('button', {
+        name: /denegar/i,
+      }),
+    );
 
     const dialog = screen.getByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText(/motivo del rechazo/i), {
@@ -123,7 +154,11 @@ describe('RequestsTable (admin)', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /denegar/i }));
+    fireEvent.click(
+      within(screen.getByTestId('fila-desktop')).getByRole('button', {
+        name: /denegar/i,
+      }),
+    );
 
     const dialog = screen.getByRole('dialog');
     expect(
@@ -144,13 +179,15 @@ describe('RequestsTable (admin)', () => {
       />,
     );
 
-    expect(screen.getByText('Aprobada')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('fila-desktop')).getByText('Aprobada'),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /aprobar/i }),
     ).not.toBeInTheDocument();
   });
 
-  it('el motivo del rechazo está oculto hasta hacer click en la fila, y no hay botones de Aprobar/Denegar', () => {
+  it('el motivo del rechazo está oculto hasta hacer click en "ver motivo completo", y no hay botones de Aprobar/Denegar', () => {
     const denegada: AdminRequestRow = {
       ...sample[0],
       estado: 'Denegada',
@@ -178,10 +215,37 @@ describe('RequestsTable (admin)', () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByRole('button', { name: /ver motivo del rechazo/i }),
+      within(screen.getByTestId('fila-desktop')).getByRole('button', {
+        name: /ver motivo completo/i,
+      }),
     );
 
     expect(screen.getByText('No hay cobertura ese día.')).toBeInTheDocument();
+  });
+
+  it('"Ver motivo completo" despliega el motivo original aunque la solicitud no esté denegada', () => {
+    render(
+      <RequestsTable
+        requests={sample}
+        isLoading={false}
+        error={null}
+        actioningId={null}
+        onApprove={jest.fn()}
+        onDeny={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      within(screen.getByTestId('fila-desktop')).getByRole('button', {
+        name: /ver motivo completo/i,
+      }),
+    );
+
+    expect(
+      within(screen.getByTestId('motivo-expandido')).getByText(
+        'Reposo médico, certificado adjunto',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('deshabilita los botones de la fila en acción', () => {
@@ -196,7 +260,8 @@ describe('RequestsTable (admin)', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: /aprobar/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /denegar/i })).toBeDisabled();
+    const fila = within(screen.getByTestId('fila-desktop'));
+    expect(fila.getByRole('button', { name: /aprobar/i })).toBeDisabled();
+    expect(fila.getByRole('button', { name: /denegar/i })).toBeDisabled();
   });
 });

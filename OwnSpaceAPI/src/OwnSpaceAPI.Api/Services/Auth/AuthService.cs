@@ -40,10 +40,20 @@ public sealed class AuthService : IAuthService
             user?.PasswordHash ?? DummyPasswordHash,
             password);
 
+        // Misma verificación completa de hash arriba aunque esté vencida
+        // (mismo motivo que DummyUser/DummyPasswordHash) — así el tiempo
+        // de respuesta tampoco distingue "temporal vencida" de "contraseña
+        // incorrecta".
+        var temporalVencida = user is not null
+            && user.MustChangePassword
+            && user.TempPasswordExpiresAt is not null
+            && user.TempPasswordExpiresAt < DateTime.UtcNow;
+
         if (user is null
             || user.Estado != UserStatus.Activo
             || user.PasswordHash is null
-            || !passwordOk)
+            || !passwordOk
+            || temporalVencida)
         {
             throw new UnauthorizedException(CredencialesInvalidasMensaje);
         }
@@ -88,6 +98,7 @@ public sealed class AuthService : IAuthService
 
         user.PasswordHash = _passwordHasher.Hash(user, passwordNueva);
         user.MustChangePassword = false;
+        user.TempPasswordExpiresAt = null;
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

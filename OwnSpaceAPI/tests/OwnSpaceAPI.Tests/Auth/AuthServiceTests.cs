@@ -131,6 +131,40 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task ValidateCredentialsAsync_ConTemporalVencida_TiraUnauthorized_AunqueLaContraseniaSeaCorrecta()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Temporal123!");
+        user.MustChangePassword = true;
+        user.TempPasswordExpiresAt = DateTime.UtcNow.AddHours(-1);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+
+        await Assert.ThrowsAsync<UnauthorizedException>(
+            () => service.ValidateCredentialsAsync("empleado@devtch.com", "Temporal123!"));
+    }
+
+    [Fact]
+    public async Task ValidateCredentialsAsync_ConTemporalTodaviaVigente_FuncionaNormal()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Temporal123!");
+        user.MustChangePassword = true;
+        user.TempPasswordExpiresAt = DateTime.UtcNow.AddHours(1);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+        var resultado = await service.ValidateCredentialsAsync("empleado@devtch.com", "Temporal123!");
+
+        Assert.Equal(user.Id, resultado.Id);
+    }
+
+    [Fact]
     public async Task ChangePasswordAsync_ConLaContraseniaActualCorrecta_CambiaElHashYElStamp()
     {
         var hasher = new PasswordHashingService();
@@ -145,6 +179,23 @@ public class AuthServiceTests
 
         Assert.NotEqual(stampAnterior, user.SecurityStamp);
         Assert.True(hasher.Verify(user, user.PasswordHash!, "NuevaSegura456!"));
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_LimpiaElVencimientoDeLaTemporal()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Temporal123!");
+        user.MustChangePassword = true;
+        user.TempPasswordExpiresAt = DateTime.UtcNow.AddHours(1);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+        await service.ChangePasswordAsync(user.Id, "Temporal123!", "NuevaSegura456!");
+
+        Assert.Null(user.TempPasswordExpiresAt);
     }
 
     [Fact]

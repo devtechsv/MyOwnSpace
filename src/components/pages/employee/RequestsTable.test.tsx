@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { RequestsTable } from './RequestsTable';
 import { LeaveRequest } from '@/contracts/interfaces/request';
 
@@ -57,12 +57,26 @@ describe('RequestsTable', () => {
       <RequestsTable requests={sample} isLoading={false} error={null} />,
     );
 
-    expect(screen.getByText('Enfermedad')).toBeInTheDocument();
-    expect(screen.getByText('Reposo médico')).toBeInTheDocument();
-    expect(screen.getByText('Aprobada')).toBeInTheDocument();
+    const fila = within(screen.getByTestId('fila-desktop'));
+    expect(fila.getByText('Enfermedad')).toBeInTheDocument();
+    expect(fila.getByText('Reposo médico')).toBeInTheDocument();
+    expect(fila.getByText('Aprobada')).toBeInTheDocument();
   });
 
-  it('el motivo del rechazo está oculto hasta hacer click en la fila, y se puede volver a ocultar', () => {
+  it('en pantallas angostas renderiza una tarjeta apilada con los mismos datos, etiquetados', () => {
+    render(
+      <RequestsTable requests={sample} isLoading={false} error={null} />,
+    );
+
+    const tarjeta = within(screen.getByTestId('fila-mobile'));
+    expect(tarjeta.getByText('Enfermedad')).toBeInTheDocument();
+    expect(tarjeta.getByText('Fecha')).toBeInTheDocument();
+    expect(tarjeta.getByText('Motivo')).toBeInTheDocument();
+    expect(tarjeta.getByText('Reposo médico')).toBeInTheDocument();
+    expect(tarjeta.getByText('Aprobada')).toBeInTheDocument();
+  });
+
+  it('el motivo del rechazo está oculto hasta hacer click en "ver motivo completo", y se puede volver a ocultar', () => {
     const denegada: LeaveRequest = {
       ...sample[0],
       estado: 'Denegada',
@@ -76,20 +90,39 @@ describe('RequestsTable', () => {
       screen.queryByText('No hay cobertura ese día.'),
     ).not.toBeInTheDocument();
 
-    const fila = screen.getByRole('button', { name: /ver motivo del rechazo/i });
-    expect(fila).toHaveAttribute('aria-expanded', 'false');
+    const fila = within(screen.getByTestId('fila-desktop'));
+    const boton = fila.getByRole('button', { name: /ver motivo completo/i });
+    expect(boton).toHaveAttribute('aria-expanded', 'false');
 
-    fireEvent.click(fila);
+    fireEvent.click(boton);
 
     expect(screen.getByText('No hay cobertura ese día.')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /ocultar motivo del rechazo/i }),
+      fila.getByRole('button', { name: /ocultar motivo completo/i }),
     ).toHaveAttribute('aria-expanded', 'true');
 
-    fireEvent.click(screen.getByRole('button', { name: /ocultar motivo del rechazo/i }));
+    fireEvent.click(
+      fila.getByRole('button', { name: /ocultar motivo completo/i }),
+    );
 
     expect(
       screen.queryByText('No hay cobertura ese día.'),
     ).not.toBeInTheDocument();
+  });
+
+  it('"Ver motivo completo" despliega el motivo original aunque la solicitud no esté denegada', () => {
+    render(
+      <RequestsTable requests={sample} isLoading={false} error={null} />,
+    );
+
+    fireEvent.click(
+      within(screen.getByTestId('fila-desktop')).getByRole('button', {
+        name: /ver motivo completo/i,
+      }),
+    );
+
+    expect(
+      within(screen.getByTestId('motivo-expandido')).getByText('Reposo médico'),
+    ).toBeInTheDocument();
   });
 });

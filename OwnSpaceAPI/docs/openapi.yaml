@@ -567,7 +567,7 @@ components:
       required: [correo, password]
       properties:
         correo: { type: string, format: email }
-        password: { type: string, format: password }
+        password: { type: string, format: password, maxLength: 200 }
 
     ForgotPasswordRequest:
       type: object

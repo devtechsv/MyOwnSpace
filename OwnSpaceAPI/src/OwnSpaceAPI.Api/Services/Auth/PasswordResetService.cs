@@ -31,6 +31,9 @@ public sealed class PasswordResetService : IPasswordResetService
     var temporal = GenerateTemporaryPassword();
     user.PasswordHash = _passwordHasher.Hash(user, temporal);
     user.MustChangePassword = true;
+    // 48h: suficiente para que llegue el fin de semana sin bloquear a
+    // nadie, sin dejarla utilizable indefinidamente si nadie la usa.
+    user.TempPasswordExpiresAt = DateTime.UtcNow.AddHours(48);
     // Con una contraseña temporal real ya puede loguearse — a diferencia
     // del viejo flujo por token, acá no hace falta un paso intermedio
     // para "terminar" la invitación.

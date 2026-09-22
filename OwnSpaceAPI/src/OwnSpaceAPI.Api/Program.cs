@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -173,6 +174,22 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+
+// La topología de producción pone nginx delante de Kestrel como reverse
+// proxy — sin esto, Connection.RemoteIpAddress ve siempre la IP del
+// proxy, no la del cliente real, lo que colapsa el límite de la policy
+// "auth" (particionada por IP) en un único bucket compartido por todos
+// los usuarios: 10 intentos de cualquiera bastan para bloquear el login
+// de todo el mundo. Va primero en el pipeline porque HSTS, el rate
+// limiter y todo lo demás necesitan ver ya la IP/esquema corregidos.
+// Los valores por defecto de KnownNetworks/KnownProxies (loopback)
+// cubren nginx corriendo en la misma máquina/contenedor que la API —
+// si termina desplegado en un host o red distinta, hay que agregar esa
+// IP/red acá (o por configuración) para que se lo siga confiando.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+  ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+});
 
 if (!app.Environment.IsDevelopment())
 {

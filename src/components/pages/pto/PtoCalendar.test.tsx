@@ -11,11 +11,12 @@ function iso(year: number, monthZeroBased: number, day: number): string {
 }
 
 // El mes que se muestra por defecto es el actual — busca el primer día
-// hábil (no fin de semana) de ese mes, para no depender de qué día real
-// se corran los tests.
+// hábil (no fin de semana) desde hoy en adelante, para no depender de
+// qué día real se corran los tests ni caer en una fecha ya pasada
+// (que ahora queda deshabilitada).
 function primerDiaHabilDelMesActual(): string {
   const hoy = new Date();
-  let dia = 1;
+  let dia = hoy.getDate();
   while (esFinDeSemana(hoy.getFullYear(), hoy.getMonth(), dia)) {
     dia++;
   }
@@ -100,6 +101,30 @@ describe('PtoCalendar', () => {
     fireEvent.click(screen.getByLabelText(`PTO reservado el ${finDeSemana}`));
 
     expect(onSelectDate).toHaveBeenCalledWith(finDeSemana);
+  });
+
+  it('un día anterior a hoy no es clickeable, aunque sea hábil', () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 8, 22)); // miércoles hábil
+    const onSelectDate = jest.fn();
+    render(<PtoCalendar reservas={[]} onSelectDate={onSelectDate} />);
+
+    const boton = screen.getByLabelText('No disponible — fecha pasada, 2026-09-21');
+    expect(boton).toBeDisabled();
+    fireEvent.click(boton);
+
+    expect(onSelectDate).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it('hoy sigue siendo seleccionable', () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 8, 22));
+    const onSelectDate = jest.fn();
+    render(<PtoCalendar reservas={[]} onSelectDate={onSelectDate} />);
+
+    fireEvent.click(screen.getByLabelText('Reservar PTO el 2026-09-22'));
+
+    expect(onSelectDate).toHaveBeenCalledWith('2026-09-22');
+    jest.useRealTimers();
   });
 
   it('navega al mes siguiente y vuelve al mes anterior', () => {

@@ -122,6 +122,24 @@ public class PasswordResetServiceTests
     }
 
     [Fact]
+    public async Task IssueTemporaryPasswordAsync_DejaLaTemporalConVencimientoA48Horas()
+    {
+        await using var db = CreateContext();
+        var user = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var antes = DateTime.UtcNow;
+        var service = new PasswordResetService(db, new PasswordHashingService(), new FakeEmailSender());
+        await service.IssueTemporaryPasswordAsync("ana.martinez@devtch.com");
+        var despues = DateTime.UtcNow;
+
+        var actualizado = await db.Users.SingleAsync(u => u.Id == user.Id);
+        Assert.NotNull(actualizado.TempPasswordExpiresAt);
+        Assert.InRange(actualizado.TempPasswordExpiresAt!.Value, antes.AddHours(48), despues.AddHours(48));
+    }
+
+    [Fact]
     public async Task IssueTemporaryPasswordAsync_RotaElSecurityStamp()
     {
         // Invalida cualquier sesión vieja — mismo criterio que un cambio

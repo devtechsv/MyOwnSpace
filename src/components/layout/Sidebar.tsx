@@ -1,41 +1,7 @@
 import Link from 'next/link';
-import { useLogout } from '@/hooks/useLogout';
 import { useRouter } from 'next/router';
 import { cx } from '@/helpers/cx';
 import { useSession } from '@/hooks/useSession';
-import { Button } from '@/components/common/Button';
-
-interface Props {
-  onCreateRequest?: () => void;
-}
-
-function LogoutButton() {
-  const handleLogout = useLogout();
-
-  return (
-    <button
-      type='button'
-      onClick={handleLogout}
-      className='flex items-center gap-2.5 w-full px-4 py-3 rounded-[10px] border border-border text-sm font-medium text-muted hover:text-foreground'
-    >
-      <svg
-        width='16'
-        height='16'
-        viewBox='0 0 24 24'
-        fill='none'
-        stroke='currentColor'
-        strokeWidth='2'
-        strokeLinecap='round'
-        strokeLinejoin='round'
-      >
-        <path d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4' />
-        <polyline points='16 17 21 12 16 7' />
-        <line x1='21' y1='12' x2='9' y2='12' />
-      </svg>
-      Cerrar sesión
-    </button>
-  );
-}
 
 const ADMIN_NAV_ITEMS = [
   {
@@ -101,7 +67,7 @@ const ADMIN_NAV_ITEMS = [
   },
 ];
 
-export function Sidebar({ onCreateRequest }: Props) {
+export function Sidebar() {
   const session = useSession();
   const router = useRouter();
 
@@ -134,10 +100,14 @@ export function Sidebar({ onCreateRequest }: Props) {
         </nav>
       ) : (
         <div className='flex flex-col gap-2'>
-          <Button
-            type='button'
-            onClick={onCreateRequest}
-            className='w-full justify-center gap-2'
+          <Link
+            href='/'
+            className={cx(
+              'flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-sm font-semibold',
+              router.pathname === '/'
+                ? 'bg-turquoise-blue-50 dark:bg-turquoise-blue-950/30 text-turquoise-blue-600 dark:text-turquoise-blue-400'
+                : 'text-muted hover:text-foreground',
+            )}
           >
             <svg
               width='16'
@@ -145,14 +115,15 @@ export function Sidebar({ onCreateRequest }: Props) {
               viewBox='0 0 24 24'
               fill='none'
               stroke='currentColor'
-              strokeWidth='2.2'
+              strokeWidth='2'
               strokeLinecap='round'
               strokeLinejoin='round'
             >
-              <path d='M12 5v14M5 12h14' />
+              <path d='M9 11l3 3L22 4' />
+              <path d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11' />
             </svg>
-            Crear solicitud
-          </Button>
+            Mis solicitudes
+          </Link>
           <Link
             href='/pto'
             className={cx(
@@ -182,7 +153,6 @@ export function Sidebar({ onCreateRequest }: Props) {
         </div>
       )}
       <div className='flex flex-col gap-4'>
-        <LogoutButton />
         <span className='text-[11px] text-muted text-center'>© DevTech 2026</span>
       </div>
     </div>

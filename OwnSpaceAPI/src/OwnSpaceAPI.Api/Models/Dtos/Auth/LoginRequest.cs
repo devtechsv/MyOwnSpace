@@ -4,4 +4,4 @@ namespace OwnSpaceAPI.Api.Models.Dtos.Auth;
 
 public record LoginRequest(
     [Required, EmailAddress] string Correo,
-    [Required] string Password);
+    [Required, MaxLength(200)] string Password);

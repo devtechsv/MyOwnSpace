@@ -6,7 +6,11 @@ import { getInitials } from '@/helpers/get-initials';
 import { ThemeToggle } from './ThemeToggle';
 import { ChangePasswordModal } from '@/components/common/ChangePasswordModal';
 
-export function Topbar() {
+interface Props {
+  onMenuClick?: () => void;
+}
+
+export function Topbar({ onMenuClick }: Props = {}) {
   const session = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -26,18 +30,41 @@ export function Topbar() {
   const handleLogout = useLogout();
 
   return (
-    <header className='h-[72px] shrink-0 flex items-center justify-between px-8 bg-surface border-b border-border'>
+    <header className='sticky top-0 z-20 h-[72px] shrink-0 flex items-center justify-between px-4 md:px-8 bg-surface border-b border-border'>
       <div className='flex items-center gap-3'>
+        {onMenuClick && (
+          <button
+            type='button'
+            onClick={onMenuClick}
+            aria-label='Abrir menú'
+            className='lg:hidden -ml-1 p-2 rounded-lg text-muted hover:text-foreground hover:bg-surface-field'
+          >
+            <svg
+              width='22'
+              height='22'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+            >
+              <line x1='3' y1='6' x2='21' y2='6' />
+              <line x1='3' y1='12' x2='21' y2='12' />
+              <line x1='3' y1='18' x2='21' y2='18' />
+            </svg>
+          </button>
+        )}
         <Image src='/logo.png' alt='MyOwnSpace' width={32} height={32} />
-        <span className='text-[17px] font-semibold text-foreground'>
+        <span className='hidden sm:inline text-[17px] font-semibold text-foreground'>
           MyOwnSpace
         </span>
       </div>
 
-      <div className='flex items-center gap-4 relative' ref={menuRef}>
+      <div className='flex items-center gap-2 sm:gap-4 relative' ref={menuRef}>
         <ThemeToggle />
 
-        <div className='w-px h-6 bg-border' aria-hidden='true' />
+        <div className='hidden sm:block w-px h-6 bg-border' aria-hidden='true' />
 
         {session && (
           <>
@@ -51,7 +78,7 @@ export function Topbar() {
               <span className='w-9 h-9 rounded-full bg-turquoise-blue-500 text-white flex items-center justify-center text-[13px] font-semibold'>
                 {getInitials(session.nombre)}
               </span>
-              <span className='flex flex-col items-start leading-tight'>
+              <span className='hidden sm:flex flex-col items-start leading-tight'>
                 <span className='text-[13px] font-semibold text-foreground'>
                   {session.nombre}
                 </span>
