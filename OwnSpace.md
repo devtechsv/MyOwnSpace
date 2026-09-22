@@ -14,8 +14,8 @@ Reglamentos a poner:
 - No permitir que asignen la contraseña genérica al recuperar o crear.
 - Usar la base CRUD.
 - Tipos de solicitud: Emergencia, Enfermedead, Permiso personal y Otro.
-- Roles: Empleado, Jefe (Admin) y SuperAdmin.
-- Que los empleados, Jefes y SuperAdmin puedan cambiar su contraseña en el panel superior extremo derecho.
+- Roles: Empleado, Jefe (Admin). (SuperAdmin se evaluó y se descartó — no se implementa.)
+- Que los empleados y Jefes puedan cambiar su contraseña en el panel superior extremo derecho.
 - Copyright de DevTech 2026.
 
 

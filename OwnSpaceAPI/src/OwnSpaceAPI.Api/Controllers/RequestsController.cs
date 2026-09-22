@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OwnSpaceAPI.Api.Models.Dtos.Common;
 using OwnSpaceAPI.Api.Models.Dtos.Requests;
 using OwnSpaceAPI.Api.Models.Entities;
 using OwnSpaceAPI.Api.Services.Requests;
@@ -43,19 +44,26 @@ public class RequestsController : ControllerBase
 
   [HttpGet("pending")]
   [Authorize(Roles = nameof(UserRole.Administrador))]
-  public async Task<ActionResult<IEnumerable<LeaveRequestResponse>>> ListPending()
+  public async Task<ActionResult<PagedResult<LeaveRequestResponse>>> ListPending(
+    [FromQuery] RequestType? tipo, [FromQuery] DateOnly? fecha, [FromQuery] string? nombre,
+    [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
   {
-    var requests = await _requestsService.ListPendingAsync();
-    return Ok(requests.Select(LeaveRequestResponse.FromEntity));
+    var result = await _requestsService.ListPendingAsync(tipo, fecha, nombre, page, pageSize);
+    return Ok(MapPage(result));
   }
 
   [HttpGet]
   [Authorize(Roles = nameof(UserRole.Administrador))]
-  public async Task<ActionResult<IEnumerable<LeaveRequestResponse>>> List([FromQuery] RequestStatus? estado)
+  public async Task<ActionResult<PagedResult<LeaveRequestResponse>>> List(
+    [FromQuery] RequestStatus? estado, [FromQuery] RequestType? tipo, [FromQuery] DateOnly? fecha, [FromQuery] string? nombre,
+    [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
   {
-    var requests = await _requestsService.ListAllAsync(estado);
-    return Ok(requests.Select(LeaveRequestResponse.FromEntity));
+    var result = await _requestsService.ListAllAsync(estado, tipo, fecha, nombre, page, pageSize);
+    return Ok(MapPage(result));
   }
+
+  private static PagedResult<LeaveRequestResponse> MapPage(PagedResult<LeaveRequest> page) =>
+    new(page.Items.Select(LeaveRequestResponse.FromEntity).ToList(), page.TotalCount, page.Page, page.PageSize);
 
 
   [HttpPost("{id:guid}/approve")]

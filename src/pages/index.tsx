@@ -5,12 +5,33 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { RequestsTable } from '@/components/pages/employee/RequestsTable';
 import { CreateRequestModal } from '@/components/pages/employee/CreateRequestModal';
-import { useEmployeeRequests } from '@/components/pages/employee/useEmployeeRequests';
+import {
+  EmployeeRequestsTipoFilter,
+  useEmployeeRequests,
+} from '@/components/pages/employee/useEmployeeRequests';
 
 interface Props {}
 
+const TIPO_FILTER_OPTIONS: { value: EmployeeRequestsTipoFilter; label: string }[] = [
+  { value: 'Todos', label: 'Todos los tipos' },
+  { value: 'Emergencia', label: 'Emergencia' },
+  { value: 'Enfermedad', label: 'Enfermedad' },
+  { value: 'Permiso personal', label: 'Permiso personal' },
+  { value: 'Vacaciones', label: 'Vacaciones' },
+  { value: 'Otro', label: 'Otro' },
+];
+
 const Home: NextPage<Props> = () => {
-  const { requests, isLoading, error, reload } = useEmployeeRequests();
+  const {
+    requests,
+    isLoading,
+    error,
+    reload,
+    tipoFiltro,
+    setTipoFiltro,
+    fechaFiltro,
+    setFechaFiltro,
+  } = useEmployeeRequests();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   return (
@@ -24,7 +45,39 @@ const Home: NextPage<Props> = () => {
         </p>
       </div>
 
-      <RequestsTable requests={requests} isLoading={isLoading} error={error} />
+      <div className='flex flex-wrap items-center gap-2.5 mb-5'>
+        <select
+          value={tipoFiltro}
+          onChange={(e) => setTipoFiltro(e.target.value as EmployeeRequestsTipoFilter)}
+          aria-label='Filtrar por tipo de solicitud'
+          className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+        >
+          {TIPO_FILTER_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type='date'
+          value={fechaFiltro}
+          onChange={(e) => setFechaFiltro(e.target.value)}
+          aria-label='Filtrar por fecha'
+          className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+        />
+      </div>
+
+      <RequestsTable
+        requests={requests}
+        isLoading={isLoading}
+        error={error}
+        emptyMessage={
+          tipoFiltro !== 'Todos' || fechaFiltro
+            ? 'No hay solicitudes que coincidan con estos filtros.'
+            : undefined
+        }
+      />
 
       <CreateRequestModal
         isOpen={isCreateOpen}

@@ -7,6 +7,7 @@ interface Props {
   requests: LeaveRequest[];
   isLoading: boolean;
   error: string | null;
+  emptyMessage?: string;
 }
 
 function formatFecha(iso: string): string {
@@ -17,7 +18,7 @@ function formatFecha(iso: string): string {
   });
 }
 
-export function RequestsTable({ requests, isLoading, error }: Props) {
+export function RequestsTable({ requests, isLoading, error, emptyMessage }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   if (isLoading) {
@@ -31,7 +32,7 @@ export function RequestsTable({ requests, isLoading, error }: Props) {
   if (requests.length === 0) {
     return (
       <p className='text-sm text-muted'>
-        Todavía no creaste ninguna solicitud.
+        {emptyMessage ?? 'Todavía no creaste ninguna solicitud.'}
       </p>
     );
   }

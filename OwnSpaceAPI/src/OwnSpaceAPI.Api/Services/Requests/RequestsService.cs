@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OwnSpaceAPI.Api.Data;
+using OwnSpaceAPI.Api.Models.Dtos.Common;
 using OwnSpaceAPI.Api.Models.Entities;
 using OwnSpaceAPI.Api.Services.Exceptions;
 
@@ -7,6 +8,8 @@ namespace OwnSpaceAPI.Api.Services.Requests;
 
 public sealed class RequestsService : IRequestsService
 {
+    private const int MaxPageSize = 100;
+
     private readonly AppDbContext _db;
     private readonly IEmailSender _emailSender;
 
@@ -18,26 +21,83 @@ public sealed class RequestsService : IRequestsService
 
     public async Task<List<LeaveRequest>> ListMineAsync(Guid employeeId) =>
         await _db.LeaveRequests
+            .Include(r => r.Employee)
             .Where(r => r.EmployeeId == employeeId)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
-    public async Task<List<LeaveRequest>> ListPendingAsync() =>
-        await _db.LeaveRequests
-            .Where(r => r.Estado == RequestStatus.Pendiente)
-            .OrderBy(r => r.CreatedAt)
-            .ToListAsync();
-
-    public async Task<List<LeaveRequest>> ListAllAsync(RequestStatus? estado)
-  {
-    var query = _db.LeaveRequests.AsQueryable();
-    if (estado is not null)
+    // Ordena ascendente a propósito (más vieja primero) — a diferencia
+    // de ListAllAsync, acá el objetivo es que el admin atienda primero
+    // lo que lleva más tiempo pendiente, no lo más reciente.
+    public Task<PagedResult<LeaveRequest>> ListPendingAsync(
+        RequestType? tipo, DateOnly? fecha, string? nombre, int page, int pageSize)
     {
-      query = query.Where(r => r.Estado == estado);
+        var query = AplicarFiltros(
+            _db.LeaveRequests.Include(r => r.Employee).Where(r => r.Estado == RequestStatus.Pendiente),
+            tipo, fecha, nombre);
+
+        return PaginarAsync(query.OrderBy(r => r.CreatedAt), page, pageSize);
     }
 
-    return await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
-  }
+    public Task<PagedResult<LeaveRequest>> ListAllAsync(
+        RequestStatus? estado, RequestType? tipo, DateOnly? fecha, string? nombre, int page, int pageSize)
+    {
+        var query = _db.LeaveRequests.Include(r => r.Employee).AsQueryable();
+        if (estado is not null)
+        {
+            query = query.Where(r => r.Estado == estado);
+        }
+
+        query = AplicarFiltros(query, tipo, fecha, nombre);
+
+        return PaginarAsync(query.OrderByDescending(r => r.CreatedAt), page, pageSize);
+    }
+
+    private static IQueryable<LeaveRequest> AplicarFiltros(
+        IQueryable<LeaveRequest> query, RequestType? tipo, DateOnly? fecha, string? nombre)
+    {
+        if (tipo is not null)
+        {
+            query = query.Where(r => r.Tipo == tipo);
+        }
+
+        if (fecha is not null)
+        {
+            // Coincide si la fecha cae dentro del rango de la solicitud —
+            // mismo criterio que el filtro por fecha ya implementado en
+            // el frontend (soporta las multi-día, ej. Enfermedad).
+            query = query.Where(r => r.FechaInicio <= fecha && fecha <= r.FechaFin);
+        }
+
+        if (!string.IsNullOrWhiteSpace(nombre))
+        {
+            // Join contra Users.Nombre — EF lo traduce a SQL (no trae
+            // nada de más a memoria). EF.Functions.Like en vez de
+            // .Contains(): ambos generan LIKE '%valor%' contra SQL Server
+            // real, pero .Contains() se evalúa con semántica ordinal
+            // (case-sensitive) bajo el proveedor InMemory que usan los
+            // tests — Like sí es case-insensitive en los dos proveedores,
+            // consistente con el collation CI de la base real.
+            query = query.Where(r => EF.Functions.Like(r.Employee.Nombre, $"%{nombre}%"));
+        }
+
+        return query;
+    }
+
+    private static async Task<PagedResult<LeaveRequest>> PaginarAsync(
+        IOrderedQueryable<LeaveRequest> query, int page, int pageSize)
+    {
+        var paginaSegura = Math.Max(1, page);
+        var tamañoSeguro = Math.Clamp(pageSize, 1, MaxPageSize);
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .Skip((paginaSegura - 1) * tamañoSeguro)
+            .Take(tamañoSeguro)
+            .ToListAsync();
+
+        return new PagedResult<LeaveRequest>(items, totalCount, paginaSegura, tamañoSeguro);
+    }
 
     public async Task<LeaveRequest> CreateAsync(
         Guid employeeId, RequestType tipo, DateOnly fechaInicio, DateOnly fechaFin,

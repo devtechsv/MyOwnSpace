@@ -77,33 +77,12 @@ export function UsersTable({
             <span>
               <UserStatusBadge status={user.estado} />
             </span>
-            <div className='flex gap-1.5'>
-              <button
-                type='button'
-                title='Editar'
-                onClick={() => onEdit?.(user)}
-                className='w-8 h-8 rounded-lg border border-border text-muted hover:text-foreground flex items-center justify-center'
-              >
-                <svg
-                  width='14'
-                  height='14'
-                  viewBox='0 0 24 24'
-                  fill='none'
-                  stroke='currentColor'
-                  strokeWidth='2'
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                >
-                  <path d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7' />
-                  <path d='M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z' />
-                </svg>
-              </button>
-
-              {user.estado === 'Activo' && (
+            <div className='flex gap-1.5' data-testid='acciones-fila'>
+              <span data-testid='accion-slot' className='w-8 h-8 inline-block'>
                 <button
                   type='button'
-                  title='Resetear contraseña'
-                  onClick={() => onResetPassword?.(user)}
+                  title='Editar'
+                  onClick={() => onEdit?.(user)}
                   className='w-8 h-8 rounded-lg border border-border text-muted hover:text-foreground flex items-center justify-center'
                 >
                   <svg
@@ -116,57 +95,87 @@ export function UsersTable({
                     strokeLinecap='round'
                     strokeLinejoin='round'
                   >
-                    <circle cx='8' cy='16' r='3.2' />
-                    <path d='M10.3 13.7L19 5l2 2M15 6l2 2' />
+                    <path d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7' />
+                    <path d='M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z' />
                   </svg>
                 </button>
-              )}
+              </span>
 
-              {user.estado === 'Activo' && (
-                <button
-                  type='button'
-                  title='Desactivar'
-                  onClick={() => onToggleStatus?.(user)}
-                  className='w-8 h-8 rounded-lg border border-red-500 text-red-500 flex items-center justify-center'
-                >
-                  <svg
-                    width='14'
-                    height='14'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeWidth='2'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
+              {/* Cada slot ocupa su lugar aunque el botón no aplique al
+                  estado de la fila (span vacío en vez de omitirlo), para
+                  que los íconos queden alineados en columna entre filas
+                  con distinta cantidad de acciones. */}
+              <span data-testid='accion-slot' className='w-8 h-8 inline-block'>
+                {user.estado === 'Activo' && (
+                  <button
+                    type='button'
+                    title='Resetear contraseña'
+                    onClick={() => onResetPassword?.(user)}
+                    className='w-8 h-8 rounded-lg border border-border text-muted hover:text-foreground flex items-center justify-center'
                   >
-                    <path d='M18.36 6.64a9 9 0 1 1-12.73 0' />
-                    <line x1='12' y1='2' x2='12' y2='12' />
-                  </svg>
-                </button>
-              )}
+                    <svg
+                      width='14'
+                      height='14'
+                      viewBox='0 0 24 24'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='2'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                    >
+                      <circle cx='8' cy='16' r='3.2' />
+                      <path d='M10.3 13.7L19 5l2 2M15 6l2 2' />
+                    </svg>
+                  </button>
+                )}
+              </span>
 
-              {user.estado === 'Desactivado' && (
-                <button
-                  type='button'
-                  title='Activar'
-                  onClick={() => onToggleStatus?.(user)}
-                  className='w-8 h-8 rounded-lg border border-emerald-500 text-emerald-500 flex items-center justify-center'
-                >
-                  <svg
-                    width='14'
-                    height='14'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeWidth='2'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
+              <span data-testid='accion-slot' className='w-8 h-8 inline-block'>
+                {(user.estado === 'Activo' || user.estado === 'Pendiente') && (
+                  <button
+                    type='button'
+                    title='Desactivar'
+                    onClick={() => onToggleStatus?.(user)}
+                    className='w-8 h-8 rounded-lg border border-red-500 text-red-500 flex items-center justify-center'
                   >
-                    <path d='M18.36 6.64a9 9 0 1 1-12.73 0' />
-                    <line x1='12' y1='2' x2='12' y2='12' />
-                  </svg>
-                </button>
-              )}
+                    <svg
+                      width='14'
+                      height='14'
+                      viewBox='0 0 24 24'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='2'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                    >
+                      <path d='M18.36 6.64a9 9 0 1 1-12.73 0' />
+                      <line x1='12' y1='2' x2='12' y2='12' />
+                    </svg>
+                  </button>
+                )}
+                {user.estado === 'Desactivado' && (
+                  <button
+                    type='button'
+                    title='Activar'
+                    onClick={() => onToggleStatus?.(user)}
+                    className='w-8 h-8 rounded-lg border border-emerald-500 text-emerald-500 flex items-center justify-center'
+                  >
+                    <svg
+                      width='14'
+                      height='14'
+                      viewBox='0 0 24 24'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='2'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                    >
+                      <path d='M18.36 6.64a9 9 0 1 1-12.73 0' />
+                      <line x1='12' y1='2' x2='12' y2='12' />
+                    </svg>
+                  </button>
+                )}
+              </span>
             </div>
           </div>
         );

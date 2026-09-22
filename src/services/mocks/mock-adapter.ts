@@ -7,7 +7,9 @@ import {
   CreateLeaveRequestPayload,
   LeaveRequest,
   RequestStatus,
+  RequestsListParams,
 } from '@/contracts/interfaces/request';
+import { PagedResult } from '@/contracts/interfaces/common';
 import {
   ForgotPasswordPayload,
   LoginPayload,
@@ -60,6 +62,15 @@ function findUserOrThrow(id: string): User {
     throw new Error(`Usuario ${id} no encontrado`);
   }
   return user;
+}
+
+// Igual que el backend real (RequestsService.ListMineAsync/ListPendingAsync/
+// ListAllAsync con .Include(r => r.Employee)): resuelve el nombre del
+// empleado en el mismo lugar que arma la lista, en vez de que el
+// consumidor (useAdminRequests) tenga que pedir todos los usuarios aparte
+// para armar el join a mano.
+function withEmployeeNombre(r: LeaveRequest): LeaveRequest {
+  return { ...r, employeeNombre: users.find((u) => u.id === r.employeeId)?.nombre };
 }
 
 function findRequestOrThrow(id: string): LeaveRequest {
@@ -121,6 +132,7 @@ export const mockAuthAdapter = {
     if (user && user.estado !== 'Desactivado') {
       user.estado = 'Activo';
       user.mustChangePassword = true;
+      user.contrasenaAsignada = true;
     }
     return delay(undefined);
   },
@@ -135,20 +147,52 @@ export const mockAuthAdapter = {
   },
 };
 
+// Mismos 3 filtros que RequestsService.AplicarFiltros del backend real,
+// más Skip/Take — para que el mock se comporte igual que la API paginada.
+function filtrarYPaginar(items: LeaveRequest[], params: RequestsListParams): PagedResult<LeaveRequest> {
+  let filtrados = items;
+  if (params.tipo) {
+    filtrados = filtrados.filter((r) => r.tipo === params.tipo);
+  }
+  if (params.fecha) {
+    const fecha = params.fecha;
+    filtrados = filtrados.filter(
+      (r) => r.fechaInicio.slice(0, 10) <= fecha && fecha <= r.fechaFin.slice(0, 10),
+    );
+  }
+  if (params.nombre) {
+    const query = params.nombre.trim().toLowerCase();
+    filtrados = filtrados.filter((r) => (r.employeeNombre ?? '').toLowerCase().includes(query));
+  }
+
+  const totalCount = filtrados.length;
+  const page = Math.max(1, params.page);
+  const pageSize = Math.max(1, params.pageSize);
+  const start = (page - 1) * pageSize;
+
+  return { items: filtrados.slice(start, start + pageSize), totalCount, page, pageSize };
+}
+
 export const mockRequestsAdapter = {
   async listByEmployee(employeeId: string): Promise<LeaveRequest[]> {
     return delay(clone(requests.filter((r) => r.employeeId === employeeId)));
   },
 
-  async listPending(): Promise<LeaveRequest[]> {
-    return delay(clone(requests.filter((r) => r.estado === 'Pendiente')));
+  async listPending(params: RequestsListParams): Promise<PagedResult<LeaveRequest>> {
+    // Ascendente (más vieja primero) — igual que RequestsService.ListPendingAsync.
+    const pendientes = requests
+      .filter((r) => r.estado === 'Pendiente')
+      .map(withEmployeeNombre)
+      .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+    return delay(clone(filtrarYPaginar(pendientes, params)));
   },
 
-  async listAll(estado?: RequestStatus): Promise<LeaveRequest[]> {
-    const filtered = estado
-      ? requests.filter((r) => r.estado === estado)
-      : requests;
-    return delay(clone(filtered));
+  async listAll(estado: RequestStatus | undefined, params: RequestsListParams): Promise<PagedResult<LeaveRequest>> {
+    // Descendente (más nueva primero) — igual que RequestsService.ListAllAsync.
+    const base = (estado ? requests.filter((r) => r.estado === estado) : requests)
+      .map(withEmployeeNombre)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return delay(clone(filtrarYPaginar(base, params)));
   },
 
   async create(payload: CreateLeaveRequestPayload): Promise<LeaveRequest> {
@@ -243,22 +287,25 @@ export const mockUsersAdapter = {
     const target = findUserOrThrow(id);
     target.estado = 'Activo';
     target.mustChangePassword = true;
+    target.contrasenaAsignada = true;
     return delay(undefined);
   },
 
   async toggleStatus(id: string): Promise<User> {
     const target = findUserOrThrow(id);
-    if (target.estado === 'Pendiente') {
-      // Igual que el backend real (409): un usuario Pendiente no tiene
-      // Activo/Desactivado para alternar todavía.
-      throw new Error('El usuario está Pendiente — no tiene Activo/Desactivado para alternar.');
+
+    if (target.estado === 'Pendiente' || target.estado === 'Activo') {
+      target.estado = 'Desactivado';
+      // Igual que el backend real: congela el devengo de PTO.
+      target.fechaDesactivacion = new Date().toISOString().slice(0, 10);
+    } else {
+      // Reactivar: igual que el backend real (PasswordHash null) — si
+      // nunca tuvo una contraseña real asignada, vuelve a Pendiente en
+      // vez de Activo, porque no tiene con qué loguearse todavía.
+      target.estado = target.contrasenaAsignada ? 'Activo' : 'Pendiente';
+      target.fechaDesactivacion = undefined;
     }
-    const pasaADesactivado = target.estado === 'Activo';
-    target.estado = pasaADesactivado ? 'Desactivado' : 'Activo';
-    // Igual que el backend real: congela/reanuda el devengo de PTO.
-    target.fechaDesactivacion = pasaADesactivado
-      ? new Date().toISOString().slice(0, 10)
-      : undefined;
+
     return delay(clone(target));
   },
 };

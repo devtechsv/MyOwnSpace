@@ -87,7 +87,7 @@ public record UserResponse(Guid Id, string Nombre, string Correo, UserRole Rol, 
 
 Ver `docs/er-diagram.md` para el diagrama completo. Resumen:
 
-- **Users** — espejo de `User` (frontend) + `PasswordHash`. `Rol` incluye `SuperAdmin` como tercer valor válido desde ya (sin lógica de permisos propia todavía, igual que el frontend), para no migrar el esquema cuando se defina.
+- **Users** — espejo de `User` (frontend) + `PasswordHash`. `Rol` acepta `Empleado`/`Administrador` (el rol `SuperAdmin` se evaluó y se descartó — no se implementa).
 - **LeaveRequests** — espejo de `LeaveRequest` (frontend). Sin jerarquía jefe-empleado: cualquier `Administrador` puede aprobar/denegar cualquier solicitud pendiente (igual que el mock actual).
 - **PasswordResetTokens** — no existe equivalente en el mock (que usa el propio id de usuario como "token", documentado ahí como simplificación temporal). Necesaria para que "olvidé mi contraseña" e "invitación a definir contraseña" sean seguras de verdad: token opaco de un solo uso, con expiración, y se persiste su **hash** (no el valor en texto plano) — mismo principio que las contraseñas.
 

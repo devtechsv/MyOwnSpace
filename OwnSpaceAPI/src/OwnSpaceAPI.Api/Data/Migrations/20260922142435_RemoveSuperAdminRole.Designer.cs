@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OwnSpaceAPI.Api.Data;
 
@@ -11,9 +12,11 @@ using OwnSpaceAPI.Api.Data;
 namespace OwnSpaceAPI.Api.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260922142435_RemoveSuperAdminRole")]
+    partial class RemoveSuperAdminRole
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -77,11 +80,9 @@ namespace OwnSpaceAPI.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("EmployeeId");
+
                     b.HasIndex("ReviewedBy");
-
-                    b.HasIndex("EmployeeId", "CreatedAt");
-
-                    b.HasIndex("Estado", "CreatedAt");
 
                     b.ToTable("LeaveRequests", t =>
                         {

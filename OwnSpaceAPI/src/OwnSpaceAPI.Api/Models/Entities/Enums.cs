@@ -7,7 +7,6 @@ public enum UserRole
 {
     Empleado,
     Administrador,
-    SuperAdmin,
 }
 
 public enum UserStatus

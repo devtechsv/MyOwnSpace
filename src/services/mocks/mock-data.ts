@@ -11,6 +11,7 @@ export const mockUsers: User[] = [
     rol: 'Administrador',
     estado: 'Activo',
     fechaIngreso: '2022-01-10',
+    contrasenaAsignada: true,
   },
   {
     id: 'u2',
@@ -19,6 +20,7 @@ export const mockUsers: User[] = [
     rol: 'Administrador',
     estado: 'Activo',
     fechaIngreso: '2022-03-01',
+    contrasenaAsignada: true,
   },
   {
     id: 'u3',
@@ -27,6 +29,7 @@ export const mockUsers: User[] = [
     rol: 'Empleado',
     estado: 'Activo',
     fechaIngreso: '2023-06-15',
+    contrasenaAsignada: true,
   },
   {
     id: 'u4',
@@ -35,6 +38,7 @@ export const mockUsers: User[] = [
     rol: 'Empleado',
     estado: 'Activo',
     fechaIngreso: '2024-02-01',
+    contrasenaAsignada: true,
   },
   {
     id: 'u5',
@@ -43,6 +47,8 @@ export const mockUsers: User[] = [
     rol: 'Empleado',
     estado: 'Pendiente',
     fechaIngreso: '2025-01-01',
+    // Sin contrasenaAsignada a propósito: representa un Pendiente que
+    // nunca recibió una contraseña real.
   },
   {
     id: 'u6',
@@ -51,6 +57,7 @@ export const mockUsers: User[] = [
     rol: 'Empleado',
     estado: 'Desactivado',
     fechaIngreso: '2021-05-01',
+    contrasenaAsignada: true,
   },
 ];
 

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { UsersTable } from './UsersTable';
 import { User } from '@/contracts/interfaces/user';
 
@@ -75,12 +75,12 @@ describe('UsersTable', () => {
     expect(screen.queryByTitle('Activar')).not.toBeInTheDocument();
   });
 
-  it('Pendiente: solo muestra Editar (sin resetear ni activar/desactivar)', () => {
+  it('Pendiente: muestra Editar y Desactivar (sin resetear ni activar)', () => {
     render(<UsersTable users={[pendiente]} isLoading={false} error={null} />);
 
     expect(screen.getByTitle('Editar')).toBeInTheDocument();
+    expect(screen.getByTitle('Desactivar')).toBeInTheDocument();
     expect(screen.queryByTitle('Resetear contraseña')).not.toBeInTheDocument();
-    expect(screen.queryByTitle('Desactivar')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Activar')).not.toBeInTheDocument();
   });
 
@@ -91,6 +91,22 @@ describe('UsersTable', () => {
     expect(screen.getByTitle('Activar')).toBeInTheDocument();
     expect(screen.queryByTitle('Resetear contraseña')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Desactivar')).not.toBeInTheDocument();
+  });
+
+  it('reserva siempre 3 espacios de acción por fila, para que los botones queden alineados entre filas con distinto estado', () => {
+    render(
+      <UsersTable
+        users={[activo, pendiente, desactivado]}
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    const filas = screen.getAllByTestId('acciones-fila');
+    expect(filas).toHaveLength(3);
+    filas.forEach((fila) => {
+      expect(within(fila).getAllByTestId('accion-slot')).toHaveLength(3);
+    });
   });
 
   it('llama a los callbacks con el usuario correspondiente', () => {

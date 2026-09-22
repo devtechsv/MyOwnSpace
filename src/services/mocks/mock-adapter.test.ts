@@ -103,10 +103,38 @@ describe('mockRequestsAdapter', () => {
   });
 
   it('listPending devuelve solo solicitudes en estado Pendiente', async () => {
-    const result = await mockRequestsAdapter.listPending();
+    const result = await mockRequestsAdapter.listPending({ page: 1, pageSize: 20 });
 
-    expect(result.length).toBeGreaterThan(0);
-    expect(result.every((r) => r.estado === 'Pendiente')).toBe(true);
+    expect(result.items.length).toBeGreaterThan(0);
+    expect(result.items.every((r) => r.estado === 'Pendiente')).toBe(true);
+  });
+
+  it('listPending ordena de más vieja a más nueva', async () => {
+    const result = await mockRequestsAdapter.listPending({ page: 1, pageSize: 20 });
+
+    const fechas = result.items.map((r) => r.createdAt);
+    expect(fechas).toEqual([...fechas].sort());
+  });
+
+  it('listAll pagina, filtra por tipo/fecha/nombre, y totalCount refleja los filtros', async () => {
+    const primeraPagina = await mockRequestsAdapter.listAll(undefined, { page: 1, pageSize: 2 });
+    expect(primeraPagina.items).toHaveLength(2);
+    expect(primeraPagina.totalCount).toBe(mockRequests.length);
+
+    const porTipo = await mockRequestsAdapter.listAll(undefined, {
+      tipo: 'Emergencia',
+      page: 1,
+      pageSize: 20,
+    });
+    expect(porTipo.items.every((r) => r.tipo === 'Emergencia')).toBe(true);
+    expect(porTipo.totalCount).toBe(porTipo.items.length);
+
+    const porNombre = await mockRequestsAdapter.listAll(undefined, {
+      nombre: 'ana mart',
+      page: 1,
+      pageSize: 20,
+    });
+    expect(porNombre.items.every((r) => r.employeeNombre === 'Ana Martínez')).toBe(true);
   });
 
   it('create agrega una nueva solicitud en estado Pendiente', async () => {
@@ -249,10 +277,20 @@ describe('mockUsersAdapter', () => {
     expect(reactivated.estado).toBe('Activo');
   });
 
-  it('toggleStatus rechaza un usuario Pendiente, igual que el backend real', async () => {
-    await expect(
-      mockUsersAdapter.toggleStatus('u5'), // Sofía Núñez, Pendiente en los fixtures
-    ).rejects.toThrow();
+  it('toggleStatus permite desactivar un usuario Pendiente', async () => {
+    const desactivado = await mockUsersAdapter.toggleStatus('u5'); // Sofía Núñez, Pendiente en los fixtures
+    expect(desactivado.estado).toBe('Desactivado');
+  });
+
+  it('toggleStatus al reactivar un usuario sin contraseña real asignada, vuelve a Pendiente (no Activo)', async () => {
+    // u5 (Sofía Núñez) nunca tuvo contrasenaAsignada en los fixtures —
+    // simula el caso real: llegó a Desactivado viniendo de Pendiente.
+    const desactivado = await mockUsersAdapter.toggleStatus('u5');
+    expect(desactivado.estado).toBe('Desactivado');
+
+    const reactivado = await mockUsersAdapter.toggleStatus('u5');
+    expect(reactivado.estado).toBe('Pendiente');
+    expect(reactivado.fechaDesactivacion).toBeUndefined();
   });
 
   it('toggleStatus registra fechaDesactivacion al desactivar y la limpia al reactivar', async () => {

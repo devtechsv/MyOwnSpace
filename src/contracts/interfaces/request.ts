@@ -12,6 +12,10 @@ export type RequestStatus = 'Pendiente' | 'Aprobada' | 'Denegada';
 export interface LeaveRequest {
   id: string;
   employeeId: User['id'];
+  // Nullable/opcional a propósito: el backend real no lo carga en la
+  // respuesta de crear una solicitud propia (POST /requests) — solo en
+  // los listados (mine/pending/all), que es donde realmente se usa.
+  employeeNombre?: string;
   tipo: RequestType;
   fechaInicio: string; // ISO 8601
   fechaFin: string; // ISO 8601
@@ -38,4 +42,14 @@ export interface CreateLeaveRequestPayload {
   horaInicio?: string; // HH:mm
   horaFin?: string; // HH:mm
   motivo: string;
+}
+
+// Filtros + paginación de GET /requests y /requests/pending — todo
+// opcional salvo page/pageSize, que siempre viajan.
+export interface RequestsListParams {
+  tipo?: RequestType;
+  fecha?: string; // YYYY-MM-DD
+  nombre?: string;
+  page: number;
+  pageSize: number;
 }

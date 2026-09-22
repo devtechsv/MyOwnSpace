@@ -232,19 +232,48 @@ paths:
   /requests/pending:
     get:
       tags: [requests]
-      summary: Lista todas las solicitudes pendientes (sin jerarquía jefe-empleado — ver SPEC.md §8).
+      summary: >
+        Lista todas las solicitudes pendientes (sin jerarquía
+        jefe-empleado — ver SPEC.md §8), paginado y ordenado por
+        CreatedAt ascendente (la más vieja primero).
       security: [{ cookieAuth: [Administrador] }]
+      parameters:
+        - $ref: '#/components/parameters/RequestsTipoFiltro'
+        - $ref: '#/components/parameters/RequestsFechaFiltro'
+        - $ref: '#/components/parameters/RequestsNombreFiltro'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
       responses:
         '200':
           description: OK.
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/LeaveRequest'
+                $ref: '#/components/schemas/PagedLeaveRequests'
 
   /requests:
+    get:
+      tags: [requests]
+      summary: >
+        Lista solicitudes, paginado y ordenado por CreatedAt descendente
+        (la más nueva primero).
+      security: [{ cookieAuth: [Administrador] }]
+      parameters:
+        - name: estado
+          in: query
+          schema: { $ref: '#/components/schemas/RequestStatus' }
+        - $ref: '#/components/parameters/RequestsTipoFiltro'
+        - $ref: '#/components/parameters/RequestsFechaFiltro'
+        - $ref: '#/components/parameters/RequestsNombreFiltro'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedLeaveRequests'
     post:
       tags: [requests]
       summary: >
@@ -414,12 +443,34 @@ components:
       schema:
         type: string
         format: uuid
+    RequestsTipoFiltro:
+      name: tipo
+      in: query
+      schema: { $ref: '#/components/schemas/RequestType' }
+    RequestsFechaFiltro:
+      name: fecha
+      in: query
+      description: Coincide si esta fecha cae dentro del rango [fechaInicio, fechaFin] de la solicitud.
+      schema: { type: string, format: date }
+    RequestsNombreFiltro:
+      name: nombre
+      in: query
+      description: Búsqueda parcial sobre el nombre del empleado, sin distinguir mayúsculas.
+      schema: { type: string }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      description: Máximo 100 (se acota del lado del servidor).
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
 
   schemas:
     UserRole:
       type: string
-      enum: [Empleado, Administrador, SuperAdmin]
-      description: SuperAdmin sin lógica de permisos propia todavía — ver SPEC.md §8.
+      enum: [Empleado, Administrador]
 
     UserStatus:
       type: string
@@ -432,6 +483,19 @@ components:
     RequestStatus:
       type: string
       enum: [Pendiente, Aprobada, Denegada]
+
+    PagedLeaveRequests:
+      type: object
+      required: [items, totalCount, page, pageSize]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/LeaveRequest' }
+        totalCount:
+          type: integer
+          description: Total de solicitudes que matchean los filtros aplicados (no el total sin filtrar).
+        page: { type: integer }
+        pageSize: { type: integer }
 
     User:
       type: object
@@ -472,6 +536,13 @@ components:
       properties:
         id: { type: string, format: uuid }
         employeeId: { type: string, format: uuid }
+        employeeNombre:
+          type: string
+          nullable: true
+          description: >
+            Nombre del empleado. Null solo en la respuesta de POST
+            /requests (crear no carga el User completo) — en todos los
+            listados (mine/pending/all) siempre viene cargado.
         tipo: { $ref: '#/components/schemas/RequestType' }
         fechaInicio: { type: string, format: date }
         fechaFin: { type: string, format: date }
@@ -511,10 +582,7 @@ components:
       properties:
         nombre: { type: string, maxLength: 200 }
         correo: { type: string, format: email, maxLength: 256 }
-        rol:
-          allOf: [{ $ref: '#/components/schemas/UserRole' }]
-          enum: [Empleado, Administrador]
-          description: SuperAdmin no es asignable desde la UI todavía.
+        rol: { $ref: '#/components/schemas/UserRole' }
         fechaIngreso: { type: string, format: date }
 
     UpdateUserRequest:
@@ -522,9 +590,7 @@ components:
       properties:
         nombre: { type: string, maxLength: 200 }
         correo: { type: string, format: email, maxLength: 256 }
-        rol:
-          allOf: [{ $ref: '#/components/schemas/UserRole' }]
-          enum: [Empleado, Administrador]
+        rol: { $ref: '#/components/schemas/UserRole' }
 
     CreateLeaveRequestRequest:
       type: object

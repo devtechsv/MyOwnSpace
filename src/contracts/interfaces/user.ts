@@ -22,6 +22,12 @@ export interface User {
   // admin necesite ver de otros. Solo lo usa el mock, para simular
   // forgotPassword/resetPassword de punta a punta sin backend real.
   mustChangePassword?: boolean;
+  // Mock-only, mismo criterio que fechaDesactivacion/mustChangePassword:
+  // el equivalente mock de "PasswordHash no es null" en el backend real
+  // (UsersService.ToggleStatusAsync) — para que reactivar a alguien que
+  // llegó a Desactivado viniendo de Pendiente (nunca tuvo una contraseña
+  // real asignada) vuelva a Pendiente en vez de Activo.
+  contrasenaAsignada?: boolean;
 }
 
 export interface CreateUserPayload {

@@ -3,8 +3,10 @@ import { GetServerSideProps, NextPage } from 'next';
 import { AppShell } from '@/components/layout/AppShell';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { RequestsTable } from '@/components/pages/admin/RequestsTable';
+import { Pagination } from '@/components/common/Pagination';
 import {
   AdminRequestsFilter,
+  AdminRequestsTipoFilter,
   useAdminRequests,
 } from '@/components/pages/admin/useAdminRequests';
 
@@ -17,10 +19,22 @@ const TABS: { key: AdminRequestsFilter; label: string }[] = [
   { key: 'Todas', label: 'Todas' },
 ];
 
+const TIPO_FILTER_OPTIONS: { value: AdminRequestsTipoFilter; label: string }[] = [
+  { value: 'Todos', label: 'Todos los tipos' },
+  { value: 'Emergencia', label: 'Emergencia' },
+  { value: 'Enfermedad', label: 'Enfermedad' },
+  { value: 'Permiso personal', label: 'Permiso personal' },
+  { value: 'Vacaciones', label: 'Vacaciones' },
+  { value: 'Otro', label: 'Otro' },
+];
+
 const AdminRequestsPage: NextPage<Props> = () => {
   const {
     requests,
     totalCount,
+    page,
+    totalPages,
+    setPage,
     isLoading,
     error,
     actioningId,
@@ -30,6 +44,10 @@ const AdminRequestsPage: NextPage<Props> = () => {
     setFiltro,
     nombreQuery,
     setNombreQuery,
+    tipoFiltro,
+    setTipoFiltro,
+    fechaFiltro,
+    setFechaFiltro,
   } = useAdminRequests();
 
   return (
@@ -65,14 +83,37 @@ const AdminRequestsPage: NextPage<Props> = () => {
           })}
         </div>
 
-        <input
-          type='search'
-          value={nombreQuery}
-          onChange={(e) => setNombreQuery(e.target.value)}
-          placeholder='Buscar por nombre de empleado…'
-          aria-label='Buscar por nombre de empleado'
-          className='w-64 px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground placeholder:text-muted appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
-        />
+        <div className='flex flex-wrap items-center gap-2.5'>
+          <select
+            value={tipoFiltro}
+            onChange={(e) => setTipoFiltro(e.target.value as AdminRequestsTipoFilter)}
+            aria-label='Filtrar por tipo de solicitud'
+            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+          >
+            {TIPO_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type='date'
+            value={fechaFiltro}
+            onChange={(e) => setFechaFiltro(e.target.value)}
+            aria-label='Filtrar por fecha'
+            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+          />
+
+          <input
+            type='search'
+            value={nombreQuery}
+            onChange={(e) => setNombreQuery(e.target.value)}
+            placeholder='Buscar por nombre de empleado…'
+            aria-label='Buscar por nombre de empleado'
+            className='w-64 px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground placeholder:text-muted appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+          />
+        </div>
       </div>
 
       <RequestsTable
@@ -83,6 +124,15 @@ const AdminRequestsPage: NextPage<Props> = () => {
         onApprove={approve}
         onDeny={deny}
       />
+
+      {!isLoading && !error && totalCount > 0 && (
+        <div className='flex items-center justify-between mt-4 text-sm text-muted'>
+          <span>
+            {totalCount} solicitud{totalCount === 1 ? '' : 'es'}
+          </span>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        </div>
+      )}
     </AppShell>
   );
 };

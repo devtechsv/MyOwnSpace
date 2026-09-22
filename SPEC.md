@@ -13,7 +13,7 @@ MyOwnSpace es una herramienta interna de DevTech para que los empleados generen 
 **Usuarios objetivo:**
 - **Empleado** — crea solicitudes, ve el estado de las propias, gestiona su propia cuenta (perfil, contraseña).
 - **Jefe (Administrador)** — aprueba/deniega solicitudes de su equipo, gestiona usuarios (crear, editar, resetear contraseña, activar/desactivar).
-- **SuperAdmin** — rol mencionado en `OwnSpace.md` pero **sin funciones definidas todavía**. Fuera de alcance de este spec; no se implementa ninguna UI ni lógica específica para este rol hasta que se aclare qué lo distingue del Jefe/Administrador.
+- ~~**SuperAdmin**~~ — rol mencionado originalmente en `OwnSpace.md`; se evaluó qué lo distinguiría del Jefe/Administrador y se decidió (2026-09-21) que no hace falta — **eliminado**, no se implementa.
 
 ---
 
@@ -150,7 +150,6 @@ El proyecto no tiene test runner configurado todavía. Se propone:
 - Cualquier pantalla nueva no contemplada en el mockup se avisa antes de construirse.
 
 **Preguntar antes:**
-- Cualquier UI o permiso relacionado a **SuperAdmin** (fuera de alcance hasta que se definan sus funciones).
 - Cambios en la forma de los contratos de datos (`User`, `LeaveRequest`) una vez que el backend empiece a especificarse — para no divergir.
 - Agregar dependencias nuevas no listadas en `package.json` (ej. otra librería de formularios, otro sistema de theming).
 
@@ -236,7 +235,7 @@ interface SetPasswordPayload { token: string; nuevaPassword: string; }
 
 **Contratos de datos:**
 ```ts
-type UserRole = 'Empleado' | 'Administrador'; // SuperAdmin: fuera de alcance
+type UserRole = 'Empleado' | 'Administrador';
 type UserStatus = 'Pendiente' | 'Activo' | 'Desactivado';
 
 interface User {
@@ -269,7 +268,6 @@ interface LeaveRequest {
 ## Fuera de alcance de este spec
 
 - Backend (ASP.NET Core, SQL Server) — spec aparte.
-- Rol SuperAdmin — sin funciones definidas.
 - Tabs de filtro "Aprobadas/Denegadas/Todas" en Solicitudes del admin (más allá del layout visual).
 - Tests e2e/visuales (Playwright) — se evalúa con backend real.
 - Envío real de correos — el frontend solo dispara la acción; el contenido y entrega del correo son responsabilidad del backend.

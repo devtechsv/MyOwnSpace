@@ -641,3 +641,125 @@ A pedido explícito del usuario ("Puedes cerrarlo"), Claude implementó directo.
 Con esto, el módulo de PTO queda cerrado sin cabos sueltos conocidos.
 
 **Dependencies:** Post-cierre "Módulo PTO, Fases 1-5 completas" (arriba).
+
+---
+
+## Post-cierre — Eliminación del rol SuperAdmin (2026-09-22)
+
+A pedido explícito del usuario: la pregunta abierta desde el inicio del proyecto sobre qué distinguiría a `SuperAdmin` de `Administrador` se resolvió no con una definición de permisos, sino con la decisión de **eliminar el rol por completo** ("No necesitamos un superadmin para esto, se elimina por completo"). Implementado por Claude directo (modo ágil, a pedido explícito).
+
+**Cambios:**
+- `UserRole` (enum, `Models/Entities/Enums.cs`): sacado el valor `SuperAdmin`. Solo quedan `Empleado`/`Administrador`.
+- `UsersService`: eliminados los guards que ya no pueden dispararse al no existir el valor de enum — el chequeo `rol == UserRole.SuperAdmin` en `CreateAsync`/`UpdateAsync`, y el helper `EnsureNotSuperAdmin` (y sus tres llamadas en `UpdateAsync`/`ResetPasswordAsync`/`ToggleStatusAsync`).
+- `AppDbContext`: `CK_Users_Rol` actualizado a `[Rol] IN ('Empleado', 'Administrador')`.
+- Migración nueva `RemoveSuperAdminRole` (drop + recreate del CHECK constraint) — aplicada contra la base de desarrollo real sin incidentes (no había ninguna fila con `Rol='SuperAdmin'` sembrada).
+- `docs/openapi.yaml`: `UserRole` schema pasa a `enum: [Empleado, Administrador]`; los overrides `allOf`+`enum` en `CreateUserRequest.rol`/`UpdateUserRequest.rol` (que existían solo para excluir `SuperAdmin` del `$ref` de 3 valores) ya no hacen falta y se simplificaron a `$ref` directo.
+- `docs/er-diagram.md`: nota del CHECK de `Rol` actualizada.
+- `SPEC.md` (frontend y backend) y `OwnSpace.md`: referencias a SuperAdmin como "fuera de alcance/sin definir" corregidas a "evaluado y descartado, no se implementa".
+- No hizo falta tocar el frontend — nunca tuvo ninguna referencia a `SuperAdmin` (ni rutas, ni tipos, ni UI), confirmado por búsqueda antes de empezar.
+
+**Tests eliminados** (ya no compilan al no existir el valor de enum, y ya no hay comportamiento que probar): `CreateAsync_ConRolSuperAdmin_TiraBadRequest`, `UpdateAsync_ConRolSuperAdmin_TiraBadRequest`.
+
+**Verification:** `dotnet build` 0/0, `dotnet test` **97/97** (99 − 2 tests eliminados). `dotnet ef database update` aplicó la migración limpio contra SQL Server real.
+
+**Dependencies:** ninguna — cierre de un ítem de scope abierto desde el inicio del proyecto (ver `OwnSpace.md`, `SPEC.md` §8 original).
+
+---
+
+## Post-cierre — Permitir desactivar un usuario Pendiente (2026-09-22)
+
+A pedido explícito del usuario, tras encontrar (probando manualmente) que `ToggleStatusAsync` rechazaba con 409 cualquier intento de desactivar un usuario `Pendiente`. Alcance acordado con el usuario antes de implementar (ver preguntas de la sesión): no tocar los flujos de creación/reset — siguen yendo directo a `Activo` — solo habilitar el toggle sobre `Pendiente`, y decidir a qué estado vuelve al reactivar según si esa cuenta alguna vez tuvo una contraseña real.
+
+**Cambio en `UsersService.ToggleStatusAsync`:**
+- `Pendiente` y `Activo` ahora van hacia `Desactivado` por igual (antes solo `Activo` podía). El guard de "no dejar sin admins" (`EnsureNotLastActiveAdminAsync`) se llama en ambos casos — es no-op para `Pendiente` porque nunca es `Activo`, así que es seguro invocarlo sin distinguir.
+- Reactivar (`Desactivado` → ?) ahora depende de `PasswordHash`: si es `null` (la cuenta nunca pasó por `CreateAsync`/`IssueTemporaryPasswordAsync` con una contraseña real asignada — llegó a `Desactivado` directo desde `Pendiente`), vuelve a `Pendiente` en vez de `Activo`, porque no tiene con qué loguearse. Un admin tendría que usar "Resetear contraseña" aparte para mandarle una temporal.
+
+**Tests backend:** `CrearUsuario` (helper de test) ganó un parámetro `passwordHash` con default no-null (la mayoría de los fixtures representa cuentas que ya tienen contraseña real) — solo los tests del nuevo camino pasan `passwordHash: null` explícito. `ToggleStatusAsync_ConUsuarioPendiente_TiraConflict` reescrito a `...LoDejaDesactivado`. Test nuevo `ToggleStatusAsync_AlReactivarUnoSinContraseñaReal_VuelveAPendiente`.
+
+**Paridad en el mock del frontend:** el `User` (contrato) ganó `contrasenaAsignada?: boolean` — mock-only, equivalente a "`PasswordHash` no es null" del backend real. Los fixtures no-Pendiente (`mock-data.ts`) lo tienen en `true`; Sofía Núñez (Pendiente) lo deja sin setear a propósito. `mockUsersAdapter.toggleStatus` replica la misma lógica; `resetPassword`/`forgotPassword` ahora también lo setean en `true` (consistente con que esos flujos sí emiten una contraseña real).
+
+**Verificación manual contra el backend real** (no solo tests): usando un usuario `Pendiente` real que ya estaba en la base de desarrollo (`hold@devtch.com`, id `5048c7bc-a25e-4a27-a289-cbb34b4d6639`) — `POST /users/{id}/toggle-status` → `200`, `Desactivado` (antes daba 409); segundo toggle → `200`, vuelve a `Pendiente` (confirma que el `PasswordHash` null de esa cuenta legacy hace exactamente lo esperado).
+
+**Verification:** backend `dotnet build` 0/0, `dotnet test` **98/98** (97 − 1 reescrito + 2 nuevos netos). Frontend `tsc` limpio, lint 0 errores, `npm test` **243/243**, `npm run build` exitoso (dev server detenido antes en ambos repos).
+
+**Dependencies:** ninguna — hallazgo de QA manual sobre el batch anterior de SuperAdmin/filtros.
+
+---
+
+## Post-cierre — Escalabilidad, Fase 1: índices en LeaveRequests (2026-09-22)
+
+A partir de una pregunta del usuario ("¿si la cantidad de solicitudes y usuarios se incrementan, se puede desbordar o perder rendimiento?"), auditoría de escalabilidad (agente `Explore`, sin tocar código) y plan de 3 fases acordado con el usuario: 1) índices, 2) nombre del empleado en la respuesta de solicitudes, 3) paginación real de `/requests` con filtros server-side. Modo **guiado** (a pedido explícito del usuario para este batch).
+
+**Hallazgo corregido durante la auditoría:** `EmployeeId` y `ReviewedBy` en `LeaveRequests` YA tenían índice (EF Core los crea automático por ser Foreign Key, desde la migración inicial) — el hallazgo real no era "sin índices", sino que faltaba cubrir `Estado` y la combinación con `CreatedAt` (por el que siempre se ordena).
+
+**Cambio:** `AppDbContext.cs` — dos índices compuestos nuevos en `LeaveRequest`:
+- `(EmployeeId, CreatedAt)` — cubre `ListMineAsync` (filtra por `EmployeeId`, ordena por `CreatedAt`) sin un sort aparte.
+- `(Estado, CreatedAt)` — cubre `ListPendingAsync`/`ListAllAsync(estado?)`.
+
+Migración `AddLeaveRequestsIndexes`: EF Core reemplazó el índice simple de `EmployeeId` por el compuesto en vez de dejar ambos duplicados (`ReviewedBy` no se tocó). Aplicada contra la base de desarrollo real sin incidentes.
+
+**No se tocó `Users` en esta fase** — hoy `ListAsync` no tiene ningún filtro que se beneficie de un índice nuevo; eso se resuelve con la paginación de Usuarios, que queda para una vuelta futura (no forma parte de este plan de 3 fases, que se centró en Solicitudes).
+
+**Verification:** `dotnet build` 0/0, `dotnet test` 98/98 (sin cambios de comportamiento, solo índices).
+
+**Dependencies:** ninguna. Sigue la Fase 2 (nombre del empleado en `LeaveRequestResponse`) y Fase 3 (paginación).
+
+---
+
+## Post-cierre — Escalabilidad, Fase 2: nombre del empleado en LeaveRequestResponse (2026-09-22)
+
+Segunda fase del plan de escalabilidad (ver Fase 1, arriba). Objetivo: que el frontend deje de pedir la tabla `Users` completa solo para poner nombres en la tabla de solicitudes del admin — requisito para que la Fase 3 (paginación) tenga sentido (si no, cada página de solicitudes seguiría necesitando todos los usuarios para resolver nombres).
+
+**Decisión de diseño confirmada con el usuario:** `EmployeeNombre` es nullable. `RequestsService.ReviewAsync` (Aprobar/Denegar) ya cargaba `.Include(r => r.Employee)`, pero `CreateAsync` arma la entidad solo con `EmployeeId` — no vale la pena una consulta extra en cada creación solo para completar un campo que la vista del propio empleado no necesita mostrar.
+
+**Cambios backend:**
+- `LeaveRequestResponse`: nuevo campo `EmployeeNombre` (`string?`), poblado desde `r.Employee?.Nombre` en `FromEntity`.
+- `RequestsService.ListMineAsync/ListPendingAsync/ListAllAsync`: agregado `.Include(r => r.Employee)` (mismo patrón que ya usaba `ReviewAsync`).
+- `docs/openapi.yaml`: campo `employeeNombre` documentado en el schema `LeaveRequest`, nullable, con la aclaración de por qué es null solo en la respuesta de `POST /requests`.
+
+**Tests backend:** 3 tests nuevos/extendidos en `RequestsServiceTests.cs` (`ListMineAsync_IncluyeElNombreDelEmpleado`, y assertions agregadas a `ListPendingAsync_SoloDevuelveLasPendientes` / `ListAllAsync_SinFiltro_DevuelveTodas`) confirmando que `Employee.Nombre` viene cargado.
+
+**Cambios frontend:**
+- `contracts/interfaces/request.ts`: `LeaveRequest` gana `employeeNombre?: string`.
+- `useAdminRequests.ts`: **eliminado** el `API.users.list()` que se pedía en cada `load()` — ahora usa `request.employeeNombre` directo (con el mismo fallback `'Empleado'` que ya tenía).
+- Mock (`mock-adapter.ts`): helper nuevo `withEmployeeNombre(r)` que resuelve el nombre buscando en el array `users` en memoria (mismo criterio que el `.Include()` real) — aplicado en `listPending`/`listAll`. `listByEmployee` (la vista del propio empleado) no lo necesita, igual que el backend real no lo carga ahí.
+
+**Verificación manual contra el backend real:** `GET /requests/pending` autenticado como admin → cada solicitud trae `employeeNombre` resuelto (ej. `"employeeNombre":"Ana Martínez"`), sin ningún fetch adicional a `/users`.
+
+**Verification:** backend `dotnet build` 0/0, `dotnet test` **99/99** (98 + 1). `docs/openapi.yaml` re-validado con `js-yaml` (16/16 paths/schemas). Frontend `tsc` limpio, lint 0 errores, `npm test` **243/243** (sin tests nuevos del lado frontend — los existentes ya cubrían el comportamiento gracias al mock actualizado), `npm run build` exitoso.
+
+**Dependencies:** Fase 1 (arriba). Habilita la Fase 3 (paginación real de `/requests`).
+
+---
+
+## Post-cierre — Escalabilidad, Fase 3: paginación real de /requests con filtros server-side (2026-09-22)
+
+Última fase del plan de escalabilidad. Modo guiado (a pedido del usuario). Alcance confirmado con el usuario antes de empezar: solo `/admin/requests` (no "Mis solicitudes" del empleado — muchas menos filas por persona, no urgente); sobre de respuesta `{ items, totalCount, page, pageSize }` en vez de array plano.
+
+**Cambio de contrato:** `GET /requests` y `GET /requests/pending` dejan de devolver un array — devuelven `PagedLeaveRequests` (`items`, `totalCount`, `page`, `pageSize`). `totalCount` refleja los filtros aplicados (tab/tipo/fecha/nombre), no el total sin filtrar — cambio de comportamiento respecto al contador de la pestaña de antes (que a propósito no se achicaba con el buscador de nombre; ahora sí, porque viene del mismo query paginado).
+
+**Backend:**
+- `Models/Dtos/Common/PagedResult.cs` — record genérico nuevo (`Items`, `TotalCount`, `Page`, `PageSize`), reutilizable el día que se pagine Usuarios.
+- `RequestsService.ListPendingAsync`/`ListAllAsync` ganan `tipo`, `fecha`, `nombre`, `page`, `pageSize`. **El orden de cada uno se mantiene igual que antes** — Pending sigue ascendente (más vieja primero), All sigue descendente (más nueva primero) — no se unificó.
+- Filtro por `nombre`: join contra `Users.Nombre` vía `EF.Functions.Like` (no `.Contains()` — bajo el proveedor InMemory que usan los tests, `.Contains()` compara con semántica ordinal case-sensitive, mientras que `Like` sí es case-insensitive en InMemory y en SQL Server real, consistente con el collation CI de la base).
+- `page`/`pageSize` se acotan del lado del servidor (`page` mínimo 1, `pageSize` entre 1 y 100) — defensivo, no confía en el cliente.
+- `RequestsController`: `[FromQuery] RequestType? tipo` usa el binder default de ASP.NET (no el `RequestTypeJsonConverter` del body JSON) — el query string tiene que mandar el nombre literal del enum (`PermisoPersonal`, sin espacio), no "Permiso personal". Se resolvió del lado del frontend (ver abajo), no tocando el binder.
+- `docs/openapi.yaml`: nuevo schema `PagedLeaveRequests`, parámetros reutilizables (`RequestsTipoFiltro`/`RequestsFechaFiltro`/`RequestsNombreFiltro`/`Page`/`PageSize`), y de paso se documentó `GET /requests` (no tenía entrada en el spec, solo el `POST`).
+
+**Tests backend:** 6 nuevos en `RequestsServiceTests.cs` — paginación (página 2 de 25 trae las correctas), `page`/`pageSize` fuera de rango se acotan, filtro de tipo, filtro de fecha (rango multi-día), filtro de nombre (case-insensitive), y `TotalCount` reflejando los filtros aplicados (no el total sin filtrar) — este último con `pageSize=1` a propósito para que el assert falle si `TotalCount` viniera mal.
+
+**Frontend:**
+- `contracts/interfaces/common.ts` (nuevo) — `PagedResult<T>`. `contracts/interfaces/request.ts` — `RequestsListParams` (tipo/fecha/nombre/page/pageSize).
+- `requests.http-adapter.ts`: helper `tipoParaQuery` traduce "Permiso personal" (con espacio, lo que usa el resto del frontend) a "PermisoPersonal" (lo que espera el query-string binder de ASP.NET) — sin tocar nada del lado del backend.
+- `useAdminRequests.ts` reescrito: paginación server-side (`page`/`setPage`/`totalPages`), debounce de 350ms en `nombreQuery` antes de disparar el fetch (antes era gratis, filtraba en memoria — ahora cada búsqueda es un request HTTP), y cambiar cualquier filtro (tab/tipo/fecha/nombre debounced) vuelve a la página 1. `approve`/`deny` ya no parchean la lista local — recargan la página actual (más simple y correcto con datos paginados; si la página queda vacía porque bajó el total, se corrige sola a la última página real).
+- `components/common/Pagination.tsx` (nuevo) — números de página con ventana alrededor de la actual + primera/última con "…" cuando hay muchas; reusable para cuando se pagine Usuarios.
+- `pages/admin/requests.tsx` — agrega el componente de paginación y el contador de resultados debajo de la tabla.
+- Mock (`mock-adapter.ts`): `filtrarYPaginar()` replica los mismos 3 filtros + Skip/Take que el backend real, aplicado en `listPending`/`listAll`, con el mismo orden ascendente/descendente que sus contrapartes reales.
+
+**Verificación manual contra el backend real:** `GET /requests?page=1&pageSize=3` → 3 items, `totalCount` real (21 en la base de desarrollo); `GET /requests?nombre=ana&tipo=PermisoPersonal` → filtros combinados funcionando, `employeeNombre` resuelto en cada fila.
+
+**Verification:** backend `dotnet build` 0/0, `dotnet test` **105/105** (99 + 6). `docs/openapi.yaml` re-validado (17 schemas, 7 parameters, sin `$ref` rotas). Frontend `tsc` limpio, lint 0 errores, `npm test` **253/253** (243 + 10 nuevos: 6 de `Pagination`, 2 de `mock-adapter`, 2 de `useAdminRequests`), `npm run build` exitoso.
+
+Con esto se cierra el plan de escalabilidad de 3 fases (índices → nombre en la respuesta → paginación).
+
+**Dependencies:** Fase 1 y Fase 2 (arriba).

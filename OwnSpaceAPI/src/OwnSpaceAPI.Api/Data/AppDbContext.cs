@@ -37,7 +37,7 @@ public class AppDbContext : DbContext
 
       entity.ToTable(t => t.HasCheckConstraint(
         "CK_Users_Rol",
-        "[Rol] IN ('Empleado', 'Administrador', 'SuperAdmin')"));
+        "[Rol] IN ('Empleado', 'Administrador')"));
       entity.ToTable(t => t.HasCheckConstraint(
         "CK_Users_Estado",
         "[Estado] IN ('Pendiente', 'Activo', 'Desactivado')"));
@@ -60,7 +60,12 @@ public class AppDbContext : DbContext
 
       entity.Property(r => r.Estado).HasConversion<string>().HasMaxLength(20);
 
-
+      // Sin estos, ListMineAsync/ListPendingAsync/ListAllAsync (filtran
+      // por EmployeeId/Estado y siempre ordenan por CreatedAt) hacen
+      // table scan completo a medida que crece LeaveRequests — el índice
+      // compuesto cubre filtro + orden en una sola pasada.
+      entity.HasIndex(r => new { r.EmployeeId, r.CreatedAt });
+      entity.HasIndex(r => new { r.Estado, r.CreatedAt });
 
       entity.ToTable(t => t.HasCheckConstraint(
         "CK_LeaveRequests_Tipo",

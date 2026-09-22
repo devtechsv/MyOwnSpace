@@ -35,6 +35,23 @@ describe('RequestsTable', () => {
     ).toBeInTheDocument();
   });
 
+  it('acepta un mensaje de vacío alternativo (p. ej. cuando el vacío es por un filtro)', () => {
+    render(
+      <RequestsTable
+        requests={[]}
+        isLoading={false}
+        error={null}
+        emptyMessage='No hay solicitudes que coincidan con estos filtros.'
+      />,
+    );
+    expect(
+      screen.getByText(/no hay solicitudes que coincidan con estos filtros/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/todavía no creaste ninguna solicitud/i),
+    ).not.toBeInTheDocument();
+  });
+
   it('renderiza una fila por solicitud con su tipo, motivo y estado', () => {
     render(
       <RequestsTable requests={sample} isLoading={false} error={null} />,

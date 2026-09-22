@@ -988,3 +988,89 @@ A pedido explícito del usuario ("mezclar finalmente frontend y backend"), cierr
 **Pendiente, a decisión del usuario:** hacer `push` de la rama fusionada al remoto — no se hizo en este batch, queda para cuando el usuario lo confirme explícitamente.
 
 **Dependencies:** todo el trabajo de ambos repos hasta este punto.
+
+---
+
+## Post-cierre — Eliminación de SuperAdmin (backend) y filtros de solicitudes por tipo/fecha (2026-09-22)
+
+A pedido explícito del usuario, dos ítems que habían quedado como "pendientes" en un repaso de estado. Implementado por Claude directo (modo ágil, a pedido explícito para ambos).
+
+**Eliminación del rol SuperAdmin:** trabajo 100% backend, sin cambios en el frontend (nunca tuvo ninguna referencia al rol — confirmado por búsqueda antes de empezar). Detalle completo en `OwnSpaceAPI/tasks/todo.md`, "Post-cierre — Eliminación del rol SuperAdmin".
+
+**Filtros de solicitudes por tipo y fecha:**
+- `useAdminRequests` (`/admin/requests`): nuevos `tipoFiltro` (`RequestType | 'Todos'`) y `fechaFiltro` (fecha única, formato `YYYY-MM-DD`), ambos independientes entre sí y combinables con el filtro de nombre ya existente. `fechaFiltro` matchea por rango — incluye una solicitud si la fecha cae entre `fechaInicio` y `fechaFin` (soporta las multi-día, como las de `Enfermedad`).
+- `useEmployeeRequests` (`/`, "Mis solicitudes"): mismos dos filtros (`tipoFiltro`/`fechaFiltro`), sobre las solicitudes propias del empleado.
+- UI: un `<select>` de tipo y un `<input type="date">` en ambas páginas, mismo estilo visual (pill, `rounded-full`) que el buscador de nombre ya existente en `/admin/requests` — sin usar el componente `Select`/`TextInput` de formularios porque esos están pensados para un campo de formulario completo con label visible, no para una barra de filtros compacta.
+- `RequestsTable` del empleado ganó un prop `emptyMessage` opcional — el mensaje fijo "Todavía no creaste ninguna solicitud." era engañoso cuando la lista está vacía por un filtro, no porque el empleado no tenga nada creado. La página pasa un mensaje distinto ("No hay solicitudes que coincidan con estos filtros.") cuando hay algún filtro activo. La tabla del admin no necesitó el mismo cambio — su mensaje ("No hay solicitudes para este filtro.") ya era genérico desde antes.
+- El tipo `Vacaciones` se incluye en ambos selects de tipo pese a que el endpoint genérico ya no permite *crear* solicitudes con ese tipo (ver el "Gap de Vacaciones… cerrado" más arriba) — igual pueden existir solicitudes históricas o creadas por el módulo de PTO con ese tipo, y hay que poder filtrarlas.
+
+**Tests nuevos:** 3 en `useAdminRequests.test.tsx` (tipo, fecha, combinación sin coincidencias), 3 en `useEmployeeRequests.test.tsx` (mismo patrón), 1 en `RequestsTable.test.tsx` (empleado, para el `emptyMessage`).
+
+**Verification:** `tsc --noEmit` limpio, `npm run lint` 0 errores (mismos 2 warnings preexistentes de `watch()` de react-hook-form, sin relación), `npm test` **241/241** (234 + 7 nuevos), `npm run build` exitoso (con el dev server detenido antes, por la regla de no correr `build` con `dev` activo).
+
+**Dependencies:** ninguna — ambos eran ítems de "qué queda pendiente" sin dependencias entre sí ni con trabajo en curso.
+
+---
+
+## Post-cierre — Alineación de la columna "Acciones" en /admin/users (2026-09-22)
+
+Encontrado por el usuario probando manualmente en el navegador tras el batch anterior: en la tabla de usuarios, los botones de la columna "Acciones" (Editar / Resetear contraseña / Activar-Desactivar) se renderizaban solo cuando aplicaban al estado del usuario (`UsersService`/`UsersTable` ya restringía esto por diseño — Pendiente no tiene reset ni toggle, Desactivado no tiene reset), lo que dejaba los íconos empujados a la izquierda en vez de alineados en columna entre filas con distinta cantidad de botones.
+
+**Cambio:** `UsersTable.tsx` — cada uno de los 3 posibles botones ahora vive dentro de un `<span>` de tamaño fijo (`w-8 h-8`, mismo tamaño que los botones) que se renderiza siempre; cuando el botón no aplica al estado de esa fila, el `span` queda vacío en vez de no renderizarse. Mismos 3 estados de antes (Activo: Editar+Resetear+Desactivar; Desactivado: Editar+Activar; Pendiente: solo Editar) — no cambió qué acciones existen, solo que ahora siempre ocupan la misma posición horizontal.
+
+**Test nuevo:** en `UsersTable.test.tsx`, renderiza una fila de cada estado (Activo/Pendiente/Desactivado) y confirma que cada fila tiene exactamente 3 `accion-slot` dentro de su `acciones-fila`, sin importar cuántos boten visibles.
+
+**Verification:** `tsc` limpio, lint 0 errores, `npm test` **242/242** (241 + 1 nuevo), `npm run build` exitoso (dev server detenido antes de buildear).
+
+**Nota de infra:** al reiniciar el dev server del frontend para el build, `TaskStop` sobre la tarea en segundo plano no bajó el proceso real de Node (`next dev` en Windows deja el proceso hijo corriendo aunque se mate el wrapper de shell) — hubo que matar el PID a mano con `taskkill` antes de poder levantar un servidor limpio en el puerto 3000. Pasó dos veces en esta sesión; tenerlo en cuenta para la próxima vez que se necesite reiniciar el dev server.
+
+**Dependencies:** ninguna — hallazgo de QA manual sobre el batch anterior.
+
+---
+
+## Post-cierre — Permitir desactivar un usuario Pendiente (2026-09-22)
+
+Contraparte frontend del cambio de backend con el mismo nombre (ver `OwnSpaceAPI/tasks/todo.md`) — el backend ahora permite `Desactivar` sobre un usuario `Pendiente` (antes 409), y decide a qué estado vuelve al reactivarlo según si esa cuenta alguna vez tuvo una contraseña real.
+
+**`UsersTable.tsx`:** el slot de "Desactivar/Activar" ahora también muestra el botón "Desactivar" cuando `estado === 'Pendiente'` (antes solo `Activo`). Mismo botón, mismo `onClick={onToggleStatus}` — el backend decide el resultado.
+
+**Paridad del mock:** `User` (contrato) ganó `contrasenaAsignada?: boolean`, mock-only, equivalente al `PasswordHash` no-null del backend real. Fixtures no-Pendiente en `true`; Sofía Núñez (Pendiente) sin setear a propósito. `mockUsersAdapter.toggleStatus` ya no rechaza `Pendiente` — lo desactiva igual que `Activo`, y al reactivar un `Desactivado` decide `Activo` vs `Pendiente` según `contrasenaAsignada`. `resetPassword`/`forgotPassword` del mock ahora también marcan `contrasenaAsignada: true` (consistente con que esos flujos sí emiten una contraseña real).
+
+**Tests:** `UsersTable.test.tsx` — el test de "Pendiente: solo muestra Editar" pasó a "Pendiente: muestra Editar y Desactivar". `mock-adapter.test.ts` — el test que esperaba el rechazo se reemplazó por uno que confirma la desactivación, más uno nuevo para el ciclo completo (Pendiente → Desactivado → vuelve a Pendiente).
+
+**Verificación manual contra el backend real:** confirmado con un usuario `Pendiente` real preexistente en la base de desarrollo — ver el detalle en `OwnSpaceAPI/tasks/todo.md`.
+
+**Verification:** `tsc` limpio, lint 0 errores, `npm test` **243/243** (242 − 1 reescrito + 2 nuevos netos), `npm run build` exitoso (dev server detenido antes).
+
+**Dependencies:** el cambio de backend con el mismo nombre (arriba, mismo batch).
+
+---
+
+## Post-cierre — Escalabilidad, Fase 3 (frontend): paginación real de /admin/requests (2026-09-22)
+
+Contraparte frontend de la Fase 3 de escalabilidad (detalle completo, incluido backend, en `OwnSpaceAPI/tasks/todo.md`). Modo guiado, a pedido del usuario para todo el plan de 3 fases (índices, nombre del empleado en la respuesta, esta paginación).
+
+**Contratos nuevos:** `contracts/interfaces/common.ts` (`PagedResult<T>`), `RequestsListParams` en `contracts/interfaces/request.ts` (tipo/fecha/nombre/page/pageSize).
+
+**`useAdminRequests.ts` reescrito de punta a punta:**
+- El filtrado client-side (el `useMemo` que se agregó en el batch de filtros de tipo/fecha/nombre) desaparece — ahora todo se manda al backend como query params y la paginación es real (20 por página).
+- Debounce de 350ms en `nombreQuery` antes de disparar el fetch — antes era gratis (filtraba en memoria a cada tecla), ahora cada búsqueda es un request HTTP.
+- Cambiar cualquier filtro (tab, tipo, fecha, o el nombre ya debounced) vuelve a la página 1, mismo criterio que ya usaba `useAdminPto` para su propio filtro de mes/nombre.
+- `approve`/`deny` dejaron de parchear la lista en memoria — ahora recargan la página actual completa. Si la página queda vacía porque el total bajó (ej. se aprobó la única pendiente de la última página), se autocorrige a la última página real en vez de mostrar un vacío engañoso.
+- **Cambio de comportamiento a propósito:** el contador de la pestaña activa (`totalCount`) ya refleja los filtros de tipo/fecha/nombre aplicados — antes se mantenía fijo mientras se escribía el buscador (era gratis mantenerlo separado con filtrado en memoria; con paginación server-side, separar "total sin filtrar" de "total filtrado" implicaría un segundo request solo para eso).
+
+**Componente nuevo `components/common/Pagination.tsx`:** números de página clicables, con ventana alrededor de la página actual + primera/última y "…" para no renderizar cientos de botones si hay muchas páginas. Reutilizable para cuando se pagine la tabla de Usuarios (ítem que sigue pendiente, fuera de este plan de 3 fases).
+
+**`pages/admin/requests.tsx`:** agrega `<Pagination>` y un contador "N solicitudes" debajo de la tabla, mismo estilo visual que ya usaba `/admin/pto` para su Anterior/Siguiente.
+
+**Mock (`mock-adapter.ts`):** `filtrarYPaginar()` replica los mismos filtros + Skip/Take que el backend real, con el mismo orden (Pending ascendente, All descendente) que sus contrapartes.
+
+**Tests:** `Pagination.test.tsx` (nuevo, 6 casos). `useAdminRequests.test.tsx` reescrito — los casos que antes eran síncronos (filtrado en memoria) ahora esperan el fetch async; los que involucran `nombreQuery` usan un timeout más largo por el debounce, sin fake timers (se pisarían con el `setTimeout` interno del propio mock). `mock-adapter.test.ts`/`requests.api.test.ts` actualizados a las nuevas firmas (`PagedResult` en vez de array).
+
+**Verificación manual contra el backend real:** ver `OwnSpaceAPI/tasks/todo.md` — `GET /requests?page=1&pageSize=3` y `?nombre=ana&tipo=PermisoPersonal` confirmados en vivo.
+
+**Verification:** `tsc` limpio, lint 0 errores, `npm test` **253/253** (243 + 10 nuevos), `npm run build` exitoso (dev server detenido antes).
+
+Con esto se cierra el plan de escalabilidad de 3 fases.
+
+**Dependencies:** Fase 1 y Fase 2 de escalabilidad (arriba), y el cambio de backend con el mismo nombre.

@@ -12,7 +12,7 @@ erDiagram
         nvarchar_200 Nombre
         nvarchar_256 Correo UK "unique, case-insensitive"
         nvarchar_max PasswordHash "nullable hasta el primer login"
-        nvarchar_20 Rol "CHECK: Empleado | Administrador | SuperAdmin"
+        nvarchar_20 Rol "CHECK: Empleado | Administrador"
         nvarchar_20 Estado "CHECK: Pendiente | Activo | Desactivado"
         bit MustChangePassword "true mientras la contraseña sea una temporal sin cambiar"
         date FechaIngreso "cargada por el admin al dar de alta, arranca el devengo de PTO"

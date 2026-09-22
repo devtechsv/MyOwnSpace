@@ -21,6 +21,12 @@ function wrapper({ children }: { children: ReactNode }) {
   );
 }
 
+// El debounce de nombreQuery (350ms) + la latencia simulada del mock
+// (150ms) hacen que estos casos tarden un poco más que el default de
+// waitFor — se les sube el timeout en vez de usar fake timers (que
+// complicarían el setTimeout interno del propio mock).
+const DEBOUNCE_WAIT = { timeout: 2000 };
+
 beforeEach(() => {
   resetMockState();
 });
@@ -42,7 +48,7 @@ describe('useAdminRequests', () => {
     expect(deAna?.employeeInitials).toBe('AM');
   });
 
-  it('approve saca la solicitud de la lista y la deja Aprobada en el mock', async () => {
+  it('approve saca la solicitud de la lista (Pendiente) y la deja Aprobada en el mock', async () => {
     const { result } = renderHook(() => useAdminRequests(), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -82,39 +88,139 @@ describe('useAdminRequests', () => {
     );
   });
 
-  it('nombreQuery filtra las solicitudes por nombre de empleado (sin distinguir mayúsculas) sin achicar totalCount', async () => {
+  it(
+    'nombreQuery filtra por nombre de empleado con debounce (sin distinguir mayúsculas), y ahora totalCount sí refleja el filtro',
+    async () => {
+      const { result } = renderHook(() => useAdminRequests(), { wrapper });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      act(() => {
+        result.current.setFiltro('Todas');
+      });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      const totalSinFiltrar = result.current.totalCount;
+
+      act(() => {
+        result.current.setNombreQuery('ana mart');
+      });
+
+      await waitFor(() => {
+        expect(result.current.requests.length).toBeGreaterThan(0);
+        expect(
+          result.current.requests.every((r) => r.employeeName === 'Ana Martínez'),
+        ).toBe(true);
+      }, DEBOUNCE_WAIT);
+
+      // A diferencia del filtro client-side anterior, en server-side
+      // totalCount viene del mismo query filtrado — ya no tiene sentido
+      // (ni es gratis) mantenerlo "sin achicar".
+      expect(result.current.totalCount).toBeLessThan(totalSinFiltrar);
+    },
+    10000,
+  );
+
+  it(
+    'nombreQuery sin coincidencias deja la lista vacía sin tirar error',
+    async () => {
+      const { result } = renderHook(() => useAdminRequests(), { wrapper });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      act(() => {
+        result.current.setNombreQuery('nombre que no existe');
+      });
+
+      await waitFor(
+        () => expect(result.current.requests).toHaveLength(0),
+        DEBOUNCE_WAIT,
+      );
+      expect(result.current.error).toBeNull();
+    },
+    10000,
+  );
+
+  it('tipoFiltro filtra por tipo de solicitud', async () => {
     const { result } = renderHook(() => useAdminRequests(), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     act(() => {
-      result.current.setFiltro('Todas');
+      result.current.setTipoFiltro('Permiso personal');
     });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    const totalSinFiltrar = result.current.requests.length;
-    expect(result.current.totalCount).toBe(totalSinFiltrar);
-
-    act(() => {
-      result.current.setNombreQuery('ana mart');
-    });
-
+    // r3 y r5 (Ana Martínez, Pendientes) son las únicas de tipo "Permiso
+    // personal" entre las pendientes — ver fixtures en mock-data.ts.
     expect(result.current.requests.length).toBeGreaterThan(0);
     expect(
-      result.current.requests.every((r) => r.employeeName === 'Ana Martínez'),
+      result.current.requests.every((r) => r.tipo === 'Permiso personal'),
     ).toBe(true);
-    // El conteo de la pestaña no se achica mientras se escribe el filtro.
-    expect(result.current.totalCount).toBe(totalSinFiltrar);
   });
 
-  it('nombreQuery sin coincidencias deja la lista vacía sin tirar error', async () => {
+  it(
+    'tipoFiltro combinado con nombreQuery sin coincidencias deja la lista vacía',
+    async () => {
+      const { result } = renderHook(() => useAdminRequests(), { wrapper });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      act(() => {
+        result.current.setTipoFiltro('Permiso personal');
+      });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      act(() => {
+        result.current.setNombreQuery('carlos');
+      });
+
+      // Carlos Rivas (r6) no tiene ninguna solicitud "Permiso personal".
+      await waitFor(
+        () => expect(result.current.requests).toHaveLength(0),
+        DEBOUNCE_WAIT,
+      );
+    },
+    10000,
+  );
+
+  it('fechaFiltro filtra las solicitudes cuyo rango de fechas incluye esa fecha', async () => {
     const { result } = renderHook(() => useAdminRequests(), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     act(() => {
-      result.current.setNombreQuery('nombre que no existe');
+      result.current.setFechaFiltro('2026-09-13');
     });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // r6 (12-13 de sept., rango) y r7 (13 de sept.) incluyen esa fecha.
+    const ids = result.current.requests.map((r) => r.id).sort();
+    expect(ids).toEqual(['r6', 'r7']);
+  });
+
+  it('tipoFiltro y fechaFiltro combinados sin coincidencias dejan la lista vacía', async () => {
+    const { result } = renderHook(() => useAdminRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setTipoFiltro('Emergencia');
+      result.current.setFechaFiltro('2026-09-12');
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.requests).toHaveLength(0);
+  });
+
+  it('cambiar filtro (tab, tipo o fecha) vuelve a la página 1', async () => {
+    const { result } = renderHook(() => useAdminRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setPage(3);
+    });
+    expect(result.current.page).toBe(3);
+
+    act(() => {
+      result.current.setTipoFiltro('Emergencia');
+    });
+
+    expect(result.current.page).toBe(1);
   });
 
   it('deny saca la solicitud de la lista y la deja Denegada con el motivo en el mock', async () => {

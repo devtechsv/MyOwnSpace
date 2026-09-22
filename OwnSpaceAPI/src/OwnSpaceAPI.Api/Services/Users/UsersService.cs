@@ -22,11 +22,6 @@ public sealed class UsersService : IUsersService
 
      public async Task<User> CreateAsync(string nombre, string correo, UserRole rol, DateOnly fechaIngreso)
     {
-        if (rol == UserRole.SuperAdmin)
-        {
-            throw new BadRequestException("El rol SuperAdmin no es asignable desde acá.");
-        }
-
         var correoNormalizado = correo.Trim().ToLowerInvariant();
         var yaExiste = await _db.Users.AnyAsync(u => u.Correo == correoNormalizado);
         if (yaExiste)
@@ -74,12 +69,6 @@ public sealed class UsersService : IUsersService
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
-        EnsureNotSuperAdmin(user);
-
-        if (rol == UserRole.SuperAdmin)
-        {
-            throw new BadRequestException("El rol SuperAdmin no es asignable desde acá.");
-        }
 
         if (correo is not null)
         {
@@ -123,7 +112,6 @@ public sealed class UsersService : IUsersService
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
-        EnsureNotSuperAdmin(user);
 
         // IssueTemporaryPasswordAsync ya se encarga de reemplazar el
         // hash, rotar el securityStamp y dejar al usuario en condiciones
@@ -138,37 +126,34 @@ public sealed class UsersService : IUsersService
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
-        EnsureNotSuperAdmin(user);
 
-        if (user.Estado == UserStatus.Pendiente)
-        {
-            throw new ConflictException("El usuario está Pendiente — no tiene Activo/Desactivado para alternar.");
-        }
-
-        // Solo importa camino Activo -> Desactivado; el helper mismo es
-        // no-op si el usuario ya no es un admin activo (p. ej. reactivar
-        // a alguien nunca puede dejar sin admins).
-        if (user.Estado == UserStatus.Activo)
+        // El helper es no-op salvo que el usuario sea un Administrador
+        // Activo (nunca puede dejar sin admins) — llamarlo también para
+        // un Pendiente es seguro, ya que nunca es Activo.
+        if (user.Estado == UserStatus.Pendiente || user.Estado == UserStatus.Activo)
         {
             await EnsureNotLastActiveAdminAsync(user);
+
+            user.Estado = UserStatus.Desactivado;
+            user.FechaDesactivacion = DateOnly.FromDateTime(DateTime.UtcNow);
+        }
+        else
+        {
+            // Reactivar: si nunca tuvo una contraseña real asignada
+            // (llegó a Desactivado directo desde Pendiente — nunca pasó
+            // por CreateAsync/IssueTemporaryPasswordAsync), vuelve a
+            // Pendiente en vez de Activo, porque no tiene con qué
+            // loguearse todavía. Un admin tendría que "Resetear
+            // contraseña" aparte para mandarle una temporal.
+            user.Estado = user.PasswordHash is null ? UserStatus.Pendiente : UserStatus.Activo;
+            user.FechaDesactivacion = null;
         }
 
-        var pasaADesactivado = user.Estado == UserStatus.Activo;
-        user.Estado = pasaADesactivado ? UserStatus.Desactivado : UserStatus.Activo;
-        user.FechaDesactivacion = pasaADesactivado ? DateOnly.FromDateTime(DateTime.UtcNow) : null;
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
         return user;
-    }
-
-    private static void EnsureNotSuperAdmin(User user)
-    {
-        if (user.Rol == UserRole.SuperAdmin)
-        {
-            throw new BadRequestException("No se puede modificar una cuenta SuperAdmin desde acá.");
-        }
     }
 
     private async Task EnsureNotLastActiveAdminAsync(User user)

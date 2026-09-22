@@ -14,18 +14,18 @@ describe('requests.api', () => {
   });
 
   it('listPending delega al mock y devuelve solo las Pendientes', async () => {
-    const result = await requestsApi.listPending();
+    const result = await requestsApi.listPending({ page: 1, pageSize: 20 });
 
-    expect(result.length).toBeGreaterThan(0);
-    expect(result.every((r) => r.estado === 'Pendiente')).toBe(true);
+    expect(result.items.length).toBeGreaterThan(0);
+    expect(result.items.every((r) => r.estado === 'Pendiente')).toBe(true);
   });
 
-  it('listAll delega al mock y respeta el filtro de estado', async () => {
-    const todas = await requestsApi.listAll();
-    expect(todas.length).toBeGreaterThan(0);
+  it('listAll delega al mock, respeta el filtro de estado y pagina', async () => {
+    const todas = await requestsApi.listAll(undefined, { page: 1, pageSize: 20 });
+    expect(todas.items.length).toBeGreaterThan(0);
 
-    const aprobadas = await requestsApi.listAll('Aprobada');
-    expect(aprobadas.every((r) => r.estado === 'Aprobada')).toBe(true);
+    const aprobadas = await requestsApi.listAll('Aprobada', { page: 1, pageSize: 20 });
+    expect(aprobadas.items.every((r) => r.estado === 'Aprobada')).toBe(true);
   });
 
   it('create agrega una solicitud en estado Pendiente', async () => {

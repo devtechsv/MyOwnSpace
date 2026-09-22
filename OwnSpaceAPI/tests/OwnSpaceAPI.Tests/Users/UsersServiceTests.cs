@@ -25,13 +25,19 @@ public class UsersServiceTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
 
-    private static User CrearUsuario(string nombre, string correo, UserRole rol = UserRole.Empleado, UserStatus estado = UserStatus.Activo) => new()
+    // passwordHash con un valor por defecto no-null: la mayoría de los
+    // fixtures representan usuarios que ya tienen una contraseña real
+    // asignada (Activo/Desactivado establecidos) — solo los tests que
+    // prueban específicamente el camino "nunca tuvo contraseña" (origen
+    // Pendiente) pasan passwordHash: null explícitamente.
+    private static User CrearUsuario(string nombre, string correo, UserRole rol = UserRole.Empleado, UserStatus estado = UserStatus.Activo, string? passwordHash = "hash-de-prueba") => new()
     {
         Id = Guid.NewGuid(),
         Nombre = nombre,
         Correo = correo,
         Rol = rol,
         Estado = estado,
+        PasswordHash = passwordHash,
         FechaIngreso = new DateOnly(2020, 1, 1),
         CreatedAt = DateTime.UtcNow,
         UpdatedAt = DateTime.UtcNow,
@@ -62,16 +68,6 @@ public class UsersServiceTests
 
         await Assert.ThrowsAsync<ConflictException>(
             () => service.CreateAsync("Otra Persona", "ana.martinez@devtch.com", UserRole.Empleado, new DateOnly(2026, 1, 1)));
-    }
-
-    [Fact]
-    public async Task CreateAsync_ConRolSuperAdmin_TiraBadRequest()
-    {
-        await using var db = CreateContext();
-        var service = new UsersService(db, new FakePasswordResetService());
-
-        await Assert.ThrowsAsync<BadRequestException>(
-            () => service.CreateAsync("Alguien", "alguien@devtch.com", UserRole.SuperAdmin, new DateOnly(2026, 1, 1)));
     }
 
     [Fact]
@@ -126,20 +122,6 @@ public class UsersServiceTests
 
         await Assert.ThrowsAsync<NotFoundException>(
             () => service.UpdateAsync(Guid.NewGuid(), "Nombre", null, null));
-    }
-
-    [Fact]
-    public async Task UpdateAsync_ConRolSuperAdmin_TiraBadRequest()
-    {
-        await using var db = CreateContext();
-        var user = CrearUsuario("Sofía Nuñez", "sofia.nunez@devtch.com");
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
-
-        var service = new UsersService(db, new FakePasswordResetService());
-
-        await Assert.ThrowsAsync<BadRequestException>(
-            () => service.UpdateAsync(user.Id, null, null, UserRole.SuperAdmin));
     }
 
     [Fact]
@@ -244,16 +226,36 @@ public class UsersServiceTests
     }
 
     [Fact]
-    public async Task ToggleStatusAsync_ConUsuarioPendiente_TiraConflict()
+    public async Task ToggleStatusAsync_ConUsuarioPendiente_LoDejaDesactivado()
     {
         await using var db = CreateContext();
-        var user = CrearUsuario("Sofía Nuñez", "sofia.nunez@devtch.com", estado: UserStatus.Pendiente);
+        var user = CrearUsuario("Sofía Nuñez", "sofia.nunez@devtch.com", estado: UserStatus.Pendiente, passwordHash: null);
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
         var service = new UsersService(db, new FakePasswordResetService());
+        var actualizado = await service.ToggleStatusAsync(user.Id);
 
-        await Assert.ThrowsAsync<ConflictException>(() => service.ToggleStatusAsync(user.Id));
+        Assert.Equal(UserStatus.Desactivado, actualizado.Estado);
+        Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow), actualizado.FechaDesactivacion);
+    }
+
+    [Fact]
+    public async Task ToggleStatusAsync_AlReactivarUnoSinContraseñaReal_VuelveAPendiente()
+    {
+        await using var db = CreateContext();
+        // Simula un Desactivado que llegó ahí desde Pendiente (nunca tuvo
+        // PasswordHash asignado) — reactivarlo no debería dejarlo Activo,
+        // porque no tiene con qué loguearse.
+        var user = CrearUsuario("Sofía Nuñez", "sofia.nunez@devtch.com", estado: UserStatus.Desactivado, passwordHash: null);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService());
+        var actualizado = await service.ToggleStatusAsync(user.Id);
+
+        Assert.Equal(UserStatus.Pendiente, actualizado.Estado);
+        Assert.Null(actualizado.FechaDesactivacion);
     }
 
     [Fact]

@@ -62,4 +62,40 @@ describe('useEmployeeRequests', () => {
 
     expect(result.current.requests).toEqual([]);
   });
+
+  it('tipoFiltro filtra las propias solicitudes por tipo', async () => {
+    const { result } = renderHook(() => useEmployeeRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setTipoFiltro('Permiso personal');
+    });
+
+    // r3 y r5 son las únicas "Permiso personal" de Ana Martínez (u3).
+    const ids = result.current.requests.map((r) => r.id).sort();
+    expect(ids).toEqual(['r3', 'r5']);
+  });
+
+  it('fechaFiltro filtra las propias solicitudes cuyo rango incluye esa fecha', async () => {
+    const { result } = renderHook(() => useEmployeeRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setFechaFiltro('2026-09-02');
+    });
+
+    expect(result.current.requests.map((r) => r.id)).toEqual(['r1']);
+  });
+
+  it('tipoFiltro y fechaFiltro combinados sin coincidencias dejan la lista vacía', async () => {
+    const { result } = renderHook(() => useEmployeeRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setTipoFiltro('Emergencia');
+      result.current.setFechaFiltro('2026-09-02');
+    });
+
+    expect(result.current.requests).toHaveLength(0);
+  });
 });
