@@ -68,6 +68,26 @@ public enum RequestStatus
     Denegada,
 }
 
+// Acciones privilegiadas que deja registro en AuditLog — ver
+// Services/Audit/AuditLogService.cs. Cerrado a propósito (enum, no
+// string libre): agregar una acción nueva es una decisión explícita de
+// código, no algo que un caller pueda inventar sobre la marcha.
+public enum AuditAction
+{
+    UsuarioCreado,
+    UsuarioEditado,
+    ContrasenaReseteada,
+    EstadoUsuarioCambiado,
+    SolicitudAprobada,
+    SolicitudDenegada,
+}
+
+public enum AuditEntityType
+{
+    Usuario,
+    Solicitud,
+}
+
 // El converter de TimeOnly que trae System.Text.Json por defecto solo
 // acepta el formato ISO completo "HH:mm:ss" — un <input type="time"> de
 // HTML manda "HH:mm" (sin segundos), que el converter default rechaza

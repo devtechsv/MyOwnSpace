@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
 
   public DbSet<User> Users => Set<User>();
   public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+  public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -88,6 +89,30 @@ public class AppDbContext : DbContext
         .WithMany()
         .HasForeignKey(r => r.ReviewedBy)
         .OnDelete(DeleteBehavior.Restrict);
+    });
+
+    modelBuilder.Entity<AuditLog>(entity =>
+    {
+      entity.Property(a => a.ActorNombre).HasMaxLength(200).IsRequired();
+      entity.Property(a => a.Detalle).HasMaxLength(1000);
+      entity.Property(a => a.Accion).HasConversion<string>().HasMaxLength(30);
+      entity.Property(a => a.EntidadTipo).HasConversion<string>().HasMaxLength(20);
+
+      // El listado siempre ordena por CreatedAt desc — sin este índice,
+      // table scan completo a medida que crece la bitácora.
+      entity.HasIndex(a => a.CreatedAt);
+
+      entity.HasOne(a => a.Actor)
+        .WithMany()
+        .HasForeignKey(a => a.ActorId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+      entity.ToTable(t => t.HasCheckConstraint(
+        "CK_AuditLogs_Accion",
+        "[Accion] IN ('UsuarioCreado', 'UsuarioEditado', 'ContrasenaReseteada', 'EstadoUsuarioCambiado', 'SolicitudAprobada', 'SolicitudDenegada')"));
+      entity.ToTable(t => t.HasCheckConstraint(
+        "CK_AuditLogs_EntidadTipo",
+        "[EntidadTipo] IN ('Usuario', 'Solicitud')"));
     });
   }
 

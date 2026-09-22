@@ -6,79 +6,71 @@ namespace OwnSpaceAPI.Api.Data;
 
 public static class SeedData
 {
-    // Contraseñas fijas solo para desarrollo local — hasta que el flujo de
-    // invitación por correo (Resend) esté implementado, esta es la forma
-    // de tener usuarios sembrados con los que sí se puede iniciar sesión.
-    // Se sobreescribe en cada arranque a propósito: son cuentas de prueba
-    // conocidas, no se debe depender de qué contraseña haya quedado de
-    // una prueba manual anterior (vía /forgot-password u otra).
-    private static readonly Dictionary<string, string> DevPasswords = new()
-    {
-        ["julio.perez@devtch.com"] = "Admin123!",
-        ["ana.martinez@devtch.com"] = "Empleado123!",
-        ["sofia.nunez@devtch.com"] = "Empleado123!",
-    };
+    private const string ConfigAdminPasswordKey = "Seed:AdminPassword";
+    private const string ConfigAdminEmailKey = "Seed:AdminEmail";
+    private const string DefaultAdminEmail = "admin@devtch.com";
 
-    public static async Task EnsureDevPasswordsAsync(AppDbContext context, IPasswordHashingService hasher)
+    // Siembra el primer Administrador si todavía no existe ninguno — sin
+    // esto, una base nueva (dev o producción) no tiene forma de crear el
+    // primer usuario, porque no hay registro público. Es idempotente y no
+    // toca nada si ya hay un Admin: Seed:AdminPassword solo importa la
+    // primera vez que corre contra una base vacía. El resto de los
+    // usuarios se crean después desde el panel de Admin
+    // (UsersService.CreateAsync), no acá.
+    public static async Task SeedAdminAsync(
+        AppDbContext context,
+        IPasswordHashingService hasher,
+        IConfiguration configuration,
+        ILogger logger)
     {
-        foreach (var (correo, password) in DevPasswords)
+        if (await context.Users.AnyAsync(u => u.Rol == UserRole.Administrador))
         {
-            var user = await context.Users.FirstOrDefaultAsync(u => u.Correo == correo);
-            if (user is null)
-            {
-                continue;
-            }
-
-            user.PasswordHash = hasher.Hash(user, password);
-            user.SecurityStamp = Guid.NewGuid().ToString("N");
+            return;
         }
 
-        await context.SaveChangesAsync();
-    }
-
-
-    public static async Task SeedAsync(AppDbContext context)
-    {
-        if (await context.Users.AnyAsync())
+        var password = configuration[ConfigAdminPasswordKey];
+        if (string.IsNullOrWhiteSpace(password))
         {
-            return; // ya sembrada
+            logger.LogWarning(
+                "No se configuró {Key} — no se sembró un Administrador inicial. Configuralo " +
+                "(appsettings.Development.json en desarrollo, o la variable de entorno " +
+                "Seed__AdminPassword en producción) y reiniciá la aplicación.",
+                ConfigAdminPasswordKey);
+            return;
         }
 
-        var userIds = new Dictionary<string, Guid>
+        if (!PasswordRules.IsValid(password))
         {
-            ["u1"] = Guid.NewGuid(),
-            ["u2"] = Guid.NewGuid(),
-            ["u3"] = Guid.NewGuid(),
-            ["u4"] = Guid.NewGuid(),
-            ["u5"] = Guid.NewGuid(),
-            ["u6"] = Guid.NewGuid(),
-        };
+            logger.LogWarning(
+                "{Key} no cumple la política de contraseñas (mínimo 10 caracteres, mayúscula, " +
+                "minúscula, número y carácter especial) — no se sembró el Administrador inicial.",
+                ConfigAdminPasswordKey);
+            return;
+        }
 
+        var correo = configuration[ConfigAdminEmailKey] ?? DefaultAdminEmail;
         var now = DateTime.UtcNow;
-
-        var users = new List<User>
+        var admin = new User
         {
-            new() { Id = userIds["u1"], Nombre = "Julio Pérez", Correo = "julio.perez@devtch.com", Rol = UserRole.Administrador, Estado = UserStatus.Activo, CreatedAt = now, UpdatedAt = now },
-            new() { Id = userIds["u2"], Nombre = "Laura Sánchez", Correo = "laura.sanchez@devtch.com", Rol = UserRole.Administrador, Estado = UserStatus.Activo, CreatedAt = now, UpdatedAt = now },
-            new() { Id = userIds["u3"], Nombre = "Ana Martínez", Correo = "ana.martinez@devtch.com", Rol = UserRole.Empleado, Estado = UserStatus.Activo, CreatedAt = now, UpdatedAt = now },
-            new() { Id = userIds["u4"], Nombre = "Carlos Rivas", Correo = "carlos.rivas@devtch.com", Rol = UserRole.Empleado, Estado = UserStatus.Activo, CreatedAt = now, UpdatedAt = now },
-            new() { Id = userIds["u5"], Nombre = "Sofía Nuñez", Correo = "sofia.nunez@devtch.com", Rol = UserRole.Empleado, Estado = UserStatus.Pendiente, CreatedAt = now, UpdatedAt = now },
-            new() { Id = userIds["u6"], Nombre = "Marta Gómez", Correo = "marta.gomez@devtch.com", Rol = UserRole.Empleado, Estado = UserStatus.Desactivado, CreatedAt = now, UpdatedAt = now },
+            Id = Guid.NewGuid(),
+            Nombre = "Administrador",
+            Correo = correo,
+            Rol = UserRole.Administrador,
+            Estado = UserStatus.Activo,
+            // Igual que cualquier usuario invitado: nace con una temporal
+            // que tiene que cambiar en el primer login, y esa temporal
+            // vence a las 48h si nadie la usa.
+            MustChangePassword = true,
+            TempPasswordExpiresAt = now.AddHours(48),
+            FechaIngreso = DateOnly.FromDateTime(now),
+            CreatedAt = now,
+            UpdatedAt = now,
         };
+        admin.PasswordHash = hasher.Hash(admin, password);
 
-        var requests = new List<LeaveRequest>
-        {
-            new() { Id = Guid.NewGuid(), EmployeeId = userIds["u3"], Tipo = RequestType.Enfermedad, FechaInicio = new DateOnly(2026, 9, 2), FechaFin = new DateOnly(2026, 9, 2), Motivo = "Reposo médico por gripe, certificado adjunto", Estado = RequestStatus.Aprobada, CreatedAt = new DateTime(2026, 8, 30, 13, 0, 0, DateTimeKind.Utc), ReviewedBy = userIds["u1"], ReviewedAt = new DateTime(2026, 8, 31, 9, 15, 0, DateTimeKind.Utc) },
-            new() { Id = Guid.NewGuid(), EmployeeId = userIds["u3"], Tipo = RequestType.Emergencia, FechaInicio = new DateOnly(2026, 8, 28), FechaFin = new DateOnly(2026, 8, 28), Motivo = "Emergencia familiar", Estado = RequestStatus.Aprobada, CreatedAt = new DateTime(2026, 8, 28, 8, 0, 0, DateTimeKind.Utc), ReviewedBy = userIds["u2"], ReviewedAt = new DateTime(2026, 8, 28, 8, 40, 0, DateTimeKind.Utc) },
-            new() { Id = Guid.NewGuid(), EmployeeId = userIds["u3"], Tipo = RequestType.PermisoPersonal, FechaInicio = new DateOnly(2026, 9, 10), FechaFin = new DateOnly(2026, 9, 10), Motivo = "Trámite bancario", Estado = RequestStatus.Pendiente, CreatedAt = new DateTime(2026, 9, 8, 11, 20, 0, DateTimeKind.Utc) },
-            new() { Id = Guid.NewGuid(), EmployeeId = userIds["u3"], Tipo = RequestType.Otro, FechaInicio = new DateOnly(2026, 9, 5), FechaFin = new DateOnly(2026, 9, 5), Motivo = "Mudanza", Estado = RequestStatus.Denegada, CreatedAt = new DateTime(2026, 9, 3, 10, 0, 0, DateTimeKind.Utc), ReviewedBy = userIds["u1"], ReviewedAt = new DateTime(2026, 9, 3, 16, 30, 0, DateTimeKind.Utc) },
-            new() { Id = Guid.NewGuid(), EmployeeId = userIds["u3"], Tipo = RequestType.PermisoPersonal, FechaInicio = new DateOnly(2026, 9, 14), FechaFin = new DateOnly(2026, 9, 14), Motivo = "Cita médica de control", Estado = RequestStatus.Pendiente, CreatedAt = new DateTime(2026, 9, 11, 9, 0, 0, DateTimeKind.Utc) },
-            new() { Id = Guid.NewGuid(), EmployeeId = userIds["u4"], Tipo = RequestType.Enfermedad, FechaInicio = new DateOnly(2026, 9, 12), FechaFin = new DateOnly(2026, 9, 13), Motivo = "Reposo médico, certificado adjunto", Estado = RequestStatus.Pendiente, CreatedAt = new DateTime(2026, 9, 11, 14, 0, 0, DateTimeKind.Utc) },
-            new() { Id = Guid.NewGuid(), EmployeeId = userIds["u5"], Tipo = RequestType.Emergencia, FechaInicio = new DateOnly(2026, 9, 13), FechaFin = new DateOnly(2026, 9, 13), Motivo = "Emergencia familiar", Estado = RequestStatus.Pendiente, CreatedAt = new DateTime(2026, 9, 13, 7, 30, 0, DateTimeKind.Utc) },
-        };
-
-        context.Users.AddRange(users);
-        context.LeaveRequests.AddRange(requests);
+        context.Users.Add(admin);
         await context.SaveChangesAsync();
+
+        logger.LogInformation("Administrador inicial sembrado: {Correo}", correo);
     }
 }

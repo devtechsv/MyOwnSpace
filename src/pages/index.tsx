@@ -4,6 +4,7 @@ import { GetServerSideProps, NextPage } from 'next';
 import { AppShell } from '@/components/layout/AppShell';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Button } from '@/components/common/Button';
+import { Pagination } from '@/components/common/Pagination';
 import { RequestsTable } from '@/components/pages/employee/RequestsTable';
 import { CreateRequestModal } from '@/components/pages/employee/CreateRequestModal';
 import {
@@ -25,6 +26,10 @@ const TIPO_FILTER_OPTIONS: { value: EmployeeRequestsTipoFilter; label: string }[
 const Home: NextPage<Props> = () => {
   const {
     requests,
+    totalCount,
+    page,
+    totalPages,
+    setPage,
     isLoading,
     error,
     reload,
@@ -95,6 +100,15 @@ const Home: NextPage<Props> = () => {
             : undefined
         }
       />
+
+      {!isLoading && !error && totalCount > 0 && (
+        <div className='flex items-center justify-between mt-4 text-sm text-muted'>
+          <span>
+            {totalCount} solicitud{totalCount === 1 ? '' : 'es'}
+          </span>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        </div>
+      )}
 
       <CreateRequestModal
         isOpen={isCreateOpen}

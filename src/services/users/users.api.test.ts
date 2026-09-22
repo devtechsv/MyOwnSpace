@@ -7,8 +7,8 @@ beforeEach(() => {
 
 describe('users.api.list', () => {
   it('delega al mock y devuelve todos los usuarios', async () => {
-    const usuarios = await usersApi.list();
-    const fixtures = await mockUsersAdapter.list();
+    const usuarios = await usersApi.list(1, 20);
+    const fixtures = await mockUsersAdapter.list(1, 20);
 
     expect(usuarios).toEqual(fixtures);
   });
@@ -42,8 +42,8 @@ describe('users.api.resetPassword', () => {
   it('emite una temporal: queda Activo y con mustChangePassword', async () => {
     await usersApi.resetPassword('u1'); // Julio Pérez, Activo en los fixtures
 
-    const usuarios = await mockUsersAdapter.list();
-    const julio = usuarios.find((u) => u.id === 'u1');
+    const usuarios = await mockUsersAdapter.list(1, 20);
+    const julio = usuarios.items.find((u) => u.id === 'u1');
     expect(julio?.estado).toBe('Activo');
     expect(julio?.mustChangePassword).toBe(true);
   });

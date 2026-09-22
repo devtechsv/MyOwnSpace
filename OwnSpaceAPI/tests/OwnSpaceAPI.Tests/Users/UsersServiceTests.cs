@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OwnSpaceAPI.Api.Data;
 using OwnSpaceAPI.Api.Models.Entities;
+using OwnSpaceAPI.Api.Services.Audit;
 using OwnSpaceAPI.Api.Services.Auth;
 using OwnSpaceAPI.Api.Services.Exceptions;
 using OwnSpaceAPI.Api.Services.Users;
@@ -9,6 +10,13 @@ namespace OwnSpaceAPI.Tests.Users;
 
 public class UsersServiceTests
 {
+    // Guid fijo sin usuario real detrás a propósito: RegistrarAsync
+    // resuelve el nombre del actor con un FirstOrDefaultAsync que
+    // tolera "no encontrado" (cae a un texto fijo) — estos tests no
+    // verifican el contenido de la bitácora, solo que la acción
+    // principal se haya podido registrar sin romper.
+    private static readonly Guid ActorId = Guid.NewGuid();
+
     private sealed class FakePasswordResetService : IPasswordResetService
     {
         public string? UltimoCorreoInvitado { get; private set; }
@@ -48,9 +56,9 @@ public class UsersServiceTests
     {
         await using var db = CreateContext();
         var passwordResetService = new FakePasswordResetService();
-        var service = new UsersService(db, passwordResetService);
+        var service = new UsersService(db, passwordResetService, new AuditLogService(db));
 
-        var user = await service.CreateAsync("Nuevo Empleado", "nuevo@devtch.com", UserRole.Empleado, new DateOnly(2026, 1, 1));
+        var user = await service.CreateAsync(ActorId, "Nuevo Empleado", "nuevo@devtch.com", UserRole.Empleado, new DateOnly(2026, 1, 1));
 
         Assert.Equal(UserStatus.Pendiente, user.Estado);
         Assert.Null(user.PasswordHash);
@@ -64,10 +72,10 @@ public class UsersServiceTests
         db.Users.Add(CrearUsuario("Ana Martínez", "ana.martinez@devtch.com"));
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
 
         await Assert.ThrowsAsync<ConflictException>(
-            () => service.CreateAsync("Otra Persona", "ana.martinez@devtch.com", UserRole.Empleado, new DateOnly(2026, 1, 1)));
+            () => service.CreateAsync(ActorId, "Otra Persona", "ana.martinez@devtch.com", UserRole.Empleado, new DateOnly(2026, 1, 1)));
     }
 
     [Fact]
@@ -78,8 +86,8 @@ public class UsersServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var actualizado = await service.UpdateAsync(user.Id, "Carlos Rivas Actualizado", null, null);
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.UpdateAsync(ActorId, user.Id, "Carlos Rivas Actualizado", null, null);
 
         Assert.Equal("Carlos Rivas Actualizado", actualizado.Nombre);
         Assert.Equal("carlos.rivas@devtch.com", actualizado.Correo);
@@ -94,10 +102,10 @@ public class UsersServiceTests
         db.Users.AddRange(user1, user2);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
 
         await Assert.ThrowsAsync<ConflictException>(
-            () => service.UpdateAsync(user2.Id, null, "julio.perez@devtch.com", null));
+            () => service.UpdateAsync(ActorId, user2.Id, null, "julio.perez@devtch.com", null));
     }
 
     [Fact]
@@ -108,8 +116,8 @@ public class UsersServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var actualizado = await service.UpdateAsync(user.Id, null, "marta.gomez@devtch.com", null);
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.UpdateAsync(ActorId, user.Id, null, "marta.gomez@devtch.com", null);
 
         Assert.Equal("marta.gomez@devtch.com", actualizado.Correo);
     }
@@ -118,10 +126,10 @@ public class UsersServiceTests
     public async Task UpdateAsync_ConIdInexistente_TiraNotFound()
     {
         await using var db = CreateContext();
-        var service = new UsersService(db, new FakePasswordResetService());
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
 
         await Assert.ThrowsAsync<NotFoundException>(
-            () => service.UpdateAsync(Guid.NewGuid(), "Nombre", null, null));
+            () => service.UpdateAsync(ActorId, Guid.NewGuid(), "Nombre", null, null));
     }
 
     [Fact]
@@ -133,11 +141,11 @@ public class UsersServiceTests
             CrearUsuario("Ana Martínez", "ana.martinez@devtch.com"));
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var usuarios = await service.ListAsync();
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var usuarios = await service.ListAsync(1, 20);
 
-        Assert.Equal(2, usuarios.Count);
-        Assert.Equal("Ana Martínez", usuarios[0].Nombre);
+        Assert.Equal(2, usuarios.Items.Count);
+        Assert.Equal("Ana Martínez", usuarios.Items[0].Nombre);
     }
 
     [Fact]
@@ -153,8 +161,8 @@ public class UsersServiceTests
         await db.SaveChangesAsync();
 
         var passwordResetService = new FakePasswordResetService();
-        var service = new UsersService(db, passwordResetService);
-        await service.ResetPasswordAsync(user.Id);
+        var service = new UsersService(db, passwordResetService, new AuditLogService(db));
+        await service.ResetPasswordAsync(ActorId, user.Id);
 
         Assert.Equal("ana.martinez@devtch.com", passwordResetService.UltimoCorreoInvitado);
     }
@@ -163,9 +171,9 @@ public class UsersServiceTests
     public async Task ResetPasswordAsync_ConIdInexistente_TiraNotFound()
     {
         await using var db = CreateContext();
-        var service = new UsersService(db, new FakePasswordResetService());
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
 
-        await Assert.ThrowsAsync<NotFoundException>(() => service.ResetPasswordAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<NotFoundException>(() => service.ResetPasswordAsync(ActorId, Guid.NewGuid()));
     }
 
     [Fact]
@@ -176,8 +184,8 @@ public class UsersServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var actualizado = await service.ToggleStatusAsync(user.Id);
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.ToggleStatusAsync(ActorId, user.Id);
 
         Assert.Equal(UserStatus.Desactivado, actualizado.Estado);
     }
@@ -190,8 +198,8 @@ public class UsersServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var actualizado = await service.ToggleStatusAsync(user.Id);
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.ToggleStatusAsync(ActorId, user.Id);
 
         Assert.Equal(UserStatus.Activo, actualizado.Estado);
     }
@@ -204,8 +212,8 @@ public class UsersServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var actualizado = await service.ToggleStatusAsync(user.Id);
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.ToggleStatusAsync(ActorId, user.Id);
 
         Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow), actualizado.FechaDesactivacion);
     }
@@ -219,8 +227,8 @@ public class UsersServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var actualizado = await service.ToggleStatusAsync(user.Id);
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.ToggleStatusAsync(ActorId, user.Id);
 
         Assert.Null(actualizado.FechaDesactivacion);
     }
@@ -233,8 +241,8 @@ public class UsersServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var actualizado = await service.ToggleStatusAsync(user.Id);
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.ToggleStatusAsync(ActorId, user.Id);
 
         Assert.Equal(UserStatus.Desactivado, actualizado.Estado);
         Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow), actualizado.FechaDesactivacion);
@@ -251,8 +259,8 @@ public class UsersServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var actualizado = await service.ToggleStatusAsync(user.Id);
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.ToggleStatusAsync(ActorId, user.Id);
 
         Assert.Equal(UserStatus.Pendiente, actualizado.Estado);
         Assert.Null(actualizado.FechaDesactivacion);
@@ -266,9 +274,9 @@ public class UsersServiceTests
         db.Users.Add(unicoAdmin);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
 
-        await Assert.ThrowsAsync<ConflictException>(() => service.ToggleStatusAsync(unicoAdmin.Id));
+        await Assert.ThrowsAsync<ConflictException>(() => service.ToggleStatusAsync(ActorId, unicoAdmin.Id));
 
         var sinCambios = await db.Users.SingleAsync(u => u.Id == unicoAdmin.Id);
         Assert.Equal(UserStatus.Activo, sinCambios.Estado);
@@ -283,8 +291,8 @@ public class UsersServiceTests
         db.Users.AddRange(admin1, admin2);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var actualizado = await service.ToggleStatusAsync(admin1.Id);
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.ToggleStatusAsync(ActorId, admin1.Id);
 
         Assert.Equal(UserStatus.Desactivado, actualizado.Estado);
     }
@@ -297,10 +305,10 @@ public class UsersServiceTests
         db.Users.Add(unicoAdmin);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
 
         await Assert.ThrowsAsync<ConflictException>(
-            () => service.UpdateAsync(unicoAdmin.Id, null, null, UserRole.Empleado));
+            () => service.UpdateAsync(ActorId, unicoAdmin.Id, null, null, UserRole.Empleado));
 
         var sinCambios = await db.Users.SingleAsync(u => u.Id == unicoAdmin.Id);
         Assert.Equal(UserRole.Administrador, sinCambios.Rol);
@@ -314,8 +322,8 @@ public class UsersServiceTests
         db.Users.Add(unicoAdmin);
         await db.SaveChangesAsync();
 
-        var service = new UsersService(db, new FakePasswordResetService());
-        var actualizado = await service.UpdateAsync(unicoAdmin.Id, "Julio Pérez Actualizado", null, UserRole.Administrador);
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.UpdateAsync(ActorId, unicoAdmin.Id, "Julio Pérez Actualizado", null, UserRole.Administrador);
 
         Assert.Equal(UserRole.Administrador, actualizado.Rol);
     }

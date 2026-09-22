@@ -11,8 +11,10 @@ import { USE_REAL_API } from '@/services/use-real-api';
 
 const adapter = USE_REAL_API ? httpRequestsAdapter : mockRequestsAdapter;
 
-async function listByEmployee(employeeId: string): Promise<LeaveRequest[]> {
-  return adapter.listByEmployee(employeeId);
+async function listByEmployee(
+  employeeId: string, params: RequestsListParams,
+): Promise<PagedResult<LeaveRequest>> {
+  return adapter.listByEmployee(employeeId, params);
 }
 
 async function listPending(params: RequestsListParams): Promise<PagedResult<LeaveRequest>> {

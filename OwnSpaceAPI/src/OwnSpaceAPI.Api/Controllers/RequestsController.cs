@@ -23,10 +23,12 @@ public class RequestsController : ControllerBase
 
   [HttpGet("mine")]
   [Authorize(Roles = nameof(UserRole.Empleado))]
-  public async Task<ActionResult<IEnumerable<LeaveRequestResponse>>> ListMine()
+  public async Task<ActionResult<PagedResult<LeaveRequestResponse>>> ListMine(
+    [FromQuery] RequestType? tipo, [FromQuery] DateOnly? fecha,
+    [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
   {
-    var requests = await _requestsService.ListMineAsync(CurrentUserId);
-    return Ok(requests.Select(LeaveRequestResponse.FromEntity));
+    var result = await _requestsService.ListMineAsync(CurrentUserId, tipo, fecha, page, pageSize);
+    return Ok(MapPage(result));
   }
 
   [HttpPost]

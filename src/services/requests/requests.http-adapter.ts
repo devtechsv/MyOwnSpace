@@ -28,10 +28,15 @@ function paramsDeListado(params: RequestsListParams, extra?: Record<string, unkn
 }
 
 export const httpRequestsAdapter = {
-  async listByEmployee(_employeeId: string): Promise<LeaveRequest[]> {
-    // Backend permite sacar al empleado del JWT, nunca un parámetro.
-    // Se mantiene la firma para no tocar los llamados existentes.
-    const { data } = await apiClient.get<LeaveRequest[]>('/requests/mine');
+  async listByEmployee(
+    _employeeId: string, params: RequestsListParams,
+  ): Promise<PagedResult<LeaveRequest>> {
+    // Backend saca al empleado del JWT, nunca de un parámetro — se
+    // mantiene _employeeId en la firma para no tocar los llamados
+    // existentes (mock y real comparten la misma interfaz).
+    const { data } = await apiClient.get<PagedResult<LeaveRequest>>('/requests/mine', {
+      params: paramsDeListado(params),
+    });
     return data;
   },
 

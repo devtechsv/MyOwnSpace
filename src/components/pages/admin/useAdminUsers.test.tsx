@@ -13,16 +13,16 @@ describe('useAdminUsers', () => {
     expect(result.current.isLoading).toBe(true);
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    const fixtures = await mockUsersAdapter.list();
-    expect(result.current.users).toHaveLength(fixtures.length);
+    const fixtures = await mockUsersAdapter.list(1, 20);
+    expect(result.current.users).toHaveLength(fixtures.items.length);
 
-    const activosEsperados = fixtures.filter((u) => u.estado === 'Activo').length;
-    const pendientesEsperados = fixtures.filter(
+    const activosEsperados = fixtures.items.filter((u) => u.estado === 'Activo').length;
+    const pendientesEsperados = fixtures.items.filter(
       (u) => u.estado === 'Pendiente',
     ).length;
 
     expect(result.current.stats).toEqual({
-      total: fixtures.length,
+      total: fixtures.items.length,
       activos: activosEsperados,
       pendientes: pendientesEsperados,
     });

@@ -81,8 +81,8 @@ describe('EditUserModal', () => {
     await waitFor(() => expect(props.onUpdated).toHaveBeenCalled());
     expect(props.onClose).toHaveBeenCalled();
 
-    const usuarios = await mockUsersAdapter.list();
-    const actualizado = usuarios.find((u) => u.id === 'u1');
+    const usuarios = await mockUsersAdapter.list(1, 20);
+    const actualizado = usuarios.items.find((u) => u.id === 'u1');
     expect(actualizado?.nombre).toBe('Julio Pérez Actualizado');
   });
 

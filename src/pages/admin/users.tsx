@@ -4,6 +4,7 @@ import { GetServerSideProps, NextPage } from 'next';
 import { AppShell } from '@/components/layout/AppShell';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Button } from '@/components/common/Button';
+import { Pagination } from '@/components/common/Pagination';
 import { UsersTable } from '@/components/pages/admin/UsersTable';
 import { CreateUserModal } from '@/components/pages/admin/CreateUserModal';
 import { EditUserModal } from '@/components/pages/admin/EditUserModal';
@@ -17,7 +18,7 @@ interface Props {}
 
 const AdminUsersPage: NextPage<Props> = () => {
   const session = useSession();
-  const { users, stats, isLoading, error, reload } = useAdminUsers();
+  const { users, totalCount, page, totalPages, setPage, stats, isLoading, error, reload } = useAdminUsers();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [resettingUser, setResettingUser] = useState<User | null>(null);
@@ -71,6 +72,15 @@ const AdminUsersPage: NextPage<Props> = () => {
         onResetPassword={setResettingUser}
         onToggleStatus={setTogglingUser}
       />
+
+      {!isLoading && !error && totalCount > 0 && (
+        <div className='flex items-center justify-between mt-4 text-sm text-muted'>
+          <span>
+            {totalCount} usuario{totalCount === 1 ? '' : 's'}
+          </span>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        </div>
+      )}
 
       <CreateUserModal
         isOpen={isCreateOpen}

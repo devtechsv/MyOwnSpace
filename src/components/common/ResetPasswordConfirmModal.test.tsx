@@ -89,8 +89,8 @@ describe('ResetPasswordConfirmModal', () => {
     await waitFor(() => expect(onSuccess).toHaveBeenCalled());
     expect(onClose).toHaveBeenCalled();
 
-    const usuarios = await mockUsersAdapter.list();
-    const actualizado = usuarios.find((u) => u.id === 'u1');
+    const usuarios = await mockUsersAdapter.list(1, 20);
+    const actualizado = usuarios.items.find((u) => u.id === 'u1');
     expect(actualizado?.estado).toBe('Activo');
     expect(actualizado?.mustChangePassword).toBe(true);
   });

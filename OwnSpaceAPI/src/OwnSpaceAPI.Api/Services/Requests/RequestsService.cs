@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OwnSpaceAPI.Api.Data;
 using OwnSpaceAPI.Api.Models.Dtos.Common;
 using OwnSpaceAPI.Api.Models.Entities;
+using OwnSpaceAPI.Api.Services.Audit;
 using OwnSpaceAPI.Api.Services.Exceptions;
 
 namespace OwnSpaceAPI.Api.Services.Requests;
@@ -12,19 +13,24 @@ public sealed class RequestsService : IRequestsService
 
     private readonly AppDbContext _db;
     private readonly IEmailSender _emailSender;
+    private readonly IAuditLogService _auditLog;
 
-    public RequestsService(AppDbContext db, IEmailSender emailSender)
+    public RequestsService(AppDbContext db, IEmailSender emailSender, IAuditLogService auditLog)
     {
         _db = db;
         _emailSender = emailSender;
+        _auditLog = auditLog;
     }
 
-    public async Task<List<LeaveRequest>> ListMineAsync(Guid employeeId) =>
-        await _db.LeaveRequests
-            .Include(r => r.Employee)
-            .Where(r => r.EmployeeId == employeeId)
-            .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync();
+    public Task<PagedResult<LeaveRequest>> ListMineAsync(
+        Guid employeeId, RequestType? tipo, DateOnly? fecha, int page, int pageSize)
+    {
+        var query = AplicarFiltros(
+            _db.LeaveRequests.Include(r => r.Employee).Where(r => r.EmployeeId == employeeId),
+            tipo, fecha, nombre: null);
+
+        return PaginarAsync(query.OrderByDescending(r => r.CreatedAt), page, pageSize);
+    }
 
     // Ordena ascendente a propósito (más vieja primero) — a diferencia
     // de ListAllAsync, acá el objetivo es que el admin atienda primero
@@ -184,6 +190,13 @@ public sealed class RequestsService : IRequestsService
         request.ReviewedBy = reviewerId;
         request.ReviewedAt = DateTime.UtcNow;
         request.MotivoRechazo = motivoRechazo;
+
+        var accionAuditoria = nuevoEstado == RequestStatus.Aprobada
+            ? AuditAction.SolicitudAprobada
+            : AuditAction.SolicitudDenegada;
+        await _auditLog.RegistrarAsync(
+            reviewerId, accionAuditoria, AuditEntityType.Solicitud, request.Id, motivoRechazo);
+
         await _db.SaveChangesAsync();
 
         var accionTexto = nuevoEstado == RequestStatus.Aprobada ? "aprobada" : "denegada";

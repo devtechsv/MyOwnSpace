@@ -61,8 +61,8 @@ describe('useAdminRequests', () => {
     expect(result.current.requests).toHaveLength(before - 1);
     expect(result.current.requests.find((r) => r.id === 'r3')).toBeUndefined();
 
-    const propias = await API.requests.listByEmployee('u3');
-    const r3 = propias.find((r) => r.id === 'r3');
+    const propias = await API.requests.listByEmployee('u3', { page: 1, pageSize: 20 });
+    const r3 = propias.items.find((r) => r.id === 'r3');
     expect(r3?.estado).toBe('Aprobada');
     expect(r3?.reviewedBy).toBe('u1');
   });
@@ -233,8 +233,8 @@ describe('useAdminRequests', () => {
 
     expect(result.current.requests.find((r) => r.id === 'r5')).toBeUndefined();
 
-    const propias = await API.requests.listByEmployee('u3');
-    const r5 = propias.find((r) => r.id === 'r5');
+    const propias = await API.requests.listByEmployee('u3', { page: 1, pageSize: 20 });
+    const r5 = propias.items.find((r) => r.id === 'r5');
     expect(r5?.estado).toBe('Denegada');
     expect(r5?.reviewedBy).toBe('u1');
     expect(r5?.motivoRechazo).toBe('No hay cobertura ese día.');

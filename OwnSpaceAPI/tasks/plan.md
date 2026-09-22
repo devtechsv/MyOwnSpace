@@ -80,4 +80,4 @@ Ver detalle completo, criterios de aceptación y verificación de cada tarea en 
 
 ## Open Questions
 
-- Ninguna abierta — quedan resueltas en `SPEC.md` §11 (proveedor de correo real, revocación de sesión, migración del frontend: todas explícitamente fuera de alcance por ahora).
+- Ninguna abierta. Quedaron resueltas en `SPEC.md` §11 y luego implementadas post-cierre (ver `tasks/todo.md`): proveedor de correo real (Resend), revocación de sesión (por `SecurityStamp`) y migración del frontend al backend real ya no están fuera de alcance — están hechas.

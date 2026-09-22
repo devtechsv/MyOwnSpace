@@ -1,6 +1,7 @@
 import { mockUsersAdapter } from '@/services/mocks/mock-adapter';
 import { httpUsersAdapter } from './users.http-adapter';
-import { CreateUserPayload, UpdateUserPayload, User } from '@/contracts/interfaces/user';
+import { CreateUserPayload, UpdateUserPayload, User, UserStats } from '@/contracts/interfaces/user';
+import { PagedResult } from '@/contracts/interfaces/common';
 import { USE_REAL_API } from '@/services/use-real-api';
 
 // Coexistencia mock/real (ver SPEC.md del backend, "Migración del
@@ -10,8 +11,12 @@ import { USE_REAL_API } from '@/services/use-real-api';
 // .env.local para probar contra OwnSpaceAPI real corriendo en local.
 const adapter = USE_REAL_API ? httpUsersAdapter : mockUsersAdapter;
 
-async function list(): Promise<User[]> {
-  return adapter.list();
+async function list(page: number, pageSize: number): Promise<PagedResult<User>> {
+  return adapter.list(page, pageSize);
+}
+
+async function stats(): Promise<UserStats> {
+  return adapter.stats();
 }
 
 async function create(payload: CreateUserPayload): Promise<User> {
@@ -32,6 +37,7 @@ async function toggleStatus(userId: string): Promise<User> {
 
 const users = {
   list,
+  stats,
   create,
   update,
   resetPassword,

@@ -76,8 +76,8 @@ describe('mockAuthAdapter', () => {
   it('forgotPassword deja Activo y con mustChangePassword al usuario cuyo correo existe', async () => {
     await mockAuthAdapter.forgotPassword({ correo: 'sofia.nunez@devtch.com' }); // u5, Pendiente en los fixtures
 
-    const usuarios = await mockUsersAdapter.list();
-    const sofia = usuarios.find((u) => u.id === 'u5');
+    const usuarios = await mockUsersAdapter.list(1, 20);
+    const sofia = usuarios.items.find((u) => u.id === 'u5');
     expect(sofia?.estado).toBe('Activo');
     expect(sofia?.mustChangePassword).toBe(true);
   });
@@ -85,8 +85,8 @@ describe('mockAuthAdapter', () => {
   it('forgotPassword no reactiva a un usuario Desactivado', async () => {
     await mockAuthAdapter.forgotPassword({ correo: 'marta.gomez@devtch.com' }); // u6, Desactivado
 
-    const usuarios = await mockUsersAdapter.list();
-    const marta = usuarios.find((u) => u.id === 'u6');
+    const usuarios = await mockUsersAdapter.list(1, 20);
+    const marta = usuarios.items.find((u) => u.id === 'u6');
     expect(marta?.estado).toBe('Desactivado');
     expect(marta?.mustChangePassword).toBeFalsy();
   });
@@ -94,12 +94,12 @@ describe('mockAuthAdapter', () => {
 
 describe('mockRequestsAdapter', () => {
   it('listByEmployee devuelve solo las solicitudes de ese empleado', async () => {
-    const result = await mockRequestsAdapter.listByEmployee('u3');
+    const result = await mockRequestsAdapter.listByEmployee('u3', { page: 1, pageSize: 20 });
 
-    expect(result).toHaveLength(
+    expect(result.items).toHaveLength(
       mockRequests.filter((r) => r.employeeId === 'u3').length,
     );
-    expect(result.every((r) => r.employeeId === 'u3')).toBe(true);
+    expect(result.items.every((r) => r.employeeId === 'u3')).toBe(true);
   });
 
   it('listPending devuelve solo solicitudes en estado Pendiente', async () => {
@@ -138,7 +138,7 @@ describe('mockRequestsAdapter', () => {
   });
 
   it('create agrega una nueva solicitud en estado Pendiente', async () => {
-    const before = await mockRequestsAdapter.listByEmployee('u4');
+    const before = await mockRequestsAdapter.listByEmployee('u4', { page: 1, pageSize: 20 });
 
     const created = await mockRequestsAdapter.create({
       employeeId: 'u4',
@@ -151,8 +151,8 @@ describe('mockRequestsAdapter', () => {
     expect(created.estado).toBe('Pendiente');
     expect(created.id).toBeTruthy();
 
-    const after = await mockRequestsAdapter.listByEmployee('u4');
-    expect(after).toHaveLength(before.length + 1);
+    const after = await mockRequestsAdapter.listByEmployee('u4', { page: 1, pageSize: 20 });
+    expect(after.items).toHaveLength(before.items.length + 1);
   });
 
   it('approve cambia el estado a Aprobada y registra quién revisó', async () => {
@@ -210,8 +210,8 @@ describe('mockRequestsAdapter', () => {
 
 describe('mockUsersAdapter', () => {
   it('list devuelve todos los usuarios', async () => {
-    const result = await mockUsersAdapter.list();
-    expect(result).toHaveLength(mockUsers.length);
+    const result = await mockUsersAdapter.list(1, 20);
+    expect(result.items).toHaveLength(mockUsers.length);
   });
 
   it('create agrega un usuario nuevo en estado Pendiente', async () => {
@@ -225,8 +225,8 @@ describe('mockUsersAdapter', () => {
     expect(created.estado).toBe('Pendiente');
     expect(created.id).toBeTruthy();
 
-    const list = await mockUsersAdapter.list();
-    expect(list).toHaveLength(mockUsers.length + 1);
+    const list = await mockUsersAdapter.list(1, 20);
+    expect(list.items).toHaveLength(mockUsers.length + 1);
   });
 
   it('create rechaza si ya existe un usuario con ese correo', async () => {
@@ -263,8 +263,8 @@ describe('mockUsersAdapter', () => {
   it('resetPassword emite una temporal: queda Activo y con mustChangePassword', async () => {
     await mockUsersAdapter.resetPassword('u1');
 
-    const list = await mockUsersAdapter.list();
-    const julio = list.find((u) => u.id === 'u1');
+    const list = await mockUsersAdapter.list(1, 20);
+    const julio = list.items.find((u) => u.id === 'u1');
     expect(julio?.estado).toBe('Activo');
     expect(julio?.mustChangePassword).toBe(true);
   });

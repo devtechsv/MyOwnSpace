@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using OwnSpaceAPI.Api.Data;
+using OwnSpaceAPI.Api.Models.Dtos.Common;
 using OwnSpaceAPI.Api.Models.Entities;
+using OwnSpaceAPI.Api.Services.Audit;
 using OwnSpaceAPI.Api.Services.Auth;
 using OwnSpaceAPI.Api.Services.Exceptions;
 
@@ -8,19 +10,47 @@ namespace OwnSpaceAPI.Api.Services.Users;
 
 public sealed class UsersService : IUsersService
 {
+    private const int MaxPageSize = 100;
+
     private readonly AppDbContext _db;
     private readonly IPasswordResetService _passwordResetService;
+    private readonly IAuditLogService _auditLog;
 
-    public UsersService(AppDbContext db, IPasswordResetService passwordResetService)
+    public UsersService(AppDbContext db, IPasswordResetService passwordResetService, IAuditLogService auditLog)
     {
         _db = db;
         _passwordResetService = passwordResetService;
+        _auditLog = auditLog;
     }
 
-    public async Task<List<User>> ListAsync() =>
-        await _db.Users.OrderBy(u => u.Nombre).ToListAsync();
+    public async Task<PagedResult<User>> ListAsync(int page, int pageSize)
+    {
+        var paginaSegura = Math.Max(1, page);
+        var tamañoSeguro = Math.Clamp(pageSize, 1, MaxPageSize);
 
-     public async Task<User> CreateAsync(string nombre, string correo, UserRole rol, DateOnly fechaIngreso)
+        var query = _db.Users.OrderBy(u => u.Nombre);
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .Skip((paginaSegura - 1) * tamañoSeguro)
+            .Take(tamañoSeguro)
+            .ToListAsync();
+
+        return new PagedResult<User>(items, totalCount, paginaSegura, tamañoSeguro);
+    }
+
+    public async Task<UserStats> GetStatsAsync()
+    {
+        // 3 counts separados en vez de traer todo a memoria y contar en
+        // C#: con la lista ya paginada en ListAsync, este es el único
+        // lugar que necesita totales sobre TODA la tabla, no solo la
+        // página actual.
+        var total = await _db.Users.CountAsync();
+        var activos = await _db.Users.CountAsync(u => u.Estado == UserStatus.Activo);
+        var pendientes = await _db.Users.CountAsync(u => u.Estado == UserStatus.Pendiente);
+        return new UserStats(total, activos, pendientes);
+    }
+
+     public async Task<User> CreateAsync(Guid actorId, string nombre, string correo, UserRole rol, DateOnly fechaIngreso)
     {
         var correoNormalizado = correo.Trim().ToLowerInvariant();
         var yaExiste = await _db.Users.AnyAsync(u => u.Correo == correoNormalizado);
@@ -43,6 +73,13 @@ public sealed class UsersService : IUsersService
         };
 
         _db.Users.Add(user);
+        // Antes del SaveChangesAsync a propósito: así el registro de
+        // auditoría entra en el mismo commit que el alta — si el insert
+        // choca contra el índice único de abajo, no queda un audit log
+        // huérfano describiendo un usuario que nunca se creó.
+        await _auditLog.RegistrarAsync(
+            actorId, AuditAction.UsuarioCreado, AuditEntityType.Usuario, user.Id,
+            $"Correo: {user.Correo}, Rol: {user.Rol}");
         try
         {
             await _db.SaveChangesAsync();
@@ -65,7 +102,7 @@ public sealed class UsersService : IUsersService
         return user;
     }
 
-    public async Task<User> UpdateAsync(Guid id, string? nombre, string? correo, UserRole? rol)
+    public async Task<User> UpdateAsync(Guid actorId, Guid id, string? nombre, string? correo, UserRole? rol)
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
@@ -94,6 +131,9 @@ public sealed class UsersService : IUsersService
         }
 
         user.UpdatedAt = DateTime.UtcNow;
+        await _auditLog.RegistrarAsync(
+            actorId, AuditAction.UsuarioEditado, AuditEntityType.Usuario, user.Id,
+            $"Nombre: {user.Nombre}, Correo: {user.Correo}, Rol: {user.Rol}");
         try
         {
             await _db.SaveChangesAsync();
@@ -108,10 +148,13 @@ public sealed class UsersService : IUsersService
         return user;
     }
 
-    public async Task ResetPasswordAsync(Guid id)
+    public async Task ResetPasswordAsync(Guid actorId, Guid id)
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
+
+        await _auditLog.RegistrarAsync(actorId, AuditAction.ContrasenaReseteada, AuditEntityType.Usuario, id);
+        await _db.SaveChangesAsync();
 
         // IssueTemporaryPasswordAsync ya se encarga de reemplazar el
         // hash, rotar el securityStamp y dejar al usuario en condiciones
@@ -122,7 +165,7 @@ public sealed class UsersService : IUsersService
         await _passwordResetService.IssueTemporaryPasswordAsync(user.Correo);
     }
 
-    public async Task<User> ToggleStatusAsync(Guid id)
+    public async Task<User> ToggleStatusAsync(Guid actorId, Guid id)
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
@@ -151,6 +194,9 @@ public sealed class UsersService : IUsersService
 
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = DateTime.UtcNow;
+        await _auditLog.RegistrarAsync(
+            actorId, AuditAction.EstadoUsuarioCambiado, AuditEntityType.Usuario, user.Id,
+            $"Nuevo estado: {user.Estado}");
         await _db.SaveChangesAsync();
 
         return user;

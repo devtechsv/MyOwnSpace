@@ -2,6 +2,7 @@ import {
   CreateUserPayload,
   UpdateUserPayload,
   User,
+  UserStats,
 } from '@/contracts/interfaces/user';
 import {
   CreateLeaveRequestPayload,
@@ -174,8 +175,12 @@ function filtrarYPaginar(items: LeaveRequest[], params: RequestsListParams): Pag
 }
 
 export const mockRequestsAdapter = {
-  async listByEmployee(employeeId: string): Promise<LeaveRequest[]> {
-    return delay(clone(requests.filter((r) => r.employeeId === employeeId)));
+  async listByEmployee(employeeId: string, params: RequestsListParams): Promise<PagedResult<LeaveRequest>> {
+    // Descendente (más nueva primero) — igual que RequestsService.ListMineAsync.
+    const propias = requests
+      .filter((r) => r.employeeId === employeeId)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return delay(clone(filtrarYPaginar(propias, params)));
   },
 
   async listPending(params: RequestsListParams): Promise<PagedResult<LeaveRequest>> {
@@ -243,8 +248,26 @@ export const mockRequestsAdapter = {
 };
 
 export const mockUsersAdapter = {
-  async list(): Promise<User[]> {
-    return delay(clone(users));
+  async list(page: number, pageSize: number): Promise<PagedResult<User>> {
+    const ordenados = [...users].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const totalCount = ordenados.length;
+    const paginaSegura = Math.max(1, page);
+    const tamañoSeguro = Math.max(1, pageSize);
+    const start = (paginaSegura - 1) * tamañoSeguro;
+    return delay({
+      items: clone(ordenados.slice(start, start + tamañoSeguro)),
+      totalCount,
+      page: paginaSegura,
+      pageSize: tamañoSeguro,
+    });
+  },
+
+  async stats(): Promise<UserStats> {
+    return delay({
+      total: users.length,
+      activos: users.filter((u) => u.estado === 'Activo').length,
+      pendientes: users.filter((u) => u.estado === 'Pendiente').length,
+    });
   },
 
   async create(payload: CreateUserPayload): Promise<User> {

@@ -1,9 +1,15 @@
 import apiClient from '@/services/api-client';
-import { CreateUserPayload, UpdateUserPayload, User } from '@/contracts/interfaces/user';
+import { CreateUserPayload, UpdateUserPayload, User, UserStats } from '@/contracts/interfaces/user';
+import { PagedResult } from '@/contracts/interfaces/common';
 
 export const httpUsersAdapter = {
-  async list(): Promise<User[]> {
-    const { data } = await apiClient.get<User[]>('/users');
+  async list(page: number, pageSize: number): Promise<PagedResult<User>> {
+    const { data } = await apiClient.get<PagedResult<User>>('/users', { params: { page, pageSize } });
+    return data;
+  },
+
+  async stats(): Promise<UserStats> {
+    const { data } = await apiClient.get<UserStats>('/users/stats');
     return data;
   },
 

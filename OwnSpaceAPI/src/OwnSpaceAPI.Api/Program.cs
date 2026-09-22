@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OwnSpaceAPI.Api.Data;
 using OwnSpaceAPI.Api.Services;
+using OwnSpaceAPI.Api.Services.Audit;
 using OwnSpaceAPI.Api.Services.Auth;
 using OwnSpaceAPI.Api.Services.Exceptions;
 using OwnSpaceAPI.Api.Services.Requests;
@@ -58,6 +59,7 @@ builder.Services.AddHttpClient<IEmailSender, ResendEmailSender>(client =>
 });
 
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IUsersService, UsersService>();
@@ -218,11 +220,18 @@ if (app.Environment.IsDevelopment())
 {
   app.UseSwagger();
   app.UseSwaggerUI();
+}
+
+// Corre en todo entorno (no solo desarrollo): es idempotente y no hace
+// nada si ya existe un Administrador, así que no tiene efecto sobre una
+// base ya en uso. Ver SeedData.SeedAdminAsync — solo importa
+// Seed:AdminPassword la primera vez que arranca contra una base vacía.
+{
   using var scope = app.Services.CreateScope();
   var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-  await SeedData.SeedAsync(db);
   var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHashingService>();
-  await SeedData.EnsureDevPasswordsAsync(db, passwordHasher);
+  var seedLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("SeedData");
+  await SeedData.SeedAdminAsync(db, passwordHasher, app.Configuration, seedLogger);
 }
 
 app.UseHttpsRedirection();

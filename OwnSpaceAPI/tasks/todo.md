@@ -783,3 +783,43 @@ A pedido del usuario ("realiza nuevamente el test que se hizo en el proyecto ant
 **Verification:** `dotnet build` 0/0, `dotnet test` **109/109** (105 + 4). Migración aplicada a dev sin incidentes. Los 3 hallazgos Bajos (condición de carrera en balance de PTO, API key de Resend en disco sin rotar, comodines SQL LIKE sin escapar en el filtro de nombre) quedan explícitamente sin tocar — no se pidieron.
 
 **Dependencies:** ninguna.
+
+---
+
+## Post-cierre — Reemplazo del seed de usuarios de prueba por bootstrap del primer Admin
+
+A pedido del usuario ("quitar las seeds, ya que son destructivas (los usuarios de prueba)"), se eliminó por completo `SeedData.SeedAsync` (usuarios/solicitudes de ejemplo hardcodeados: Julio, Laura, Ana, Carlos, Sofía, Marta) y `EnsureDevPasswordsAsync` (que sobreescribía la contraseña de 3 correos fijos en **cada** arranque del backend — el motivo real de "destructivo": pisaba cualquier cambio de contraseña manual sobre esos usuarios en la base de dev compartida).
+
+**Patrón de reemplazo** (referencia del usuario: otro proyecto interno de DevTech, `sellin-sellout`, con el mismo problema ya resuelto): `SeedData.SeedAdminAsync` siembra **un solo** Administrador, y únicamente si todavía no existe ningún usuario con `Rol == Administrador` — es decir, no vuelve a tocar nada una vez que hay al menos un Admin, sin importar cuántas veces se reinicie el backend. La contraseña sale de configuración (`Seed:AdminPassword`, nunca hardcodeada), validada contra la misma `PasswordRules.IsValid` que usa el resto de la app; si falta o no cumple la política, no rompe el arranque — solo deja un `LogWarning` y no crea el Admin. El correo es configurable (`Seed:AdminEmail`, default `admin@devtch.com`). El Admin sembrado nace `Activo` + `MustChangePassword = true` + `TempPasswordExpiresAt` a 48h, igual que cualquier usuario invitado desde el panel — mismo mecanismo, no uno nuevo.
+
+**Cambio de alcance respecto al seed viejo:** antes corría solo en `IsDevelopment()`; ahora corre en todo entorno, porque es idempotente y no tiene efecto si ya hay un Admin — así una base de producción nueva también puede arrancar con un primer Admin, configurando `Seed__AdminPassword` por variable de entorno (nunca en `appsettings.json`).
+
+**Documentación:** `OwnSpaceAPI/README.md` — sección nueva "Crear el primer usuario Administrador" con el setup y qué hacer si se pierde el acceso (mismo texto que compartió el usuario del otro proyecto, adaptado a este).
+
+**Verification:** `dotnet build` 0/0, `dotnet test` **110/110** (sin tests nuevos — nada en la suite dependía del seed viejo). Prueba manual en vivo completa: usuario confirmó la limpieza de `Users`/`LeaveRequests` en la base de desarrollo real (10 y 28 filas borradas), arranque contra base vacía sembró un único Admin (log + login real confirmados), reinicio posterior no volvió a sembrar ni tocó la contraseña ya cambiada.
+
+**Dependencies:** ninguna.
+
+---
+
+## Post-cierre — Bitácora de auditoría + paginación de Users y "Mis solicitudes"
+
+A pedido del usuario, se cerraron los 3 pendientes reales detectados en la revisión de deuda técnica de la sesión (más un detalle de doc ya corregido arriba, en `plan.md`).
+
+**Bitácora de auditoría de acciones privilegiadas** (diferida originalmente en el batch de seguridad de Medios, línea ~435 de este archivo): entidad nueva `AuditLog` (`ActorId`, `ActorNombre` embebido, `Accion`/`EntidadTipo` como enums cerrados, `EntidadId`, `Detalle` opcional, `CreatedAt`), migración `AddAuditLog` con FK a `Users` (Restrict) y los mismos `CHECK` constraints que el resto del esquema. Servicio `AuditLogService.RegistrarAsync` — recibe solo `actorId` (resuelve el nombre con una query indexada por PK, así los servicios que instrumentan no necesitan threadear el nombre del actor) y **no hace `SaveChangesAsync` propio**: se agrega al mismo `ChangeTracker` que la mutación real y se persiste en el mismo commit, para que la bitácora nunca quede desincronizada de la acción que describe. Instrumentados los 6 puntos previstos: `UsersService.CreateAsync/UpdateAsync/ResetPasswordAsync/ToggleStatusAsync` y `RequestsService.ReviewAsync` (cubre Approve y Deny). Lectura vía `GET /api/v1/audit-logs` (paginado, solo Admin).
+
+**Paginación de `Users`:** `UsersService.ListAsync` ahora pagina igual que `RequestsService` (`PagedResult<User>`). Las 3 tarjetas de conteo (Total/Activos/Pendientes) no se podían seguir calculando client-side de una página parcial, así que se agregó `GET /users/stats` aparte (2 `CountAsync` extra, independientes de la paginación). `CreateAsync/UpdateAsync/ResetPasswordAsync/ToggleStatusAsync` ganaron un parámetro `actorId` (para la auditoría) — se toma del claim `NameIdentifier` del JWT en `UsersController`, mismo patrón que `RequestsController.CurrentUserId`.
+
+**Paginación de "Mis solicitudes" del empleado:** `ListMineAsync` pasó de `List<LeaveRequest>` sin filtros a `PagedResult<LeaveRequest>` con los mismos filtros `tipo`/`fecha` que ya tenía `AplicarFiltros` (reutilizado, `nombre: null` porque ya está acotado a un empleado). Sin esto, mover el paginado hubiera roto el filtro client-side que ya existía en `useEmployeeRequests` — en vez de eso, el filtro se movió server-side, igual que ya estaba resuelto en el admin.
+
+**Efecto en cascada (2 hooks que no eran los que pidieron cambiar, pero dejaban de compilar/funcionar):**
+- `useAdminPto.ts` necesitaba a **todos** los usuarios (para resolver nombre por id de cualquier solicitud del calendario, sin importar en qué página quedaría ese usuario) — se agregó `fetchAllUsers()`, que pagina en secuencia (`pageSize=100`) hasta juntarlos a todos, en vez de un solo pedido gigante.
+- `usePto.ts` ("mis reservas de PTO") reutilizaba `/requests/mine` sin filtro y filtraba todo client-side — ahora pide `tipo=Vacaciones` server-side (con `pageSize=100`, generoso a propósito: ningún empleado real acumula más de 100 reservas) y solo filtra `estado=Aprobada` en el cliente, porque `ListMineAsync` no filtra por estado.
+
+**Frontend:** `Pagination` (ya existente, reusado tal cual) agregado a `admin/users.tsx` y a `pages/index.tsx` (Mis solicitudes). `useAdminUsers`/`useEmployeeRequests` reescritos para pedir página+filtros al backend en vez de calcular todo client-side, mismo patrón que `useAdminRequests`.
+
+**Tests:** backend `dotnet test` **110/110** (constructores de `UsersServiceTests`/`RequestsServiceTests` actualizados con `AuditLogService` real contra InMemory — no un fake, para que la auditoría también quede cubierta). Frontend `tsc --noEmit` limpio, `npm run lint` 0 errores (mismos 2 warnings preexistentes de `watch()`), `npm test` **260/260** (3 reescritos en `useEmployeeRequests.test.tsx`: el filtro ahora dispara un fetch async, no un `useMemo` síncrono).
+
+**Verification en vivo:** migración aplicada a la base de desarrollo real. Login del Admin sembrado, cambio de contraseña forzado, `GET /users` paginado y `GET /users/stats` correctos con 1 solo usuario. `POST /users` (crear), `POST /users/{id}/reset-password` y `POST /users/{id}/toggle-status` sobre un usuario de prueba, confirmando en cada caso la fila nueva en `GET /audit-logs` (actor, acción, entidad, detalle, orden descendente por fecha) — usuario y sus 3 entradas de auditoría borrados al final para no dejar datos de prueba.
+
+**Dependencies:** ninguna.

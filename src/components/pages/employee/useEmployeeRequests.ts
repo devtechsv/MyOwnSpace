@@ -1,33 +1,66 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '@/hooks/useSession';
 import API from '@/services/api-services';
-import { LeaveRequest, RequestType } from '@/contracts/interfaces/request';
+import { LeaveRequest, RequestType, RequestsListParams } from '@/contracts/interfaces/request';
 
 export type EmployeeRequestsTipoFilter = RequestType | 'Todos';
+
+const PAGE_SIZE = 20;
 
 export function useEmployeeRequests() {
   const session = useSession();
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tipoFiltro, setTipoFiltro] = useState<EmployeeRequestsTipoFilter>('Todos');
+  const [tipoFiltro, setTipoFiltroRaw] = useState<EmployeeRequestsTipoFilter>('Todos');
   // '' = sin filtro; si no, fecha "YYYY-MM-DD" (mismo formato que
   // fechaInicio/fechaFin y que devuelve un <input type="date">).
-  const [fechaFiltro, setFechaFiltro] = useState('');
+  const [fechaFiltro, setFechaFiltroRaw] = useState('');
+
+  // Cambiar cualquier filtro vuelve a la página 1, para no quedar en
+  // una página que dejó de existir con el nuevo filtro aplicado —
+  // mismo criterio que useAdminRequests.
+  const setTipoFiltro = useCallback((value: EmployeeRequestsTipoFilter) => {
+    setTipoFiltroRaw(value);
+    setPage(1);
+  }, []);
+
+  const setFechaFiltro = useCallback((value: string) => {
+    setFechaFiltroRaw(value);
+    setPage(1);
+  }, []);
 
   const load = useCallback(async () => {
     if (!session) return;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await API.requests.listByEmployee(session.userId);
-      setRequests(data);
+      const params: RequestsListParams = {
+        tipo: tipoFiltro === 'Todos' ? undefined : tipoFiltro,
+        fecha: fechaFiltro || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+      };
+      const result = await API.requests.listByEmployee(session.userId, params);
+
+      // Si la página pedida quedó vacía porque la cantidad total bajó,
+      // vuelve a la última página real en vez de mostrar un vacío
+      // engañoso — mismo criterio que useAdminRequests.
+      if (result.items.length === 0 && result.totalCount > 0 && page > 1) {
+        setPage(Math.max(1, Math.ceil(result.totalCount / PAGE_SIZE)));
+        return;
+      }
+
+      setRequests(result.items);
+      setTotalCount(result.totalCount);
     } catch {
       setError('No pudimos cargar tus solicitudes. Intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, tipoFiltro, fechaFiltro, page]);
 
   useEffect(() => {
     // load() dispara setState propio (loading/error/data) — patrón de
@@ -37,21 +70,12 @@ export function useEmployeeRequests() {
     load();
   }, [load]);
 
-  const filteredRequests = useMemo(() => {
-    return requests.filter((r) => {
-      if (tipoFiltro !== 'Todos' && r.tipo !== tipoFiltro) return false;
-      if (
-        fechaFiltro &&
-        !(r.fechaInicio.slice(0, 10) <= fechaFiltro && fechaFiltro <= r.fechaFin.slice(0, 10))
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [requests, tipoFiltro, fechaFiltro]);
-
   return {
-    requests: filteredRequests,
+    requests,
+    totalCount,
+    page,
+    totalPages: Math.max(1, Math.ceil(totalCount / PAGE_SIZE)),
+    setPage,
     isLoading,
     error,
     reload: load,

@@ -40,3 +40,11 @@ export interface CreateUserPayload {
 export type UpdateUserPayload = Partial<
   Pick<User, 'nombre' | 'correo' | 'rol'>
 >;
+
+// GET /users/stats — totales sobre TODA la tabla, independientes de la
+// paginación de GET /users (que solo trae la página actual).
+export interface UserStats {
+  total: number;
+  activos: number;
+  pendientes: number;
+}

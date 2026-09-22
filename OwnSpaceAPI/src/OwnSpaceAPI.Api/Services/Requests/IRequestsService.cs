@@ -5,7 +5,7 @@ namespace OwnSpaceAPI.Api.Services.Requests;
 
 public interface IRequestsService
 {
-    Task<List<LeaveRequest>> ListMineAsync(Guid employeeId);
+    Task<PagedResult<LeaveRequest>> ListMineAsync(Guid employeeId, RequestType? tipo, DateOnly? fecha, int page, int pageSize);
     Task<PagedResult<LeaveRequest>> ListPendingAsync(RequestType? tipo, DateOnly? fecha, string? nombre, int page, int pageSize);
     Task<PagedResult<LeaveRequest>> ListAllAsync(RequestStatus? estado, RequestType? tipo, DateOnly? fecha, string? nombre, int page, int pageSize);
     Task<LeaveRequest> CreateAsync(

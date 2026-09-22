@@ -91,8 +91,8 @@ describe('CreateUserModal', () => {
     await waitFor(() => expect(props.onCreated).toHaveBeenCalled());
     expect(props.onClose).toHaveBeenCalled();
 
-    const usuarios = await mockUsersAdapter.list();
-    const nuevo = usuarios.find(
+    const usuarios = await mockUsersAdapter.list(1, 20);
+    const nuevo = usuarios.items.find(
       (u) => u.correo === 'nuevo.empleado@devtch.com',
     );
     expect(nuevo?.estado).toBe('Pendiente');
@@ -100,13 +100,13 @@ describe('CreateUserModal', () => {
   });
 
   it('"Cancelar" cierra el modal sin crear nada', async () => {
-    const before = await mockUsersAdapter.list();
+    const before = await mockUsersAdapter.list(1, 20);
     const props = renderModal();
 
     fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
 
     expect(props.onClose).toHaveBeenCalled();
-    const after = await mockUsersAdapter.list();
-    expect(after).toHaveLength(before.length);
+    const after = await mockUsersAdapter.list(1, 20);
+    expect(after.items).toHaveLength(before.items.length);
   });
 });

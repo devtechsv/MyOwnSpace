@@ -1,7 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import API from '@/services/api-services';
 import { LeaveRequest } from '@/contracts/interfaces/request';
+import { User } from '@/contracts/interfaces/user';
 import { getInitials } from '@/helpers/get-initials';
+
+// GET /users está paginado, pero acá se necesita a TODO el mundo (para
+// resolver nombre por id de cualquier solicitud del calendario, sin
+// importar en qué página quedaría ese usuario) — pagina en secuencia
+// hasta juntarlos todos, en vez de pedir una sola página gigante.
+const USERS_LOOKUP_PAGE_SIZE = 100;
+
+async function fetchAllUsers(): Promise<User[]> {
+  let page = 1;
+  let acumulados: User[] = [];
+  for (;;) {
+    const result = await API.users.list(page, USERS_LOOKUP_PAGE_SIZE);
+    acumulados = acumulados.concat(result.items);
+    if (acumulados.length >= result.totalCount || result.items.length === 0) {
+      return acumulados;
+    }
+    page += 1;
+  }
+}
 
 export interface PtoRow extends LeaveRequest {
   employeeName: string;
@@ -31,7 +51,7 @@ export function useAdminPto() {
     try {
       const [items, users] = await Promise.all([
         API.pto.listCalendario(),
-        API.users.list(),
+        fetchAllUsers(),
       ]);
       const userById = new Map(users.map((u) => [u.id, u]));
       const enriched = items.map((request) => {

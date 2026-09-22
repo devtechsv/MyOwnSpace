@@ -78,8 +78,8 @@ describe('RequestPtoModal', () => {
     await waitFor(() => expect(props.onCreated).toHaveBeenCalled());
     expect(props.onClose).toHaveBeenCalled();
 
-    const reservas = await API.requests.listByEmployee('u4');
-    const nueva = reservas.find((r) => r.tipo === 'Vacaciones' && r.fechaInicio === hoy);
+    const reservas = await API.requests.listByEmployee('u4', { page: 1, pageSize: 20 });
+    const nueva = reservas.items.find((r) => r.tipo === 'Vacaciones' && r.fechaInicio === hoy);
     expect(nueva?.horasSolicitadas).toBe(8);
     expect(nueva?.estado).toBe('Aprobada');
   });
@@ -109,13 +109,13 @@ describe('RequestPtoModal', () => {
   });
 
   it('"Cancelar" cierra el modal sin crear nada', async () => {
-    const before = await API.requests.listByEmployee('u4');
+    const before = await API.requests.listByEmployee('u4', { page: 1, pageSize: 20 });
     const props = renderModal();
 
     fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
 
     expect(props.onClose).toHaveBeenCalled();
-    const after = await API.requests.listByEmployee('u4');
-    expect(after).toHaveLength(before.length);
+    const after = await API.requests.listByEmployee('u4', { page: 1, pageSize: 20 });
+    expect(after.items).toHaveLength(before.items.length);
   });
 });

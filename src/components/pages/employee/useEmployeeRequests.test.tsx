@@ -70,6 +70,7 @@ describe('useEmployeeRequests', () => {
     act(() => {
       result.current.setTipoFiltro('Permiso personal');
     });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     // r3 y r5 son las únicas "Permiso personal" de Ana Martínez (u3).
     const ids = result.current.requests.map((r) => r.id).sort();
@@ -83,6 +84,7 @@ describe('useEmployeeRequests', () => {
     act(() => {
       result.current.setFechaFiltro('2026-09-02');
     });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.requests.map((r) => r.id)).toEqual(['r1']);
   });
@@ -95,6 +97,7 @@ describe('useEmployeeRequests', () => {
       result.current.setTipoFiltro('Emergencia');
       result.current.setFechaFiltro('2026-09-02');
     });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.requests).toHaveLength(0);
   });

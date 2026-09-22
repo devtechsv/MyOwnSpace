@@ -94,7 +94,7 @@ describe('CreateRequestModal', () => {
   });
 
   it('con datos válidos, crea la solicitud y llama a onCreated/onClose', async () => {
-    const before = await API.requests.listByEmployee('u4');
+    const before = await API.requests.listByEmployee('u4', { page: 1, pageSize: 20 });
     const props = renderModal();
 
     fillValidForm();
@@ -103,9 +103,9 @@ describe('CreateRequestModal', () => {
     await waitFor(() => expect(props.onCreated).toHaveBeenCalled());
     expect(props.onClose).toHaveBeenCalled();
 
-    const after = await API.requests.listByEmployee('u4');
-    expect(after).toHaveLength(before.length + 1);
-    const nueva = after.find((r) => r.motivo === 'Motivo de prueba');
+    const after = await API.requests.listByEmployee('u4', { page: 1, pageSize: 20 });
+    expect(after.items).toHaveLength(before.items.length + 1);
+    const nueva = after.items.find((r) => r.motivo === 'Motivo de prueba');
     expect(nueva?.estado).toBe('Pendiente');
   });
 
@@ -172,20 +172,20 @@ describe('CreateRequestModal', () => {
 
     await waitFor(() => expect(props.onCreated).toHaveBeenCalled());
 
-    const after = await API.requests.listByEmployee('u4');
-    const nueva = after.find((r) => r.motivo === 'Trámite con hora');
+    const after = await API.requests.listByEmployee('u4', { page: 1, pageSize: 20 });
+    const nueva = after.items.find((r) => r.motivo === 'Trámite con hora');
     expect(nueva?.horaInicio).toBe('14:00');
     expect(nueva?.horaFin).toBe('17:00');
   });
 
   it('"Cancelar" cierra el modal sin crear nada', async () => {
-    const before = await API.requests.listByEmployee('u4');
+    const before = await API.requests.listByEmployee('u4', { page: 1, pageSize: 20 });
     const props = renderModal();
 
     fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
 
     expect(props.onClose).toHaveBeenCalled();
-    const after = await API.requests.listByEmployee('u4');
-    expect(after).toHaveLength(before.length);
+    const after = await API.requests.listByEmployee('u4', { page: 1, pageSize: 20 });
+    expect(after.items).toHaveLength(before.items.length);
   });
 });

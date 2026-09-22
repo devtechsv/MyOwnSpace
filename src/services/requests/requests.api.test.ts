@@ -7,10 +7,10 @@ beforeEach(() => {
 
 describe('requests.api', () => {
   it('listByEmployee delega al mock y devuelve solo las de ese empleado', async () => {
-    const result = await requestsApi.listByEmployee('u3');
+    const result = await requestsApi.listByEmployee('u3', { page: 1, pageSize: 20 });
 
-    expect(result.length).toBeGreaterThan(0);
-    expect(result.every((r) => r.employeeId === 'u3')).toBe(true);
+    expect(result.items.length).toBeGreaterThan(0);
+    expect(result.items.every((r) => r.employeeId === 'u3')).toBe(true);
   });
 
   it('listPending delega al mock y devuelve solo las Pendientes', async () => {
