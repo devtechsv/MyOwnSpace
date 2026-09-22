@@ -958,3 +958,33 @@ Tres pedidos seguidos del usuario tras un repaso de "qué queda pendiente" del m
 - **Nota de test:** los 2 tests nuevos de `useAdminPto` que crean 16 reservas secuenciales (para forzar una segunda página) superaban el timeout default de Jest (5s) por la latencia simulada del mock (150ms × 16 ≈ 2.4s) — se les subió el timeout a 15s en vez de paralelizar los `create` (paralelizarlos sería incorrecto: el mock muta un array en memoria sin lock, dos escrituras concurrentes podrían perder la del otro).
 
 **Dependencies:** Post-cierre "Módulo PTO, Fases 1-5 completas" (backend) y "Fase 3 completada" (arriba).
+
+---
+
+## Post-cierre — Fusión de repos: frontend y backend en un solo repo (2026-09-21)
+
+A pedido explícito del usuario ("mezclar finalmente frontend y backend"), cierre de la pregunta de topología que había quedado abierta desde el inicio del proyecto (`OwnSpaceAPI/` vivía como un repo git propio, ignorado por el `.gitignore` del frontend).
+
+**Decisiones confirmadas con el usuario antes de tocar nada:**
+1. Conservar el historial completo del backend (10 commits de bootstrap/auth/users/requests/CORS/hardening) vía `git subtree`, en vez de solo copiar el código actual.
+2. Todo el trabajo de hoy sin commitear en ambos repos (Resend, contraseña temporal, Vacaciones+hora, módulo PTO completo, el gap cerrado, calendario laboral + paginación) se commiteó como **un solo commit por repo**, no dividido por feature.
+3. Dejar todo local, sin `push` — pendiente de revisión y confirmación del usuario.
+
+**Procedimiento:**
+1. `git add -A` + commit en el backend (`OwnSpaceAPI`, rama `feature/backend-ownspaceapi`) — commit `dcccbc3`.
+2. `git add -A` + commit en el frontend (rama `chore/nextjs-16-migration`) — commit `cd6f43a`.
+3. Agregado el `.git` del backend como remoto local temporal (`backend-history`) dentro del repo del frontend, `git fetch` para traer su historial completo al object database del frontend — operación no destructiva, deja el historial duplicado en los dos lados antes de tocar nada físico.
+4. Sacada la línea `/OwnSpaceAPI` del `.gitignore` del frontend (commit aparte, `58ea702` — necesario para que `git subtree add` pudiera escribir ahí).
+5. Eliminada la carpeta física vieja de `OwnSpaceAPI` (con su `.git` propio) — segura de borrar porque su historial ya estaba duplicado en el paso 3.
+6. `git subtree add --prefix=OwnSpaceAPI <sha> ` — SHA local en vez de remoto/rama, porque `git subtree` intenta re-fetchear del path original y ese path físico ya no existía tras el paso 5. Commit de fusión `216a394`.
+7. Remoto temporal `backend-history` eliminado (limpieza).
+
+**Incidente encontrado y corregido durante la fusión:** el paso 5 (borrar la carpeta física vieja) se llevó consigo `appsettings.Development.json` — archivo gitignoreado a propósito (nunca commiteado, ni en el repo viejo del backend ni en el nuevo fusionado), así que `git subtree add` no lo restauró. Ahí vivían la connection string real y la API key de Resend. Se avisó de inmediato al usuario (sin intentar tapar el error) y se recreó el archivo exacto a partir del contenido ya leído varias veces antes en la misma conversación — confirmado con `git status` limpio (sigue ignorado correctamente por el `.gitignore` del backend, ahora anidado dentro del repo único).
+
+**Resultado:** un solo repo, un solo remoto (`origin` = `https://github.com/devtechsv/MyOwnSpace.git`, el mismo que ya usaban los dos repos por separado), con el historial completo de ambos lados preservado en el grafo de commits (`git log --graph` muestra el backend como una rama paralela que converge en el commit de fusión). `OwnSpaceAPI/` es ahora una carpeta normal trackeada (87 archivos), sin `.git` propio.
+
+**Verification:** tras la fusión, desde las nuevas rutas: backend `dotnet build` 0/0, `dotnet test` 99/99; frontend `tsc` limpio, `npm test` 234/234, `npm run build` exitoso (confirma que Next.js sigue sin escanear `OwnSpaceAPI/` como páginas — vive fuera de `src/pages/`).
+
+**Pendiente, a decisión del usuario:** hacer `push` de la rama fusionada al remoto — no se hizo en este batch, queda para cuando el usuario lo confirme explícitamente.
+
+**Dependencies:** todo el trabajo de ambos repos hasta este punto.
