@@ -1,6 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -22,6 +23,16 @@ const config: Config = {
           '900': '#164f63',
           '950': '#083444',
         },
+        // Tokens semánticos: cambian de valor entre modo claro/oscuro vía las
+        // custom properties definidas en globals.css (según la clase `dark`
+        // en <html>), así los componentes usan `bg-background`, `text-muted`,
+        // etc. en vez de repetir pares `bg-[#...] dark:bg-[#...]`.
+        background: 'rgb(var(--color-background) / <alpha-value>)',
+        surface: 'rgb(var(--color-surface) / <alpha-value>)',
+        'surface-field': 'rgb(var(--color-surface-field) / <alpha-value>)',
+        border: 'rgb(var(--color-border) / <alpha-value>)',
+        foreground: 'rgb(var(--color-foreground) / <alpha-value>)',
+        muted: 'rgb(var(--color-muted) / <alpha-value>)',
       },
     },
   },

@@ -1,5 +1,6 @@
 import LoginForm from '@/components/pages/login/LoginForm';
 import { withAuth } from '@/middlewares/with-auth';
+import { getHomeRoute } from '@/helpers/get-home-route';
 import { GetServerSideProps, NextPage } from 'next';
 import Head from 'next/head';
 
@@ -9,7 +10,7 @@ const Login: NextPage<Props> = ({}) => {
   return (
     <>
       <Head>
-        <title>Login</title>
+        <title>Iniciar sesión — MyOwnSpace</title>
       </Head>
       <LoginForm />
     </>
@@ -21,7 +22,7 @@ export const getServerSideProps: GetServerSideProps = withAuth(
     if (session.user) {
       return {
         redirect: {
-          destination: '/',
+          destination: getHomeRoute(session.user.rol),
           permanent: false,
         },
       };

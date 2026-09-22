@@ -1,47 +1,56 @@
-import AuthEndpoints from '@/contracts/enums/endpoints/auth-endpoints';
-import axios from 'axios';
 import { setCookie } from 'cookies-next';
+import { Session } from '@/contracts/interfaces/auth';
 import { IncomingMessage, ServerResponse } from 'http';
+import {
+  COOKIE_MAX_AGE_SECONDS,
+  decodeSession,
+  encodeSession,
+  SESSION_COOKIE,
+} from './session-cookie';
+import { httpAuthAdapter, SessionCheckResult } from './auth.http-adapter';
+import { USE_REAL_API } from '@/services/use-real-api';
 
-// This function can be used only in the server side
+export type { SessionCheckResult };
+
+// Mientras coexisten mock y backend real: en modo mock, la sesión viaja
+// como JSON (con su propio expiresAt) en la cookie — ver
+// session-cookie.ts y auth.api.ts -> login(). En modo real, el JWT es
+// opaco: no hay nada que decodificar acá, la única forma de saber si
+// sigue siendo válido es preguntarle al backend.
+
 const refreshSession = async (
   accessToken: string | undefined,
-  refreshToken: string | undefined,
+  _refreshToken: string | undefined,
   req: IncomingMessage,
   res: ServerResponse,
-) => {
-  const options = {
-    baseURL: process.env.NEXT_PUBLIC_API_URL,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  };
-
-  try {
-    // POST to backend server to get a new access token and refresh token
-    const response = await axios.get(AuthEndpoints.VERIFY, options);
-
-    // Set the access token and refresh token cookies to manage the session
-    setCookie('accessToken', response.data.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      req,
-      res,
-      maxAge: 60 * 60 * 24 * 30, // 1 hour
-    });
-
-    setCookie('refreshToken', response.data.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      req,
-      res,
-      maxAge: 60 * 60 * 24, // 24 hours
-    });
-
-    return response.data.user;
-  } catch (err) {
-    return null;
+): Promise<SessionCheckResult> => {
+  if (!accessToken) {
+    return { status: 'none' };
   }
+
+  if (USE_REAL_API) {
+    return httpAuthAdapter.refreshSession(accessToken, res);
+  }
+
+  const stored = decodeSession(accessToken);
+  if (!stored) {
+    return { status: 'none' };
+  }
+
+  if (Date.now() > stored.expiresAt) {
+    return { status: 'expired' };
+  }
+
+  const { expiresAt: _expiresAt, ...session } = stored;
+
+  setCookie(SESSION_COOKIE, encodeSession(session), {
+    maxAge: COOKIE_MAX_AGE_SECONDS,
+    path: '/',
+    req,
+    res,
+  });
+
+  return { status: 'valid', session };
 };
 
 export default refreshSession;
