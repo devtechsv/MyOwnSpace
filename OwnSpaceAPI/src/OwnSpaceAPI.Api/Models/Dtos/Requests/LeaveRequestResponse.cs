@@ -21,8 +21,11 @@ public record LeaveRequestResponse(
     DateTime CreatedAt,
     Guid? ReviewedBy,
     DateTime? ReviewedAt,
-    string? MotivoRechazo)
+    string? MotivoRechazo,
+    // Solo Vacaciones (PTO): horas que descuenta la reserva o el rango.
+    // Faltaba en la respuesta — la tabla "PTO del equipo" mostraba "undefinedh".
+    decimal? HorasSolicitadas)
 {
     public static LeaveRequestResponse FromEntity(LeaveRequest r) => new(
-        r.Id, r.EmployeeId, r.Employee?.Nombre, r.Tipo, r.FechaInicio, r.FechaFin, r.HoraInicio, r.HoraFin, r.Motivo, r.Estado, r.CreatedAt, r.ReviewedBy, r.ReviewedAt, r.MotivoRechazo);
+        r.Id, r.EmployeeId, r.Employee?.Nombre, r.Tipo, r.FechaInicio, r.FechaFin, r.HoraInicio, r.HoraFin, r.Motivo, r.Estado, r.CreatedAt, r.ReviewedBy, r.ReviewedAt, r.MotivoRechazo, r.HorasSolicitadas);
 }

@@ -13,8 +13,11 @@ interface Props {
   onDeny: (id: string, motivo: string) => void;
 }
 
+// Fecha en hora local: new Date('yyyy-mm-dd') la toma como medianoche UTC
+// y en zonas detrás de UTC (El Salvador, UTC-6) mostraba el día anterior.
 function formatFecha(iso: string): string {
-  return new Date(iso).toLocaleDateString('es', {
+  const [year, month, day] = iso.slice(0, 10).split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('es', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -172,6 +175,7 @@ export function RequestsTable({
             <span className='text-sm text-muted'>{request.tipo}</span>
             <span className='text-sm text-muted'>
               {formatFecha(request.fechaInicio)}
+              {request.fechaFin !== request.fechaInicio && <> – {formatFecha(request.fechaFin)}</>}
               {request.horaInicio && request.horaFin && (
                 <span className='block text-xs'>
                   {request.horaInicio}–{request.horaFin}
@@ -210,6 +214,7 @@ export function RequestsTable({
                 </span>
                 <span className='text-sm text-foreground'>
                   {formatFecha(request.fechaInicio)}
+                  {request.fechaFin !== request.fechaInicio && <> – {formatFecha(request.fechaFin)}</>}
                   {request.horaInicio && request.horaFin && (
                     <span className='block text-xs text-muted'>
                       {request.horaInicio}–{request.horaFin}

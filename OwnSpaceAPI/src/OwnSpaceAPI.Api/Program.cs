@@ -64,6 +64,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IUsersService, UsersService>();
 builder.Services.AddScoped<IRequestsService, RequestsService>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IPtoBalanceService, PtoBalanceService>();
 builder.Services.AddScoped<IPtoRequestsService, PtoRequestsService>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, NotFoundOnForbidResultHandler>();

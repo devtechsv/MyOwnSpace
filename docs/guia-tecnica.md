@@ -61,9 +61,11 @@ No hay **D**elete ni edición del contenido de una solicitud ya creada.
 |---|---|---|---|
 | Ver mi balance | `GET /pto/balance` | Empleado | `PtoBalanceService.ObtenerResumenAsync` |
 | **C**rear reserva | `POST /pto/requests` | Empleado | `PtoRequestsService.CrearAsync` |
+| Reclamar horas acumuladas | `POST /pto/claim` | Empleado | `PtoBalanceService.ReclamarAsync` |
+| **C**rear vacaciones por rango | `POST /pto/vacation-requests` | Empleado | `PtoRequestsService.SolicitarRangoAsync` |
 | **R**ead (equipo) | `GET /pto/calendario` | Administrador | `PtoRequestsService.ListarEquipoAsync` |
 
-Una reserva de PTO nace ya Aprobada (autoservicio, no pasa por Approve/Deny) y no se puede editar ni cancelar desde la API hoy.
+Una reserva de un día (`POST /pto/requests`) nace ya Aprobada (autoservicio, no pasa por Approve/Deny). Las vacaciones por rango (`POST /pto/vacation-requests`) nacen **Pendientes** y las resuelve un admin con `POST /requests/{id}/approve|deny`; al aprobar se vuelve a validar el saldo (409 si ya no alcanza). Ninguna se puede editar ni cancelar desde la API hoy.
 
 ### AuditLog (bitácora de auditoría)
 
@@ -91,10 +93,10 @@ Para agregar un campo nuevo (ej. "Departamento"): entidad → migración (`dotne
 
 ### Requests (LeaveRequest)
 
-- **Modelo:** `Models/Entities/LeaveRequest.cs` (también cubre las reservas de PTO — mismo modelo, `Tipo = Vacaciones`)
+- **Modelo:** `Models/Entities/LeaveRequest.cs` (también cubre las reservas de PTO — mismo modelo, `Tipo = Vacaciones`) y `Models/Entities/PtoClaim.cs` (reclamos)
 - **Configuración EF:** `Data/AppDbContext.cs`, bloque `modelBuilder.Entity<LeaveRequest>` (incluye los `CHECK` de `Tipo`/`Estado` y los índices compuestos para los listados paginados)
 - **Reglas de negocio (todo salvo Vacaciones):** `Services/Requests/RequestsService.cs`
-- **Reglas de negocio (Vacaciones):** `Services/Pto/PtoRequestsService.cs` + `PtoBalanceService`/`PtoBalanceCalculator` (cálculo de horas acumuladas). Modelo: periodos anuales por aniversario de ingreso (art. 177 del Código de Trabajo de El Salvador); 5 h por quincena (120 h por año); lo devengado en un periodo se usa en el siguiente, así que el primer año el saldo es 0 y lo no usado se pierde al cerrar el periodo. Una reserva se valida contra el saldo del periodo de **su fecha**. `GET /pto/balance` devuelve `horasDisponibles`, `horasEnAcumulacion` y `fechaProximoPeriodo`. La fórmula está duplicada en `src/lib/pto-balance-calculator.ts` (mock del frontend): mantener las dos iguales
+- **Reglas de negocio (Vacaciones):** `Services/Pto/PtoRequestsService.cs` + `PtoBalanceService`/`PtoBalanceCalculator`. Modelo (art. 177–180 del Código de Trabajo de El Salvador): 5 h por quincena trabajada se suman a **acumuladas**; el empleado las **reclama** (`PtoClaims` guarda el tramo de quincenas cubierto) antes del 31-dic o se pierden; cada hora pertenece al **año laboral** (por aniversario de ingreso) en que se ganó y se **habilita** al cerrar ese año, si algún año cerrado igual o posterior tuvo ≥ 200 días trabajados (días hábiles − ausencias aprobadas de día completo); lo reclamado no vence. **Disponible** = reclamadas habilitadas − vacaciones aprobadas y pendientes. Las vacaciones descuentan solo lunes a viernes a 8 h y no pueden iniciar en fin de semana (no hay calendario de asuetos). Todo se calcula al vuelo (sin jobs) y con `TimeProvider` inyectado para poder fijar "hoy" en los tests. La fórmula está duplicada en `src/lib/pto-balance-calculator.ts` (mock del frontend): mantener las dos iguales
 - **Endpoints:** `Controllers/RequestsController.cs` y `Controllers/PtoController.cs`
 - **DTOs:** `Models/Dtos/Requests/`, `Models/Dtos/Pto/`
 - **Tests:** `tests/OwnSpaceAPI.Tests/Requests/`, `tests/OwnSpaceAPI.Tests/Pto/`

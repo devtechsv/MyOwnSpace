@@ -4,6 +4,7 @@ using OwnSpaceAPI.Api.Models.Entities;
 using OwnSpaceAPI.Api.Services;
 using OwnSpaceAPI.Api.Services.Audit;
 using OwnSpaceAPI.Api.Services.Exceptions;
+using OwnSpaceAPI.Api.Services.Pto;
 using OwnSpaceAPI.Api.Services.Requests;
 
 namespace OwnSpaceAPI.Tests.Requests;
@@ -22,6 +23,11 @@ public class RequestsServiceTests
       return Task.CompletedTask;
     }
   }
+
+  private static readonly DateOnly Hoy = new(2026, 10, 5);
+
+  private static RequestsService CrearServicio(AppDbContext db, IEmailSender? emailSender = null) =>
+      new(db, emailSender ?? new FakeEmailSender(), new AuditLogService(db), new PtoBalanceService(db, new RelojFijo(Hoy)));
 
   private static AppDbContext CreateContext() =>
       new(new DbContextOptionsBuilder<AppDbContext>()
@@ -51,7 +57,7 @@ public class RequestsServiceTests
         NuevaSolicitud(carlos.Id));
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var resultado = await service.ListMineAsync(ana.Id, null, null, 1, 20);
 
     Assert.Single(resultado.Items);
@@ -67,7 +73,7 @@ public class RequestsServiceTests
     db.LeaveRequests.Add(NuevaSolicitud(ana.Id));
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var resultado = await service.ListMineAsync(ana.Id, null, null, 1, 20);
 
     Assert.Equal("Ana Martínez", resultado.Items[0].Employee.Nombre);
@@ -81,7 +87,7 @@ public class RequestsServiceTests
     db.Users.Add(ana);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var creada = await service.CreateAsync(
         ana.Id, RequestType.Enfermedad, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 21),
         horaInicio: null, horaFin: null, "Reposo médico");
@@ -98,7 +104,7 @@ public class RequestsServiceTests
     db.Users.Add(ana);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
 
     await Assert.ThrowsAsync<BadRequestException>(() => service.CreateAsync(
         ana.Id, RequestType.Otro, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 19),
@@ -117,7 +123,7 @@ public class RequestsServiceTests
     db.Users.Add(ana);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
 
     await Assert.ThrowsAsync<BadRequestException>(() => service.CreateAsync(
         ana.Id, RequestType.Vacaciones, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 27),
@@ -134,7 +140,7 @@ public class RequestsServiceTests
     db.Users.Add(ana);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var creada = await service.CreateAsync(
         ana.Id, RequestType.PermisoPersonal, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 20),
         horaInicio: new TimeOnly(14, 0), horaFin: new TimeOnly(17, 0), "Trámite personal");
@@ -151,7 +157,7 @@ public class RequestsServiceTests
     db.Users.Add(ana);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
 
     await Assert.ThrowsAsync<BadRequestException>(() => service.CreateAsync(
         ana.Id, RequestType.PermisoPersonal, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 20),
@@ -166,7 +172,7 @@ public class RequestsServiceTests
     db.Users.Add(ana);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
 
     await Assert.ThrowsAsync<BadRequestException>(() => service.CreateAsync(
         ana.Id, RequestType.PermisoPersonal, new DateOnly(2026, 9, 20), new DateOnly(2026, 9, 20),
@@ -181,7 +187,7 @@ public class RequestsServiceTests
     db.Users.Add(ana);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     // HoraInicio (17:00, primer día) > HoraFin (09:00, último día) —
     // sería inválido si se comparara como un solo intervalo, pero aquí
     // describen días distintos, así que no debe rechazarse. Tipo=Otro
@@ -206,7 +212,7 @@ public class RequestsServiceTests
     db.LeaveRequests.AddRange(pendiente, aprobada);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var resultado = await service.ListPendingAsync(tipo: null, fecha: null, nombre: null, page: 1, pageSize: 20);
 
     Assert.Single(resultado.Items);
@@ -227,7 +233,7 @@ public class RequestsServiceTests
     db.LeaveRequests.AddRange(pendiente, aprobada);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var resultado = await service.ListAllAsync(estado: null, tipo: null, fecha: null, nombre: null, page: 1, pageSize: 20);
 
     Assert.Equal(2, resultado.Items.Count);
@@ -247,7 +253,7 @@ public class RequestsServiceTests
     db.LeaveRequests.AddRange(pendiente, aprobada);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var resultado = await service.ListAllAsync(RequestStatus.Aprobada, tipo: null, fecha: null, nombre: null, page: 1, pageSize: 20);
 
     Assert.Single(resultado.Items);
@@ -273,7 +279,7 @@ public class RequestsServiceTests
     db.LeaveRequests.AddRange(solicitudes);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var pagina2 = await service.ListAllAsync(estado: null, tipo: null, fecha: null, nombre: null, page: 2, pageSize: 10);
 
     Assert.Equal(10, pagina2.Items.Count);
@@ -293,7 +299,7 @@ public class RequestsServiceTests
     db.LeaveRequests.Add(NuevaSolicitud(ana.Id));
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var resultado = await service.ListAllAsync(estado: null, tipo: null, fecha: null, nombre: null, page: 0, pageSize: 500);
 
     Assert.Equal(1, resultado.Page);
@@ -313,7 +319,7 @@ public class RequestsServiceTests
     db.LeaveRequests.AddRange(permiso, emergencia);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var resultado = await service.ListAllAsync(estado: null, RequestType.Emergencia, fecha: null, nombre: null, page: 1, pageSize: 20);
 
     Assert.Single(resultado.Items);
@@ -336,7 +342,7 @@ public class RequestsServiceTests
     db.LeaveRequests.AddRange(incluida, noIncluida);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var resultado = await service.ListAllAsync(estado: null, tipo: null, new DateOnly(2026, 9, 15), nombre: null, page: 1, pageSize: 20);
 
     Assert.Single(resultado.Items);
@@ -353,7 +359,7 @@ public class RequestsServiceTests
     db.LeaveRequests.AddRange(NuevaSolicitud(ana.Id), NuevaSolicitud(carlos.Id));
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var resultado = await service.ListAllAsync(estado: null, tipo: null, fecha: null, "ana mart", page: 1, pageSize: 20);
 
     Assert.Single(resultado.Items);
@@ -372,7 +378,7 @@ public class RequestsServiceTests
     db.LeaveRequests.AddRange(NuevaSolicitud(ana.Id), NuevaSolicitud(carlos.Id));
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var resultado = await service.ListAllAsync(estado: null, tipo: null, fecha: null, "_", page: 1, pageSize: 20);
 
     Assert.Empty(resultado.Items);
@@ -388,7 +394,7 @@ public class RequestsServiceTests
     db.LeaveRequests.AddRange(NuevaSolicitud(ana.Id), NuevaSolicitud(carlos.Id));
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     // pageSize=1 a propósito: si TotalCount reflejara el total sin
     // filtrar (2) en vez del filtrado (1), este assert lo detectaría.
     var resultado = await service.ListAllAsync(estado: null, tipo: null, fecha: null, "ana", page: 1, pageSize: 1);
@@ -408,7 +414,7 @@ public class RequestsServiceTests
     await db.SaveChangesAsync();
 
     var emailSender = new FakeEmailSender();
-    var service = new RequestsService(db, emailSender, new AuditLogService(db));
+    var service = CrearServicio(db, emailSender);
     var actualizada = await service.ApproveAsync(solicitud.Id, admin.Id);
 
     Assert.Equal(RequestStatus.Aprobada, actualizada.Estado);
@@ -428,7 +434,7 @@ public class RequestsServiceTests
     db.LeaveRequests.Add(solicitud);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
     var actualizada = await service.DenyAsync(solicitud.Id, admin.Id, "No hay cobertura para ese día");
 
     Assert.Equal(RequestStatus.Denegada, actualizada.Estado);
@@ -448,7 +454,7 @@ public class RequestsServiceTests
     db.LeaveRequests.Add(solicitud);
     await db.SaveChangesAsync();
 
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
 
     await Assert.ThrowsAsync<ConflictException>(() => service.ApproveAsync(solicitud.Id, admin.Id));
   }
@@ -457,9 +463,77 @@ public class RequestsServiceTests
   public async Task ApproveAsync_ConIdInexistente_TiraNotFound()
   {
     await using var db = CreateContext();
-    var service = new RequestsService(db, new FakeEmailSender(), new AuditLogService(db));
+    var service = CrearServicio(db);
 
     await Assert.ThrowsAsync<NotFoundException>(() => service.ApproveAsync(Guid.NewGuid(), Guid.NewGuid()));
+  }
+
+  // Empleado con 120h reclamadas y habilitadas, y una pendiente de 40h.
+  private static async Task<(User empleado, User admin, LeaveRequest pendiente)> PrepararVacacionesAsync(AppDbContext db)
+  {
+    var empleado = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
+    empleado.FechaIngreso = new DateOnly(2024, 1, 15);
+    var admin = CrearUsuario("Julio Pérez", "julio.perez@devtch.com", UserRole.Administrador);
+    db.Users.AddRange(empleado, admin);
+    db.PtoClaims.Add(new PtoClaim
+    {
+      Id = Guid.NewGuid(),
+      EmployeeId = empleado.Id,
+      CorteDesde = new DateOnly(2025, 1, 15),
+      CorteHasta = new DateOnly(2026, 1, 14),
+      Horas = 120m,
+      CreatedAt = DateTime.UtcNow,
+    });
+    var pendiente = new LeaveRequest
+    {
+      Id = Guid.NewGuid(),
+      EmployeeId = empleado.Id,
+      Tipo = RequestType.Vacaciones,
+      FechaInicio = new DateOnly(2026, 10, 12),
+      FechaFin = new DateOnly(2026, 10, 16),
+      HorasSolicitadas = 40m,
+      Motivo = "Vacaciones",
+      Estado = RequestStatus.Pendiente,
+      CreatedAt = DateTime.UtcNow,
+    };
+    db.LeaveRequests.Add(pendiente);
+    await db.SaveChangesAsync();
+    return (empleado, admin, pendiente);
+  }
+
+  [Fact]
+  public async Task ApproveAsync_VacacionesConSaldoSuficiente_LaAprueba()
+  {
+    await using var db = CreateContext();
+    var (_, admin, pendiente) = await PrepararVacacionesAsync(db);
+
+    var aprobada = await CrearServicio(db).ApproveAsync(pendiente.Id, admin.Id);
+
+    Assert.Equal(RequestStatus.Aprobada, aprobada.Estado);
+  }
+
+  [Fact]
+  public async Task ApproveAsync_VacacionesSinSaldoSuficiente_TiraConflictYLaDejaPendiente()
+  {
+    await using var db = CreateContext();
+    var (empleado, admin, pendiente) = await PrepararVacacionesAsync(db);
+    // Mientras tanto se aprobaron 88h de otra reserva: quedan 32h < 40h.
+    db.LeaveRequests.Add(new LeaveRequest
+    {
+      Id = Guid.NewGuid(),
+      EmployeeId = empleado.Id,
+      Tipo = RequestType.Vacaciones,
+      FechaInicio = new DateOnly(2026, 11, 2),
+      FechaFin = new DateOnly(2026, 11, 12),
+      HorasSolicitadas = 88m,
+      Motivo = "Vacaciones",
+      Estado = RequestStatus.Aprobada,
+      CreatedAt = DateTime.UtcNow,
+    });
+    await db.SaveChangesAsync();
+
+    await Assert.ThrowsAsync<ConflictException>(() => CrearServicio(db).ApproveAsync(pendiente.Id, admin.Id));
+    Assert.Equal(RequestStatus.Pendiente, (await db.LeaveRequests.FindAsync(pendiente.Id))!.Estado);
   }
 
   private static LeaveRequest NuevaSolicitud(Guid employeeId) => new()

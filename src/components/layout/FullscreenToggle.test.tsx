@@ -20,6 +20,14 @@ beforeEach(() => {
 });
 
 describe('FullscreenToggle', () => {
+  it('sin Fullscreen API (fullscreenElement undefined) no se muestra como activo', () => {
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => undefined });
+
+    render(<FullscreenToggle />);
+
+    expect(screen.getByRole('button', { name: 'Pantalla completa' })).toBeInTheDocument();
+  });
+
   it('entra y sale de pantalla completa', async () => {
     render(<FullscreenToggle />);
 

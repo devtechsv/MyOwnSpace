@@ -4,6 +4,7 @@ using OwnSpaceAPI.Api.Models.Dtos.Common;
 using OwnSpaceAPI.Api.Models.Entities;
 using OwnSpaceAPI.Api.Services.Audit;
 using OwnSpaceAPI.Api.Services.Exceptions;
+using OwnSpaceAPI.Api.Services.Pto;
 
 namespace OwnSpaceAPI.Api.Services.Requests;
 
@@ -14,12 +15,14 @@ public sealed class RequestsService : IRequestsService
     private readonly AppDbContext _db;
     private readonly IEmailSender _emailSender;
     private readonly IAuditLogService _auditLog;
+    private readonly IPtoBalanceService _ptoBalanceService;
 
-    public RequestsService(AppDbContext db, IEmailSender emailSender, IAuditLogService auditLog)
+    public RequestsService(AppDbContext db, IEmailSender emailSender, IAuditLogService auditLog, IPtoBalanceService ptoBalanceService)
     {
         _db = db;
         _emailSender = emailSender;
         _auditLog = auditLog;
+        _ptoBalanceService = ptoBalanceService;
     }
 
     public Task<PagedResult<LeaveRequest>> ListMineAsync(
@@ -184,6 +187,18 @@ public sealed class RequestsService : IRequestsService
         if (request.Estado != RequestStatus.Pendiente)
         {
             throw new ConflictException("La solicitud ya no está Pendiente.");
+        }
+
+        // Vacaciones por rango: el saldo pudo cambiar desde que se pidió
+        // (otra reserva aprobada mientras tanto). Se excluye la propia
+        // solicitud, que como pendiente ya estaba apartando su saldo.
+        if (nuevoEstado == RequestStatus.Aprobada && request.Tipo == RequestType.Vacaciones)
+        {
+            var disponible = await _ptoBalanceService.CalcularDisponibleAsync(request.EmployeeId, excluirSolicitudId: request.Id);
+            if ((request.HorasSolicitadas ?? 0) > disponible)
+            {
+                throw new ConflictException("El empleado ya no tiene horas disponibles suficientes para estas vacaciones.");
+            }
         }
 
         request.Estado = nuevoEstado;

@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
   public DbSet<User> Users => Set<User>();
   public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
   public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+  public DbSet<PtoClaim> PtoClaims => Set<PtoClaim>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -89,6 +90,20 @@ public class AppDbContext : DbContext
         .WithMany()
         .HasForeignKey(r => r.ReviewedBy)
         .OnDelete(DeleteBehavior.Restrict);
+    });
+
+    modelBuilder.Entity<PtoClaim>(entity =>
+    {
+      entity.Property(c => c.Horas).HasPrecision(6, 2);
+      // El saldo siempre se calcula sobre todos los reclamos de un empleado.
+      entity.HasIndex(c => new { c.EmployeeId, c.CorteHasta });
+
+      entity.HasOne(c => c.Employee)
+        .WithMany()
+        .HasForeignKey(c => c.EmployeeId)
+        .OnDelete(DeleteBehavior.Restrict);
+
+      entity.ToTable(t => t.HasCheckConstraint("CK_PtoClaims_Tramo", "[CorteHasta] >= [CorteDesde]"));
     });
 
     modelBuilder.Entity<AuditLog>(entity =>

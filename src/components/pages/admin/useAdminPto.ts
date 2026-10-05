@@ -92,7 +92,9 @@ export function useAdminPto() {
     const query = nombreQuery.trim().toLowerCase();
     return rows.filter((r) => {
       const coincideNombre = !query || r.employeeName.toLowerCase().includes(query);
-      const coincideMes = !mesFiltro || r.fechaInicio.startsWith(mesFiltro);
+      // Un rango aparece en todos los meses que toca, no solo en el de inicio.
+      const coincideMes =
+        !mesFiltro || (r.fechaInicio.slice(0, 7) <= mesFiltro && r.fechaFin.slice(0, 7) >= mesFiltro);
       return coincideNombre && coincideMes;
     });
   }, [rows, nombreQuery, mesFiltro]);

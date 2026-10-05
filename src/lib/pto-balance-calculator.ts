@@ -1,10 +1,30 @@
 // Port a TypeScript de OwnSpaceAPI/.../Services/Pto/PtoBalanceCalculator.cs
-// — mismo algoritmo, para que el mock pueda replicar la fórmula de
-// devengo/balance de PTO sin backend real. Fechas siempre en ISO
-// 8601 (yyyy-mm-dd); la comparación lexicográfica de esas cadenas ya
-// es cronológica, así que se usa directo donde alcanza (mismo criterio
-// que el resto del proyecto, ver mock-adapter.ts).
-const HORAS_POR_QUINCENA = 5;
+// — mismo algoritmo, para que el mock pueda replicar el PTO sin backend
+// real (ver los comentarios de allá para el detalle de cada regla).
+// Fechas siempre en ISO 8601 (yyyy-mm-dd); la comparación lexicográfica
+// de esas cadenas ya es cronológica, así que se usa directo donde alcanza
+// (mismo criterio que el resto del proyecto, ver mock-adapter.ts).
+export const HORAS_POR_QUINCENA = 5;
+export const HORAS_POR_DIA = 8;
+export const DIAS_TRABAJADOS_MINIMOS = 200;
+
+export interface TramoReclamado {
+  corteDesde: string;
+  corteHasta: string;
+}
+
+export interface Ausencia {
+  desde: string;
+  hasta: string;
+}
+
+export interface EstadoPto {
+  horasAcumuladas: number;
+  horasReclamadasHabilitadas: number;
+  horasReclamadasBloqueadas: number;
+  fechaProximaHabilitacion: string;
+  diasTrabajadosAnioLaboral: number;
+}
 
 function toUtcDate(iso: string): Date {
   const [year, month, day] = iso.split('-').map(Number);
@@ -19,8 +39,34 @@ function toIso(year: number, monthZeroBased: number, day: number): string {
   return `${year}-${pad(monthZeroBased + 1)}-${pad(day)}`;
 }
 
+function fromDate(fecha: Date): string {
+  return toIso(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate());
+}
+
 function ultimoDiaDelMes(year: number, monthZeroBased: number): number {
   return new Date(Date.UTC(year, monthZeroBased + 1, 0)).getUTCDate();
+}
+
+export function sumarDias(iso: string, dias: number): string {
+  const fecha = toUtcDate(iso);
+  fecha.setUTCDate(fecha.getUTCDate() + dias);
+  return fromDate(fecha);
+}
+
+// Igual que DateOnly.AddYears de .NET: un 29-feb cae en 28-feb si el año
+// destino no es bisiesto.
+function sumarAnios(iso: string, anios: number): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  const destino = year + anios;
+  return toIso(destino, month - 1, Math.min(day, ultimoDiaDelMes(destino, month - 1)));
+}
+
+function max(a: string, b: string): string {
+  return a > b ? a : b;
+}
+
+function min(a: string, b: string | null | undefined): string {
+  return b && b < a ? b : a;
 }
 
 // Una quincena se considera devengada en su corte: el día 15 de cada
@@ -58,23 +104,30 @@ export function contarQuincenasCompletadas(inicioIso: string, finIso: string): n
   return contador;
 }
 
-// Periodos anuales por aniversario de ingreso, con desfase de un año: lo
-// devengado en un periodo se usa en el siguiente (el primer año no hay
-// nada disponible) y lo no usado se pierde al cerrar el periodo. Misma
-// lógica que PtoBalanceCalculator.cs — ver los comentarios de allá.
-
-// Igual que DateOnly.AddYears de .NET: un 29-feb cae en 28-feb si el
-// año destino no es bisiesto.
-function sumarAnios(iso: string, anios: number): string {
-  const [year, month, day] = iso.split('-').map(Number);
-  const destino = year + anios;
-  return toIso(destino, month - 1, Math.min(day, ultimoDiaDelMes(destino, month - 1)));
+export function esDiaHabil(iso: string): boolean {
+  const diaSemana = toUtcDate(iso).getUTCDay();
+  return diaSemana !== 0 && diaSemana !== 6;
 }
 
-function restarUnDia(iso: string): string {
-  const fecha = toUtcDate(iso);
-  fecha.setUTCDate(fecha.getUTCDate() - 1);
-  return toIso(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate());
+// Lunes a viernes dentro de [desde, hasta], ambos inclusive.
+export function contarDiasHabiles(desde: string, hasta: string): number {
+  let dias = 0;
+  for (let dia = desde; dia <= hasta; dia = sumarDias(dia, 1)) {
+    if (esDiaHabil(dia)) dias++;
+  }
+  return dias;
+}
+
+// Días hábiles de [inicio, fin] menos los cubiertos por ausencias
+// (contados una sola vez aunque se superpongan).
+export function diasTrabajados(inicio: string, fin: string, ausencias: Ausencia[]): number {
+  const diasAusente = new Set<string>();
+  for (const ausencia of ausencias) {
+    for (let dia = max(inicio, ausencia.desde); dia <= min(fin, ausencia.hasta); dia = sumarDias(dia, 1)) {
+      if (esDiaHabil(dia)) diasAusente.add(dia);
+    }
+  }
+  return contarDiasHabiles(inicio, fin) - diasAusente.size;
 }
 
 function indicePeriodo(fechaIngreso: string, fecha: string): number {
@@ -89,53 +142,72 @@ export function inicioPeriodo(fechaIngreso: string, fecha: string): string {
   return sumarAnios(fechaIngreso, indicePeriodo(fechaIngreso, fecha));
 }
 
-export function finPeriodoExclusivo(fechaIngreso: string, fecha: string): string {
-  return sumarAnios(fechaIngreso, indicePeriodo(fechaIngreso, fecha) + 1);
+function limitesAnioLaboral(fechaIngreso: string, anio: number): [string, string] {
+  return [sumarAnios(fechaIngreso, anio), sumarDias(sumarAnios(fechaIngreso, anio + 1), -1)];
 }
 
-function horasDevengadas(
-  inicio: string,
-  finExclusivo: string,
-  fechaDesactivacion: string | null | undefined,
-  hoy: string,
-): number {
-  let fin = restarUnDia(finExclusivo);
-  if (hoy < fin) fin = hoy;
-  if (fechaDesactivacion && fechaDesactivacion < fin) fin = fechaDesactivacion;
-  return contarQuincenasCompletadas(inicio, fin) * HORAS_POR_QUINCENA;
-}
-
-// Horas usables en el periodo que contiene `fecha`: lo devengado en el
-// periodo anterior, congelado en hoy o en la desactivación.
-export function calcularHorasDisponibles(
+// Quincenas ganadas y sin reclamar, solo del año calendario en curso:
+// lo no reclamado de años anteriores ya se perdió (borrado del 1-ene).
+export function tramoPendiente(
   fechaIngreso: string,
   fechaDesactivacion: string | null | undefined,
-  fecha: string,
   hoy: string,
-): number {
-  const indice = indicePeriodo(fechaIngreso, fecha);
-  if (indice === 0) {
-    return 0;
+  ultimoCorteReclamado: string | null,
+): TramoReclamado | null {
+  let desde = max(fechaIngreso, `${hoy.slice(0, 4)}-01-01`);
+  if (ultimoCorteReclamado && sumarDias(ultimoCorteReclamado, 1) > desde) {
+    desde = sumarDias(ultimoCorteReclamado, 1);
   }
-  return horasDevengadas(
-    sumarAnios(fechaIngreso, indice - 1),
-    sumarAnios(fechaIngreso, indice),
-    fechaDesactivacion,
-    hoy,
-  );
+  const hasta = min(hoy, fechaDesactivacion);
+  return contarQuincenasCompletadas(desde, hasta) > 0 ? { corteDesde: desde, corteHasta: hasta } : null;
 }
 
-// Lo que se va devengando en el periodo vigente — solo se libera en el
-// próximo aniversario.
-export function calcularHorasEnAcumulacion(
+export function calcularEstadoPto(
   fechaIngreso: string,
   fechaDesactivacion: string | null | undefined,
   hoy: string,
-): number {
-  return horasDevengadas(
-    inicioPeriodo(fechaIngreso, hoy),
-    finPeriodoExclusivo(fechaIngreso, hoy),
-    fechaDesactivacion,
-    hoy,
+  reclamos: TramoReclamado[],
+  ausencias: Ausencia[],
+): EstadoPto {
+  const ultimoCorte = reclamos.reduce<string | null>(
+    (acc, r) => (acc === null || r.corteHasta > acc ? r.corteHasta : acc),
+    null,
   );
+  const pendiente = tramoPendiente(fechaIngreso, fechaDesactivacion, hoy, ultimoCorte);
+  const horasAcumuladas = pendiente
+    ? contarQuincenasCompletadas(pendiente.corteDesde, pendiente.corteHasta) * HORAS_POR_QUINCENA
+    : 0;
+
+  const aniosCerrados = indicePeriodo(fechaIngreso, hoy);
+  let ultimoAnioHabilitado = -1;
+  for (let anio = 0; anio < aniosCerrados; anio++) {
+    const [inicio, fin] = limitesAnioLaboral(fechaIngreso, anio);
+    if (diasTrabajados(inicio, min(fin, fechaDesactivacion), ausencias) >= DIAS_TRABAJADOS_MINIMOS) {
+      ultimoAnioHabilitado = anio;
+    }
+  }
+
+  let habilitadas = 0;
+  let bloqueadas = 0;
+  for (const reclamo of reclamos) {
+    const desdeAnio = indicePeriodo(fechaIngreso, reclamo.corteDesde);
+    const hastaAnio = indicePeriodo(fechaIngreso, reclamo.corteHasta);
+    for (let anio = desdeAnio; anio <= hastaAnio; anio++) {
+      const [inicio, fin] = limitesAnioLaboral(fechaIngreso, anio);
+      const horas =
+        contarQuincenasCompletadas(max(inicio, reclamo.corteDesde), min(fin, reclamo.corteHasta)) *
+        HORAS_POR_QUINCENA;
+      if (anio <= ultimoAnioHabilitado) habilitadas += horas;
+      else bloqueadas += horas;
+    }
+  }
+
+  const [inicioActual] = limitesAnioLaboral(fechaIngreso, aniosCerrados);
+  return {
+    horasAcumuladas,
+    horasReclamadasHabilitadas: habilitadas,
+    horasReclamadasBloqueadas: bloqueadas,
+    fechaProximaHabilitacion: sumarAnios(fechaIngreso, aniosCerrados + 1),
+    diasTrabajadosAnioLaboral: diasTrabajados(inicioActual, min(hoy, fechaDesactivacion), ausencias),
+  };
 }

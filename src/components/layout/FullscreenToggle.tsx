@@ -11,7 +11,9 @@ export function FullscreenToggle({ className }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    const sync = () => setIsFullscreen(document.fullscreenElement !== null);
+    // Boolean(): sin Fullscreen API (iOS Safari, jsdom) el valor es
+    // undefined, no null — compararlo con null lo daba por activo.
+    const sync = () => setIsFullscreen(Boolean(document.fullscreenElement));
     sync();
     document.addEventListener('fullscreenchange', sync);
     return () => document.removeEventListener('fullscreenchange', sync);

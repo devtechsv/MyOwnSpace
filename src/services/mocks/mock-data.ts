@@ -1,5 +1,6 @@
 import { User } from '@/contracts/interfaces/user';
 import { LeaveRequest } from '@/contracts/interfaces/request';
+import { TramoReclamado } from '@/lib/pto-balance-calculator';
 
 // Datos de ejemplo coherentes con los usados en el mockup de Claude Design,
 // para que la demo local se sienta consistente con las pantallas validadas.
@@ -138,4 +139,12 @@ export const mockRequests: LeaveRequest[] = [
     estado: 'Pendiente',
     createdAt: '2026-09-13T07:30:00.000Z',
   },
+];
+
+// Reclamos de PTO de ejemplo: u3 (ingreso 2023-06-15) y u4 (ingreso
+// 2024-02-01) reclamaron un año laboral completo — 24 quincenas = 120h ya
+// habilitadas — para que la demo de "Mi PTO" arranque con saldo.
+export const mockPtoClaims: (TramoReclamado & { employeeId: string })[] = [
+  { employeeId: 'u3', corteDesde: '2024-06-15', corteHasta: '2025-06-14' },
+  { employeeId: 'u4', corteDesde: '2025-02-01', corteHasta: '2026-01-31' },
 ];

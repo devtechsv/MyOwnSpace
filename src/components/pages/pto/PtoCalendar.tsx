@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { LeaveRequest } from '@/contracts/interfaces/request';
+import { sumarDias } from '@/lib/pto-balance-calculator';
 
 interface Props {
   reservas: LeaveRequest[];
@@ -33,7 +34,14 @@ export function PtoCalendar({ reservas, onSelectDate }: Props) {
     month: hoy.getMonth(),
   });
 
-  const reservasPorFecha = new Set(reservas.map((r) => r.fechaInicio));
+  // Cada día cubierto por una reserva (de un día o por rango) con su
+  // estado: las pendientes de aprobación se distinguen de las aprobadas.
+  const estadoPorFecha = new Map<string, LeaveRequest['estado']>();
+  for (const r of reservas) {
+    for (let dia = r.fechaInicio; dia <= r.fechaFin; dia = sumarDias(dia, 1)) {
+      if (estadoPorFecha.get(dia) !== 'Aprobada') estadoPorFecha.set(dia, r.estado);
+    }
+  }
 
   const primerDiaSemana = new Date(cursor.year, cursor.month, 1).getDay();
   const diasEnMes = new Date(cursor.year, cursor.month + 1, 0).getDate();
@@ -93,7 +101,9 @@ export function PtoCalendar({ reservas, onSelectDate }: Props) {
         {celdas.map((dia, i) => {
           if (dia === null) return <span key={`vacio-${i}`} />;
           const fecha = toIso(cursor.year, cursor.month, dia);
-          const reservado = reservasPorFecha.has(fecha);
+          const estado = estadoPorFecha.get(fecha);
+          const reservado = estado !== undefined;
+          const pendiente = estado === 'Pendiente';
           const finDeSemana = esFinDeSemana(cursor.year, cursor.month, dia);
           const pasado = fecha < hoyIso;
           // Un día no disponible ya reservado (ej. dato viejo, de antes
@@ -121,11 +131,15 @@ export function PtoCalendar({ reservas, onSelectDate }: Props) {
               key={fecha}
               type='button'
               onClick={() => onSelectDate(fecha)}
-              aria-label={`${reservado ? 'PTO reservado el' : 'Reservar PTO el'} ${fecha}`}
+              aria-label={`${
+                pendiente ? 'Vacaciones pendientes de aprobación el' : reservado ? 'PTO reservado el' : 'Reservar PTO el'
+              } ${fecha}`}
               className={
-                reservado
-                  ? 'h-10 rounded-lg text-sm font-semibold bg-turquoise-blue-500 text-white'
-                  : 'h-10 rounded-lg text-sm text-foreground hover:bg-surface-field'
+                pendiente
+                  ? 'h-10 rounded-lg text-sm font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                  : reservado
+                    ? 'h-10 rounded-lg text-sm font-semibold bg-turquoise-blue-500 text-white'
+                    : 'h-10 rounded-lg text-sm text-foreground hover:bg-surface-field'
               }
             >
               {dia}

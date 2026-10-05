@@ -6,11 +6,6 @@ import {
   resetMockState,
 } from './mock-adapter';
 import { mockUsers, mockRequests } from './mock-data';
-import {
-  calcularHorasDisponibles,
-  calcularHorasEnAcumulacion,
-  finPeriodoExclusivo,
-} from '@/lib/pto-balance-calculator';
 
 beforeEach(() => {
   resetMockState();
@@ -307,69 +302,125 @@ describe('mockUsersAdapter', () => {
 });
 
 describe('mockPtoAdapter', () => {
-  it('getBalance calcula el balance con la misma fórmula que el backend real', async () => {
-    // u4 (Carlos Rivas) ingresó en 2024-02-01 en los fixtures — sin
-    // desactivación ni consumo en el periodo, el balance tiene que
-    // coincidir exactamente con el calculador por aniversario.
-    const balance = await mockPtoAdapter.getBalance('u4');
-    const hoy = new Date().toISOString().slice(0, 10);
-
-    expect(balance).toEqual({
-      horasDisponibles: calcularHorasDisponibles('2024-02-01', undefined, hoy, hoy),
-      horasEnAcumulacion: calcularHorasEnAcumulacion('2024-02-01', undefined, hoy),
-      fechaProximoPeriodo: finPeriodoExclusivo('2024-02-01', hoy),
+  // Solo se fija Date: los timers siguen reales porque el mock simula
+  // latencia con setTimeout. Lunes 2026-10-05; u4 ingresó el 2024-02-01 y
+  // tiene reclamado su 2do año laboral (120h habilitadas) en los fixtures.
+  beforeEach(() => {
+    jest.useFakeTimers({
+      now: new Date('2026-10-05T12:00:00Z'),
+      doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'nextTick', 'queueMicrotask'],
     });
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('getBalance separa acumuladas, reclamadas por habilitar y disponibles', async () => {
+    expect(await mockPtoAdapter.getBalance('u4')).toMatchObject({
+      horasDisponibles: 120,
+      // Sin reclamar desde 2026-02-01: 15-feb..30-sep = 16 cortes.
+      horasAcumuladas: 80,
+      horasReclamadasBloqueadas: 0,
+      fechaProximaHabilitacion: '2027-02-01',
+      diasTrabajadosMinimos: 200,
+      fechaLimiteReclamo: '2026-12-31',
+    });
+  });
+
+  it('claim pasa lo acumulado a reclamado y no deja reclamarlo dos veces', async () => {
+    const despues = await mockPtoAdapter.claim('u4');
+
+    expect(despues.horasAcumuladas).toBe(0);
+    expect(despues.horasReclamadasBloqueadas).toBe(80);
+    await expect(mockPtoAdapter.claim('u4')).rejects.toThrow(
+      'No tienes horas acumuladas para reclamar.',
+    );
+  });
+
   it('create rechaza horas fuera de rango (0, 8]', async () => {
-    await expect(mockPtoAdapter.create('u4', { fecha: '2026-01-01', horas: 0 })).rejects.toThrow();
-    await expect(mockPtoAdapter.create('u4', { fecha: '2026-01-02', horas: 8.5 })).rejects.toThrow();
+    await expect(mockPtoAdapter.create('u4', { fecha: '2026-10-06', horas: 0 })).rejects.toThrow();
+    await expect(mockPtoAdapter.create('u4', { fecha: '2026-10-07', horas: 8.5 })).rejects.toThrow();
   });
 
   it('create rechaza una segunda reserva para la misma fecha', async () => {
-    const hoy = new Date().toISOString().slice(0, 10);
-    await mockPtoAdapter.create('u4', { fecha: hoy, horas: 4 });
+    await mockPtoAdapter.create('u4', { fecha: '2026-10-05', horas: 4 });
 
-    await expect(mockPtoAdapter.create('u4', { fecha: hoy, horas: 2 })).rejects.toThrow(
+    await expect(mockPtoAdapter.create('u4', { fecha: '2026-10-05', horas: 2 })).rejects.toThrow(
       'Ya tienes PTO reservado para esa fecha.',
     );
   });
 
-  it('create rechaza si las horas superan el balance disponible', async () => {
-    // Ingreso en el futuro: balance 0 garantizado, sin depender de qué
-    // día se corra el test (mismo criterio que el test análogo del
-    // backend real).
-    const mañana = new Date();
-    mañana.setDate(mañana.getDate() + 1);
+  it('create rechaza si no hay horas reclamadas y habilitadas', async () => {
+    // Sin reclamos: aunque haya acumulado, no puede usar nada.
     const nuevo = await mockUsersAdapter.create({
-      nombre: 'Sin Balance',
-      correo: 'sin.balance@devtch.com',
+      nombre: 'Sin Reclamos',
+      correo: 'sin.reclamos@devtch.com',
       rol: 'Empleado',
-      fechaIngreso: mañana.toISOString().slice(0, 10),
+      fechaIngreso: '2024-01-15',
     });
-
-    await expect(
-      mockPtoAdapter.create(nuevo.id, { fecha: new Date().toISOString().slice(0, 10), horas: 1 }),
-    ).rejects.toThrow('No tienes balance de PTO suficiente para esa cantidad de horas.');
+    await expect(mockPtoAdapter.create(nuevo.id, { fecha: '2026-10-05', horas: 1 })).rejects.toThrow(
+      'No tienes balance de PTO suficiente para esa cantidad de horas.',
+    );
   });
 
   it('create descuenta el balance realmente', async () => {
-    const antes = await mockPtoAdapter.getBalance('u4');
-    const hoy = new Date().toISOString().slice(0, 10);
+    await mockPtoAdapter.create('u4', { fecha: '2026-10-05', horas: 4 });
 
-    await mockPtoAdapter.create('u4', { fecha: hoy, horas: 4 });
+    expect((await mockPtoAdapter.getBalance('u4')).horasDisponibles).toBe(116);
+  });
 
-    const despues = await mockPtoAdapter.getBalance('u4');
-    expect(despues.horasDisponibles).toBe(antes.horasDisponibles - 4);
+  it('createVacationRequest crea una Pendiente por días hábiles × 8h que aparta saldo', async () => {
+    // Jueves 15 a martes 20: 4 días hábiles.
+    const solicitud = await mockPtoAdapter.createVacationRequest('u4', {
+      fechaInicio: '2026-10-15',
+      fechaFin: '2026-10-20',
+    });
+
+    expect(solicitud.estado).toBe('Pendiente');
+    expect(solicitud.horasSolicitadas).toBe(32);
+    expect((await mockPtoAdapter.getBalance('u4')).horasDisponibles).toBe(88);
+  });
+
+  it('createVacationRequest rechaza iniciar en fin de semana, fechas pasadas y saldo insuficiente', async () => {
+    await expect(
+      mockPtoAdapter.createVacationRequest('u4', { fechaInicio: '2026-10-10', fechaFin: '2026-10-14' }),
+    ).rejects.toThrow('Las vacaciones no pueden iniciar en sábado ni domingo.');
+    await expect(
+      mockPtoAdapter.createVacationRequest('u4', { fechaInicio: '2026-10-01', fechaFin: '2026-10-02' }),
+    ).rejects.toThrow('No puedes solicitar vacaciones en fechas pasadas.');
+    await expect(
+      mockPtoAdapter.createVacationRequest('u4', { fechaInicio: '2026-10-12', fechaFin: '2026-11-13' }),
+    ).rejects.toThrow('No tienes horas suficientes: necesitas 200h y tienes 120h disponibles.');
+  });
+
+  it('una reserva de un día no puede cruzarse con vacaciones pendientes', async () => {
+    await mockPtoAdapter.createVacationRequest('u4', { fechaInicio: '2026-10-12', fechaFin: '2026-10-16' });
+
+    await expect(mockPtoAdapter.create('u4', { fecha: '2026-10-14', horas: 8 })).rejects.toThrow(
+      'Ya tienes PTO reservado para esa fecha.',
+    );
+  });
+
+  it('aprobar vacaciones pendientes las pasa a Aprobada', async () => {
+    const solicitud = await mockPtoAdapter.createVacationRequest('u4', {
+      fechaInicio: '2026-10-12',
+      fechaFin: '2026-10-16',
+    });
+
+    const aprobada = await mockRequestsAdapter.approve(solicitud.id, 'u1');
+
+    expect(aprobada.estado).toBe('Aprobada');
+    expect((await mockPtoAdapter.getBalance('u4')).horasDisponibles).toBe(80);
   });
 
   it('listCalendario devuelve solo Vacaciones Aprobada, de todos los empleados', async () => {
-    const hoy = new Date().toISOString().slice(0, 10);
-    await mockPtoAdapter.create('u4', { fecha: hoy, horas: 4 });
+    await mockPtoAdapter.create('u4', { fecha: '2026-10-05', horas: 4 });
+    await mockPtoAdapter.createVacationRequest('u4', { fechaInicio: '2026-10-12', fechaFin: '2026-10-16' });
 
-    const equipo = await mockPtoAdapter.listCalendario();
+    const calendario = await mockPtoAdapter.listCalendario();
 
-    expect(equipo.every((r) => r.tipo === 'Vacaciones' && r.estado === 'Aprobada')).toBe(true);
-    expect(equipo.some((r) => r.employeeId === 'u4' && r.fechaInicio === hoy)).toBe(true);
+    expect(calendario).toHaveLength(1);
+    expect(calendario.every((r) => r.tipo === 'Vacaciones' && r.estado === 'Aprobada')).toBe(true);
   });
 });

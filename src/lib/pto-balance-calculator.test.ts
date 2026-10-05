@@ -1,8 +1,11 @@
 import {
-  calcularHorasDisponibles,
-  calcularHorasEnAcumulacion,
+  Ausencia,
+  calcularEstadoPto,
+  contarDiasHabiles,
   contarQuincenasCompletadas,
+  diasTrabajados,
   inicioPeriodo,
+  TramoReclamado,
 } from './pto-balance-calculator';
 
 describe('contarQuincenasCompletadas', () => {
@@ -23,36 +26,88 @@ describe('contarQuincenasCompletadas', () => {
   });
 });
 
-describe('periodos por aniversario', () => {
-  it.each([
-    ['2026-03-09', '2025-03-10'],
-    ['2026-03-10', '2026-03-10'],
-    ['2024-05-01', '2024-03-10'],
-  ])('inicioPeriodo(%s) es el último aniversario: %s', (fecha, esperado) => {
-    expect(inicioPeriodo('2024-03-10', fecha)).toBe(esperado);
+// Mismos casos que PtoBalanceCalculatorTests.cs (ejemplo de MEJORAS.md:
+// ingreso el 10-may-2026).
+const INGRESO = '2026-05-10';
+
+function estado(hoy: string, reclamos: TramoReclamado[] = [], ausencias: Ausencia[] = [], ingreso = INGRESO) {
+  return calcularEstadoPto(ingreso, null, hoy, reclamos, ausencias);
+}
+
+describe('calcularEstadoPto', () => {
+  it('acumula 5h por quincena desde el ingreso', () => {
+    expect(estado('2026-12-31').horasAcumuladas).toBe(80);
+  });
+
+  it('lo acumulado sin reclamar se borra el 1 de enero', () => {
+    expect(estado('2027-01-10').horasAcumuladas).toBe(0);
+    expect(estado('2027-01-15').horasAcumuladas).toBe(5);
+  });
+
+  it('lo ya reclamado no se vuelve a contar como acumulado', () => {
+    expect(estado('2026-12-31', [{ corteDesde: INGRESO, corteHasta: '2026-12-31' }]).horasAcumuladas).toBe(0);
+  });
+
+  it('lo reclamado en el primer año queda bloqueado hasta el aniversario', () => {
+    const e = estado('2027-03-01', [{ corteDesde: INGRESO, corteHasta: '2026-12-31' }]);
+
+    expect(e.horasReclamadasHabilitadas).toBe(0);
+    expect(e.horasReclamadasBloqueadas).toBe(80);
+    expect(e.fechaProximaHabilitacion).toBe('2027-05-10');
+  });
+
+  it('al cumplir el año, lo reclamado se habilita', () => {
+    const e = estado('2027-05-10', [
+      { corteDesde: INGRESO, corteHasta: '2026-12-31' },
+      { corteDesde: '2027-01-01', corteHasta: '2027-05-09' },
+    ]);
+
+    expect(e.horasReclamadasHabilitadas).toBe(120);
+    expect(e.horasReclamadasBloqueadas).toBe(0);
+  });
+
+  it('cada hora pertenece al año laboral en que se ganó', () => {
+    const e = estado('2027-05-20', [{ corteDesde: '2027-01-01', corteHasta: '2027-05-20' }]);
+
+    expect(e.horasReclamadasHabilitadas).toBe(40);
+    expect(e.horasReclamadasBloqueadas).toBe(5);
+    expect(e.fechaProximaHabilitacion).toBe('2028-05-10');
+  });
+
+  it('con menos de 200 días trabajados, sigue bloqueado hasta un año que cumpla', () => {
+    const ausencias = [{ desde: '2025-01-01', hasta: '2025-04-30' }];
+    const reclamos = [
+      { corteDesde: '2025-01-01', corteHasta: '2025-12-31' },
+      { corteDesde: '2026-01-01', corteHasta: '2026-12-31' },
+    ];
+
+    const alPrimero = estado('2026-01-05', reclamos.slice(0, 1), ausencias, '2025-01-01');
+    expect(alPrimero.horasReclamadasHabilitadas).toBe(0);
+    expect(alPrimero.horasReclamadasBloqueadas).toBe(120);
+
+    const alSegundo = estado('2027-01-05', reclamos, ausencias, '2025-01-01');
+    expect(alSegundo.horasReclamadasHabilitadas).toBe(240);
+  });
+
+  it('informa los días trabajados del año laboral en curso', () => {
+    expect(estado('2026-05-15').diasTrabajadosAnioLaboral).toBe(5);
+  });
+});
+
+describe('días hábiles', () => {
+  it('solo cuenta de lunes a viernes', () => {
+    expect(contarDiasHabiles('2026-10-05', '2026-10-11')).toBe(5);
+  });
+
+  it('no descuenta fines de semana ni duplica ausencias superpuestas', () => {
+    const ausencias = [
+      { desde: '2026-10-09', hasta: '2026-10-12' },
+      { desde: '2026-10-12', hasta: '2026-10-12' },
+    ];
+    expect(diasTrabajados('2026-10-05', '2026-10-16', ausencias)).toBe(8);
   });
 
   it('un ingreso del 29 de febrero cae en 28 de febrero en años no bisiestos', () => {
     expect(inicioPeriodo('2024-02-29', '2025-03-01')).toBe('2025-02-28');
-  });
-});
-
-describe('calcularHorasDisponibles / calcularHorasEnAcumulacion', () => {
-  it('durante el primer año no hay nada disponible, pero sí en acumulación', () => {
-    expect(calcularHorasDisponibles('2026-03-10', null, '2026-07-31', '2026-07-31')).toBe(0);
-    expect(calcularHorasEnAcumulacion('2026-03-10', null, '2026-07-31')).toBe(50);
-  });
-
-  it('al cumplir el año libera las 120h del periodo anterior y reinicia la acumulación', () => {
-    expect(calcularHorasDisponibles('2025-03-10', null, '2026-03-10', '2026-03-10')).toBe(120);
-    expect(calcularHorasEnAcumulacion('2025-03-10', null, '2026-03-10')).toBe(0);
-  });
-
-  it('para una fecha del periodo siguiente solo cuenta lo ganado hasta hoy', () => {
-    expect(calcularHorasDisponibles('2025-03-10', null, '2027-03-15', '2026-07-31')).toBe(50);
-  });
-
-  it('con fecha de desactivación, no cuenta quincenas posteriores', () => {
-    expect(calcularHorasDisponibles('2025-01-01', '2025-01-20', '2026-02-01', '2026-02-01')).toBe(5);
   });
 });

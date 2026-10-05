@@ -1,6 +1,6 @@
 # Manual de usuario — MyOwnSpace
 
-MyOwnSpace es la herramienta interna de DevTech para pedir permisos (emergencias, enfermedad, trámites personales, vacaciones) y, si sos administrador, para aprobarlos o denegarlos.
+MyOwnSpace es la herramienta interna de DevTech para pedir permisos (emergencias, enfermedad, trámites personales, vacaciones) y, si eres administrador, para aprobarlos o denegarlos.
 
 Este manual no requiere conocimientos técnicos — solo explica qué hace cada pantalla y cada botón.
 
@@ -28,7 +28,7 @@ Completa:
 
 Debajo del formulario vas a ver los requisitos que tiene que cumplir tu nueva contraseña (largo mínimo, mayúscula, minúscula, número, carácter especial, y que no sea una genérica ni la misma temporal) — se van marcando en verde a medida que los cumples. Toca **"Guardar"** cuando termines.
 
-## Si sos Empleado
+## Si eres Empleado
 
 ### Mis solicitudes
 
@@ -48,17 +48,22 @@ Las vacaciones **no** se piden desde este formulario — tienen su propia pantal
 
 ### Mi PTO (vacaciones)
 
-Es tu balance de horas disponibles y el calendario para reservarlas tú mismo, sin necesidad de aprobación.
+Aquí reclamas las horas de vacaciones que vas ganando y pides tus vacaciones.
 
-- Arriba vas a ver tu **"Balance disponible"** en horas y, al lado, las horas **"En acumulación"** con la fecha desde la que vas a poder usarlas.
-- **Cómo se ganan las horas:** cada quincena trabajada suma 5 horas (120 horas, es decir 15 días, por año completo). Tu año se cuenta desde tu **fecha de ingreso**, no desde el 1 de enero.
-- **Primer año:** las horas se van acumulando pero todavía no se pueden usar. Se habilitan al cumplir tu primer año en la empresa.
-- **Después:** lo que ganas en cada año lo usas durante el año siguiente. Las horas que no uses antes de tu próximo aniversario de ingreso se pierden.
-- El calendario muestra los días del mes; los fines de semana y las fechas pasadas no se pueden reservar.
-- Toca un día disponible para reservar PTO. Vas a poder elegir **"Jornada completa (8h)"** o **"Tiempo personalizado"** (indicando las horas). Toca **"Confirmar"**.
-- Un día ya reservado se marca en el calendario y descuenta de tu balance disponible.
+**Cómo funciona** (Código de Trabajo de El Salvador, art. 177 a 180):
 
-## Si sos Administrador
+- **Cada quincena trabajada suma 5 horas** a tus horas **"Acumuladas"** (120 horas, es decir 15 días de 8 horas, por año completo).
+- Para que sean tuyas tienes que tocar **"Reclamar"**. Pasan a **"Reclamadas por habilitar"**. **Si no las reclamas antes del 31 de diciembre, se pierden** el 1 de enero.
+- Las horas reclamadas **se habilitan al cumplir tu año laboral** (tu aniversario de ingreso) y desde ese momento aparecen en **"Disponibles"**. Las horas reclamadas no vencen nunca.
+- Para que un año laboral habilite sus horas necesitas **al menos 200 días trabajados** en ese año (art. 180). Las ausencias aprobadas de día completo (enfermedad, emergencia, permisos) no cuentan como días trabajados. En la tarjeta del medio ves cuántos días llevas.
+
+**Cómo pedir vacaciones:**
+
+- **Varios días:** toca **"Solicitar vacaciones"**, elige la **fecha de inicio** y la **fecha de fin**. Antes de enviar verás cuántos días hábiles son y cuántas horas descuentan (solo cuentan de lunes a viernes, 8 horas por día). No pueden empezar en sábado ni domingo. La solicitud queda **pendiente** hasta que un administrador la apruebe, y mientras tanto ya aparta esas horas.
+- **Un solo día o unas horas:** toca un día disponible en el calendario y elige **"Jornada completa (8h)"** o **"Tiempo personalizado"**. Esta reserva se confirma al momento.
+- En el calendario, los días aprobados se marcan en color y los pendientes de aprobación en ámbar.
+
+## Si eres Administrador
 
 Además de tu propia sección de empleado, tienes tres pantallas más en el menú lateral: **Solicitudes**, **Usuarios** y **PTO**.
 
@@ -68,6 +73,7 @@ Aquí revisas y decides las solicitudes de todo el equipo. Hay pestañas: **Pend
 
 - Para aprobar una solicitud pendiente, toca **"Aprobar"**.
 - Para denegarla, toca **"Denegar"** — te va a pedir un **"Motivo del rechazo"**, que el empleado va a ver junto a su solicitud. Toca **"Denegar"** para confirmar.
+- Las **vacaciones por rango** que piden los empleados también llegan aquí (tipo **Vacaciones**, con fecha de inicio y fin). Al aprobarlas, el sistema vuelve a revisar que el empleado tenga horas suficientes; si ya no le alcanzan, te avisa y la solicitud sigue pendiente.
 
 ### Usuarios
 
