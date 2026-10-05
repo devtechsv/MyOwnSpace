@@ -6,7 +6,7 @@ Este manual no requiere conocimientos técnicos — solo explica qué hace cada 
 
 ## Ingresar al sistema
 
-1. Abre MyOwnSpace en el navegador. Vas a ver la pantalla **"Bienvenido a DevTech"**.
+1. Abre MyOwnSpace en el navegador. Vas a ver la pantalla **"Bienvenido a MyOwnSpace"**.
 2. Ingresa tu **Correo electrónico** y tu **Contraseña**, y toca **"Ingresar"**.
 
 Si tu sesión estuvo inactiva mucho tiempo, la próxima vez que hagas algo vas a ver el mensaje *"Tu sesión expiró por inactividad. Inicia sesión nuevamente para continuar."* — es normal, solo vuelve a ingresar tu correo y contraseña.
@@ -50,7 +50,10 @@ Las vacaciones **no** se piden desde este formulario — tienen su propia pantal
 
 Es tu balance de horas disponibles y el calendario para reservarlas tú mismo, sin necesidad de aprobación.
 
-- Arriba vas a ver tu **"Balance disponible"** en horas.
+- Arriba vas a ver tu **"Balance disponible"** en horas y, al lado, las horas **"En acumulación"** con la fecha desde la que vas a poder usarlas.
+- **Cómo se ganan las horas:** cada quincena trabajada suma 5 horas (120 horas, es decir 15 días, por año completo). Tu año se cuenta desde tu **fecha de ingreso**, no desde el 1 de enero.
+- **Primer año:** las horas se van acumulando pero todavía no se pueden usar. Se habilitan al cumplir tu primer año en la empresa.
+- **Después:** lo que ganas en cada año lo usas durante el año siguiente. Las horas que no uses antes de tu próximo aniversario de ingreso se pierden.
 - El calendario muestra los días del mes; los fines de semana y las fechas pasadas no se pueden reservar.
 - Toca un día disponible para reservar PTO. Vas a poder elegir **"Jornada completa (8h)"** o **"Tiempo personalizado"** (indicando las horas). Toca **"Confirmar"**.
 - Un día ya reservado se marca en el calendario y descuenta de tu balance disponible.

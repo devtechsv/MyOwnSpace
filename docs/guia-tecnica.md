@@ -59,7 +59,7 @@ No hay **D**elete ni edición del contenido de una solicitud ya creada.
 
 | Operación | Método y ruta | Rol | Servicio |
 |---|---|---|---|
-| Ver mi balance | `GET /pto/balance` | Empleado | `PtoBalanceService.CalcularBalanceAsync` |
+| Ver mi balance | `GET /pto/balance` | Empleado | `PtoBalanceService.ObtenerResumenAsync` |
 | **C**rear reserva | `POST /pto/requests` | Empleado | `PtoRequestsService.CrearAsync` |
 | **R**ead (equipo) | `GET /pto/calendario` | Administrador | `PtoRequestsService.ListarEquipoAsync` |
 
@@ -94,7 +94,7 @@ Para agregar un campo nuevo (ej. "Departamento"): entidad → migración (`dotne
 - **Modelo:** `Models/Entities/LeaveRequest.cs` (también cubre las reservas de PTO — mismo modelo, `Tipo = Vacaciones`)
 - **Configuración EF:** `Data/AppDbContext.cs`, bloque `modelBuilder.Entity<LeaveRequest>` (incluye los `CHECK` de `Tipo`/`Estado` y los índices compuestos para los listados paginados)
 - **Reglas de negocio (todo salvo Vacaciones):** `Services/Requests/RequestsService.cs`
-- **Reglas de negocio (Vacaciones):** `Services/Pto/PtoRequestsService.cs` + `PtoBalanceService`/`PtoBalanceCalculator` (cálculo de horas acumuladas)
+- **Reglas de negocio (Vacaciones):** `Services/Pto/PtoRequestsService.cs` + `PtoBalanceService`/`PtoBalanceCalculator` (cálculo de horas acumuladas). Modelo: periodos anuales por aniversario de ingreso (art. 177 del Código de Trabajo de El Salvador); 5 h por quincena (120 h por año); lo devengado en un periodo se usa en el siguiente, así que el primer año el saldo es 0 y lo no usado se pierde al cerrar el periodo. Una reserva se valida contra el saldo del periodo de **su fecha**. `GET /pto/balance` devuelve `horasDisponibles`, `horasEnAcumulacion` y `fechaProximoPeriodo`. La fórmula está duplicada en `src/lib/pto-balance-calculator.ts` (mock del frontend): mantener las dos iguales
 - **Endpoints:** `Controllers/RequestsController.cs` y `Controllers/PtoController.cs`
 - **DTOs:** `Models/Dtos/Requests/`, `Models/Dtos/Pto/`
 - **Tests:** `tests/OwnSpaceAPI.Tests/Requests/`, `tests/OwnSpaceAPI.Tests/Pto/`

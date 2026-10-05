@@ -40,41 +40,85 @@ public class PtoBalanceCalculatorTests
         Assert.Equal(0, quincenas);
     }
 
-    [Fact]
-    public void CalcularHorasAcumuladas_ConIngresoAntesDeEnero_CuentaDesdeElPrimeroDeEnero()
+    [Theory]
+    [InlineData("2026-03-09", "2025-03-10")]
+    [InlineData("2026-03-10", "2026-03-10")]
+    [InlineData("2024-05-01", "2024-03-10")]
+    public void InicioPeriodo_EsElUltimoAniversarioDeIngreso(string fecha, string esperado)
     {
-        var horas = PtoBalanceCalculator.CalcularHorasAcumuladas(
-            fechaIngreso: new DateOnly(2020, 1, 1),
-            fechaDesactivacion: null,
-            hoy: new DateOnly(2026, 1, 31));
+        var inicio = PtoBalanceCalculator.InicioPeriodo(new DateOnly(2024, 3, 10), DateOnly.Parse(fecha));
 
-        // Devengo arranca el 1-ene-2026 (no en 2020) — 2 cortes en enero.
-        Assert.Equal(10m, horas);
+        Assert.Equal(DateOnly.Parse(esperado), inicio);
     }
 
     [Fact]
-    public void CalcularHorasAcumuladas_ConIngresoAMitadDeAño_CuentaSoloDesdeElIngreso()
+    public void CalcularHorasDisponibles_DuranteElPrimerAño_Es0()
     {
-        var horas = PtoBalanceCalculator.CalcularHorasAcumuladas(
-            fechaIngreso: new DateOnly(2026, 6, 20),
+        var hoy = new DateOnly(2026, 12, 31);
+
+        var horas = PtoBalanceCalculator.CalcularHorasDisponibles(
+            fechaIngreso: new DateOnly(2026, 3, 10), fechaDesactivacion: null, fecha: hoy, hoy: hoy);
+
+        Assert.Equal(0m, horas);
+    }
+
+    [Fact]
+    public void CalcularHorasEnAcumulacion_DuranteElPrimerAño_CuentaDesdeElIngreso()
+    {
+        var horas = PtoBalanceCalculator.CalcularHorasEnAcumulacion(
+            fechaIngreso: new DateOnly(2026, 3, 10), fechaDesactivacion: null, hoy: new DateOnly(2026, 7, 31));
+
+        // Cortes en [10-mar, 31-jul]: 15 y fin de mes de mar..jul = 10.
+        Assert.Equal(50m, horas);
+    }
+
+    [Fact]
+    public void CalcularHorasDisponibles_AlCumplirElAño_Libera120HorasDelPeriodoAnterior()
+    {
+        var hoy = new DateOnly(2026, 3, 10);
+
+        var horas = PtoBalanceCalculator.CalcularHorasDisponibles(
+            fechaIngreso: new DateOnly(2025, 3, 10), fechaDesactivacion: null, fecha: hoy, hoy: hoy);
+
+        // Periodo anterior [10-mar-2025, 9-mar-2026]: 24 cortes = 15 días.
+        Assert.Equal(120m, horas);
+    }
+
+    [Fact]
+    public void CalcularHorasEnAcumulacion_AlCumplirElAño_ReiniciaParaElPeriodoSiguiente()
+    {
+        var horas = PtoBalanceCalculator.CalcularHorasEnAcumulacion(
+            fechaIngreso: new DateOnly(2025, 3, 10), fechaDesactivacion: null, hoy: new DateOnly(2026, 3, 10));
+
+        Assert.Equal(0m, horas);
+    }
+
+    [Fact]
+    public void CalcularHorasDisponibles_ParaUnaFechaDelPeriodoSiguiente_SoloCuentaLoGanadoHastaHoy()
+    {
+        // Reservar después del próximo aniversario usa lo que se está
+        // acumulando ahora, no el saldo del periodo vigente.
+        var horas = PtoBalanceCalculator.CalcularHorasDisponibles(
+            fechaIngreso: new DateOnly(2025, 3, 10),
             fechaDesactivacion: null,
+            fecha: new DateOnly(2027, 3, 15),
             hoy: new DateOnly(2026, 7, 31));
 
-        // Devengo arranca el 20-jun (no el 1-ene) — cortes dentro de
-        // [20-jun, 31-jul]: 30-jun, 15-jul, 31-jul = 3.
-        Assert.Equal(15m, horas);
+        Assert.Equal(50m, horas);
     }
 
     [Fact]
-    public void CalcularHorasAcumuladas_ConDesactivacion_NoCuentaQuincenasPosteriores()
+    public void CalcularHorasDisponibles_ConDesactivacion_NoCuentaQuincenasPosteriores()
     {
-        var horas = PtoBalanceCalculator.CalcularHorasAcumuladas(
-            fechaIngreso: new DateOnly(2020, 1, 1),
-            fechaDesactivacion: new DateOnly(2026, 1, 20),
-            hoy: new DateOnly(2026, 3, 31));
+        var hoy = new DateOnly(2026, 2, 1);
 
-        // Aunque "hoy" sea marzo, el devengo se congeló el 20-ene — solo
-        // el corte del 15-ene entra (dentro de [1-ene, 20-ene]).
+        var horas = PtoBalanceCalculator.CalcularHorasDisponibles(
+            fechaIngreso: new DateOnly(2025, 1, 1),
+            fechaDesactivacion: new DateOnly(2025, 1, 20),
+            fecha: hoy,
+            hoy: hoy);
+
+        // Del periodo anterior solo entra el corte del 15-ene-2025.
         Assert.Equal(5m, horas);
     }
 }

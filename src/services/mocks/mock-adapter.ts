@@ -18,7 +18,12 @@ import {
   ChangePasswordPayload
 } from '@/contracts/interfaces/auth';
 import { CreatePtoRequestPayload, PtoBalance } from '@/contracts/interfaces/pto';
-import { calcularHorasAcumuladas } from '@/lib/pto-balance-calculator';
+import {
+  calcularHorasDisponibles,
+  calcularHorasEnAcumulacion,
+  finPeriodoExclusivo,
+  inicioPeriodo,
+} from '@/lib/pto-balance-calculator';
 import { isPasswordValid } from '@/lib/password-rules';
 import { mockRequests, mockUsers } from './mock-data';
 
@@ -339,25 +344,44 @@ export const mockUsersAdapter = {
   },
 };
 
+// Saldo usable en el periodo por aniversario que contiene `fecha` — mismo
+// cálculo que PtoBalanceService.CalcularBalanceAsync del backend.
+function saldoDelPeriodo(employeeId: string, fecha: string, hoy: string): number {
+  const user = findUserOrThrow(employeeId);
+  const inicio = inicioPeriodo(user.fechaIngreso, fecha);
+  const finExclusivo = finPeriodoExclusivo(user.fechaIngreso, fecha);
+  const disponibles = calcularHorasDisponibles(
+    user.fechaIngreso,
+    user.fechaDesactivacion,
+    fecha,
+    hoy,
+  );
+  const consumidas = requests
+    .filter(
+      (r) =>
+        r.employeeId === employeeId &&
+        r.tipo === 'Vacaciones' &&
+        r.estado === 'Aprobada' &&
+        r.fechaInicio >= inicio &&
+        r.fechaInicio < finExclusivo,
+    )
+    .reduce((acc, r) => acc + (r.horasSolicitadas ?? 0), 0);
+  return Math.max(0, disponibles - consumidas);
+}
+
 export const mockPtoAdapter = {
   async getBalance(employeeId: string): Promise<PtoBalance> {
     const user = findUserOrThrow(employeeId);
     const hoy = new Date().toISOString().slice(0, 10);
-    const acumuladas = calcularHorasAcumuladas(
-      user.fechaIngreso,
-      user.fechaDesactivacion,
-      hoy,
-    );
-    const consumidas = requests
-      .filter(
-        (r) =>
-          r.employeeId === employeeId &&
-          r.tipo === 'Vacaciones' &&
-          r.estado === 'Aprobada' &&
-          r.fechaInicio.slice(0, 4) === hoy.slice(0, 4),
-      )
-      .reduce((acc, r) => acc + (r.horasSolicitadas ?? 0), 0);
-    return delay({ horasDisponibles: Math.max(0, acumuladas - consumidas) });
+    return delay({
+      horasDisponibles: saldoDelPeriodo(employeeId, hoy, hoy),
+      horasEnAcumulacion: calcularHorasEnAcumulacion(
+        user.fechaIngreso,
+        user.fechaDesactivacion,
+        hoy,
+      ),
+      fechaProximoPeriodo: finPeriodoExclusivo(user.fechaIngreso, hoy),
+    });
   },
 
   async create(employeeId: string, payload: CreatePtoRequestPayload): Promise<LeaveRequest> {
@@ -377,8 +401,10 @@ export const mockPtoAdapter = {
     if (yaReservado) {
       throw new Error('Ya tienes PTO reservado para esa fecha.');
     }
-    const { horasDisponibles } = await mockPtoAdapter.getBalance(employeeId);
-    if (payload.horas > horasDisponibles) {
+    // Igual que el backend: se valida contra el periodo de la fecha
+    // reservada, no contra el vigente.
+    const hoy = new Date().toISOString().slice(0, 10);
+    if (payload.horas > saldoDelPeriodo(employeeId, payload.fecha, hoy)) {
       throw new Error('No tienes balance de PTO suficiente para esa cantidad de horas.');
     }
 

@@ -43,7 +43,7 @@ public class PtoBalanceServiceTests
     };
 
     [Fact]
-    public async Task CalcularBalanceAsync_RestaLasHorasYaAprobadasEsteAño()
+    public async Task CalcularBalanceAsync_RestaLasHorasYaAprobadasEnElPeriodo()
     {
         await using var db = CreateContext();
         var user = CrearUsuario();
@@ -55,7 +55,7 @@ public class PtoBalanceServiceTests
         var service = new PtoBalanceService(db);
         var balance = await service.CalcularBalanceAsync(user.Id);
 
-        var esperado = PtoBalanceCalculator.CalcularHorasAcumuladas(user.FechaIngreso, null, hoy) - 8m;
+        var esperado = PtoBalanceCalculator.CalcularHorasDisponibles(user.FechaIngreso, null, hoy, hoy) - 8m;
         Assert.Equal(esperado, balance);
     }
 
@@ -73,25 +73,26 @@ public class PtoBalanceServiceTests
         var service = new PtoBalanceService(db);
         var balance = await service.CalcularBalanceAsync(user.Id);
 
-        var esperado = PtoBalanceCalculator.CalcularHorasAcumuladas(user.FechaIngreso, null, hoy);
+        var esperado = PtoBalanceCalculator.CalcularHorasDisponibles(user.FechaIngreso, null, hoy, hoy);
         Assert.Equal(esperado, balance);
     }
 
     [Fact]
-    public async Task CalcularBalanceAsync_IgnoraSolicitudesAprobadasDeAñosAnteriores()
+    public async Task CalcularBalanceAsync_IgnoraSolicitudesAprobadasDePeriodosAnteriores()
     {
         await using var db = CreateContext();
         var user = CrearUsuario();
         db.Users.Add(user);
         var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+        var diaAntesDelPeriodo = PtoBalanceCalculator.InicioPeriodo(user.FechaIngreso, hoy).AddDays(-1);
         db.LeaveRequests.Add(CrearSolicitudVacaciones(
-            user.Id, 8m, RequestStatus.Aprobada, new DateOnly(hoy.Year - 1, 6, 1)));
+            user.Id, 8m, RequestStatus.Aprobada, diaAntesDelPeriodo));
         await db.SaveChangesAsync();
 
         var service = new PtoBalanceService(db);
         var balance = await service.CalcularBalanceAsync(user.Id);
 
-        var esperado = PtoBalanceCalculator.CalcularHorasAcumuladas(user.FechaIngreso, null, hoy);
+        var esperado = PtoBalanceCalculator.CalcularHorasDisponibles(user.FechaIngreso, null, hoy, hoy);
         Assert.Equal(esperado, balance);
     }
 
@@ -102,7 +103,7 @@ public class PtoBalanceServiceTests
         var user = CrearUsuario();
         db.Users.Add(user);
         var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
-        var acumuladas = PtoBalanceCalculator.CalcularHorasAcumuladas(user.FechaIngreso, null, hoy);
+        var acumuladas = PtoBalanceCalculator.CalcularHorasDisponibles(user.FechaIngreso, null, hoy, hoy);
         // Consume mucho más de lo acumulado — no debería poder pasar en
         // operación normal (Fase 2 valida al crear), pero el cálculo en
         // sí tiene que quedar protegido igual.
@@ -113,6 +114,37 @@ public class PtoBalanceServiceTests
         var balance = await service.CalcularBalanceAsync(user.Id);
 
         Assert.Equal(0m, balance);
+    }
+
+    [Fact]
+    public async Task CalcularBalanceAsync_DuranteElPrimerAño_Es0()
+    {
+        await using var db = CreateContext();
+        var user = CrearUsuario();
+        user.FechaIngreso = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-6);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new PtoBalanceService(db);
+
+        Assert.Equal(0m, await service.CalcularBalanceAsync(user.Id));
+    }
+
+    [Fact]
+    public async Task ObtenerResumenAsync_DevuelveDisponibleAcumulacionYProximoPeriodo()
+    {
+        await using var db = CreateContext();
+        var user = CrearUsuario();
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var resumen = await new PtoBalanceService(db).ObtenerResumenAsync(user.Id);
+
+        // Ingreso 2020: el periodo anterior está completo (120h).
+        Assert.Equal(120m, resumen.HorasDisponibles);
+        Assert.Equal(PtoBalanceCalculator.CalcularHorasEnAcumulacion(user.FechaIngreso, null, hoy), resumen.HorasEnAcumulacion);
+        Assert.Equal(PtoBalanceCalculator.FinPeriodoExclusivo(user.FechaIngreso, hoy), resumen.FechaProximoPeriodo);
     }
 
     [Fact]

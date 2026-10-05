@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '@/hooks/useSession';
 import API from '@/services/api-services';
 import { LeaveRequest } from '@/contracts/interfaces/request';
+import { PtoBalance } from '@/contracts/interfaces/pto';
 
 export function usePto() {
   const session = useSession();
-  const [balance, setBalance] = useState(0);
+  const [balance, setBalance] = useState<PtoBalance | null>(null);
   const [reservas, setReservas] = useState<LeaveRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export function usePto() {
         API.pto.getBalance(session.userId),
         API.requests.listByEmployee(session.userId, { tipo: 'Vacaciones', page: 1, pageSize: 100 }),
       ]);
-      setBalance(balanceResult.horasDisponibles);
+      setBalance(balanceResult);
       setReservas(vacaciones.items.filter((r) => r.estado === 'Aprobada'));
     } catch {
       setError('No pudimos cargar tu PTO. Intenta de nuevo.');

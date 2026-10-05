@@ -6,7 +6,11 @@ import {
   resetMockState,
 } from './mock-adapter';
 import { mockUsers, mockRequests } from './mock-data';
-import { calcularHorasAcumuladas } from '@/lib/pto-balance-calculator';
+import {
+  calcularHorasDisponibles,
+  calcularHorasEnAcumulacion,
+  finPeriodoExclusivo,
+} from '@/lib/pto-balance-calculator';
 
 beforeEach(() => {
   resetMockState();
@@ -305,13 +309,16 @@ describe('mockUsersAdapter', () => {
 describe('mockPtoAdapter', () => {
   it('getBalance calcula el balance con la misma fórmula que el backend real', async () => {
     // u4 (Carlos Rivas) ingresó en 2024-02-01 en los fixtures — sin
-    // desactivación, sin consumo, el balance tiene que coincidir
-    // exactamente con calcularHorasAcumuladas.
-    const { horasDisponibles } = await mockPtoAdapter.getBalance('u4');
+    // desactivación ni consumo en el periodo, el balance tiene que
+    // coincidir exactamente con el calculador por aniversario.
+    const balance = await mockPtoAdapter.getBalance('u4');
     const hoy = new Date().toISOString().slice(0, 10);
-    const esperado = calcularHorasAcumuladas('2024-02-01', undefined, hoy);
 
-    expect(horasDisponibles).toBe(esperado);
+    expect(balance).toEqual({
+      horasDisponibles: calcularHorasDisponibles('2024-02-01', undefined, hoy, hoy),
+      horasEnAcumulacion: calcularHorasEnAcumulacion('2024-02-01', undefined, hoy),
+      fechaProximoPeriodo: finPeriodoExclusivo('2024-02-01', hoy),
+    });
   });
 
   it('create rechaza horas fuera de rango (0, 8]', async () => {

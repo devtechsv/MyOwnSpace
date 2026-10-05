@@ -27,8 +27,8 @@ public class PtoController : ControllerBase
     [Authorize(Roles = nameof(UserRole.Empleado))]
     public async Task<ActionResult<PtoBalanceResponse>> GetBalance()
     {
-        var balance = await _ptoBalanceService.CalcularBalanceAsync(CurrentUserId);
-        return Ok(new PtoBalanceResponse(balance));
+        var resumen = await _ptoBalanceService.ObtenerResumenAsync(CurrentUserId);
+        return Ok(new PtoBalanceResponse(resumen.HorasDisponibles, resumen.HorasEnAcumulacion, resumen.FechaProximoPeriodo));
     }
 
     [HttpPost("requests")]

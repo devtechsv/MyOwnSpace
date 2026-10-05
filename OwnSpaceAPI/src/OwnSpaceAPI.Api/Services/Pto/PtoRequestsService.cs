@@ -65,7 +65,7 @@ public sealed class PtoRequestsService : IPtoRequestsService
                 throw new ConflictException("Ya tienes PTO reservado para esa fecha.");
             }
 
-            var balanceDisponible = await _ptoBalanceService.CalcularBalanceAsync(employeeId);
+            var balanceDisponible = await _ptoBalanceService.CalcularBalanceAsync(employeeId, fecha);
             if (horas > balanceDisponible)
             {
                 throw new ConflictException("No tienes balance de PTO suficiente para esa cantidad de horas.");

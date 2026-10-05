@@ -27,7 +27,7 @@ const LoginForm = () => {
       <div className='w-full max-w-[400px] bg-surface border border-border rounded-2xl shadow-lg px-9 py-10'>
         <Image
           src='/logo.png'
-          alt='Logo DevTech'
+          alt='Logo MyOwnSpace'
           width={64}
           height={64}
           className='mx-auto mb-5'
@@ -35,7 +35,7 @@ const LoginForm = () => {
 
         <h1 className='text-center text-2xl font-bold text-foreground'>
           Bienvenido a{' '}
-          <span className='text-turquoise-blue-400'>DevTech</span>
+          <span className='text-turquoise-blue-400'>MyOwnSpace</span>
         </h1>
         <p className='text-center text-sm text-muted mt-1.5 mb-7'>
           Inicia sesión para continuar

@@ -106,6 +106,22 @@ public class PtoRequestsServiceTests
         Assert.Empty(db.LeaveRequests);
     }
 
+    [Fact]
+    public async Task CrearAsync_DuranteElPrimerAño_TiraConflictAunqueYaHayaAcumulado()
+    {
+        await using var db = CreateContext();
+        var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+        var user = CrearUsuario();
+        user.FechaIngreso = hoy.AddMonths(-6); // ~60h acumuladas, todavía bloqueadas
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new PtoRequestsService(db, new PtoBalanceService(db), new FakeEmailSender());
+
+        await Assert.ThrowsAsync<ConflictException>(() => service.CrearAsync(user.Id, hoy, 8m));
+        Assert.Empty(db.LeaveRequests);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
