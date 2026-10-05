@@ -1,5 +1,9 @@
 import apiClient from '@/services/api-client';
-import { CreatePtoRequestPayload, PtoBalance } from '@/contracts/interfaces/pto';
+import {
+  CreatePtoRequestPayload,
+  CreateVacationRequestPayload,
+  PtoBalance,
+} from '@/contracts/interfaces/pto';
 import { LeaveRequest } from '@/contracts/interfaces/request';
 
 export const httpPtoAdapter = {
@@ -12,6 +16,19 @@ export const httpPtoAdapter = {
 
   async create(_employeeId: string, payload: CreatePtoRequestPayload): Promise<LeaveRequest> {
     const { data } = await apiClient.post<LeaveRequest>('/pto/requests', payload);
+    return data;
+  },
+
+  async claim(_employeeId: string): Promise<PtoBalance> {
+    const { data } = await apiClient.post<PtoBalance>('/pto/claim');
+    return data;
+  },
+
+  async createVacationRequest(
+    _employeeId: string,
+    payload: CreateVacationRequestPayload,
+  ): Promise<LeaveRequest> {
+    const { data } = await apiClient.post<LeaveRequest>('/pto/vacation-requests', payload);
     return data;
   },
 

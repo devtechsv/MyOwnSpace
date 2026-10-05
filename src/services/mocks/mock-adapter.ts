@@ -17,9 +17,22 @@ import {
   Session,
   ChangePasswordPayload
 } from '@/contracts/interfaces/auth';
-import { CreatePtoRequestPayload, PtoBalance } from '@/contracts/interfaces/pto';
-import { calcularHorasAcumuladas } from '@/lib/pto-balance-calculator';
-import { mockRequests, mockUsers } from './mock-data';
+import {
+  CreatePtoRequestPayload,
+  CreateVacationRequestPayload,
+  PtoBalance,
+} from '@/contracts/interfaces/pto';
+import {
+  calcularEstadoPto,
+  contarDiasHabiles,
+  DIAS_TRABAJADOS_MINIMOS,
+  esDiaHabil,
+  HORAS_POR_DIA,
+  TramoReclamado,
+  tramoPendiente,
+} from '@/lib/pto-balance-calculator';
+import { isPasswordValid } from '@/lib/password-rules';
+import { mockPtoClaims, mockRequests, mockUsers } from './mock-data';
 
 // Este adaptador implementa las mismas firmas que tendrán las llamadas
 // reales en auth.api.ts / requests.api.ts / users.api.ts, con un
@@ -41,11 +54,13 @@ function clone<T>(value: T): T {
 
 let users: User[] = clone(mockUsers);
 let requests: LeaveRequest[] = clone(mockRequests);
+let ptoClaims: (TramoReclamado & { employeeId: string })[] = clone(mockPtoClaims);
 
 // Solo para tests: vuelve el estado en memoria a los fixtures originales.
 export function resetMockState(): void {
   users = clone(mockUsers);
   requests = clone(mockRequests);
+  ptoClaims = clone(mockPtoClaims);
 }
 
 function nextId(prefix: string, existing: { id: string }[]): string {
@@ -93,6 +108,13 @@ async function setRequestEstado(
     // Igual que el backend real (409): una solicitud ya revisada no se
     // puede volver a aprobar/denegar.
     throw new Error('La solicitud ya no está Pendiente.');
+  }
+  if (
+    estado === 'Aprobada' &&
+    target.tipo === 'Vacaciones' &&
+    (target.horasSolicitadas ?? 0) > disponiblePto(target.employeeId, target.id)
+  ) {
+    throw new Error('El empleado ya no tiene horas disponibles suficientes para estas vacaciones.');
   }
   target.estado = estado;
   target.reviewedBy = reviewerId;
@@ -212,7 +234,7 @@ export const mockRequestsAdapter = {
       throw new Error('La fecha de fin no puede ser anterior a la fecha de inicio.');
     }
     if (Boolean(payload.horaInicio) !== Boolean(payload.horaFin)) {
-      throw new Error('Si cargás hora de inicio, también hace falta la hora de fin (y viceversa).');
+      throw new Error('Si ingresas hora de inicio, también hace falta la hora de fin (y viceversa).');
     }
     if (
       payload.horaInicio &&
@@ -271,6 +293,11 @@ export const mockUsersAdapter = {
   },
 
   async create(payload: CreateUserPayload): Promise<User> {
+    // Igual que el backend real: una contraseña manual inválida se
+    // rechaza antes de crear nada.
+    if (payload.password !== undefined && !isPasswordValid(payload.password)) {
+      throw new Error('La contraseña no cumple los requisitos mínimos.');
+    }
     const yaExiste = users.some(
       (u) => u.correo.toLowerCase() === payload.correo.toLowerCase(),
     );
@@ -333,46 +360,99 @@ export const mockUsersAdapter = {
   },
 };
 
+function hoyIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Mismo cálculo que PtoBalanceService del backend.
+function estadoPto(employeeId: string) {
+  const user = findUserOrThrow(employeeId);
+  const ausencias = requests
+    .filter(
+      (r) =>
+        r.employeeId === employeeId &&
+        r.tipo !== 'Vacaciones' &&
+        r.estado === 'Aprobada' &&
+        !r.horaInicio,
+    )
+    .map((r) => ({ desde: r.fechaInicio, hasta: r.fechaFin }));
+  return calcularEstadoPto(
+    user.fechaIngreso,
+    user.fechaDesactivacion,
+    hoyIso(),
+    ptoClaims.filter((c) => c.employeeId === employeeId),
+    ausencias,
+  );
+}
+
+// Reclamadas y habilitadas menos vacaciones aprobadas y pendientes (las
+// pendientes apartan saldo). excluirId: al aprobar una pendiente.
+function disponiblePto(employeeId: string, excluirId?: string): number {
+  const consumidas = requests
+    .filter(
+      (r) =>
+        r.employeeId === employeeId &&
+        r.tipo === 'Vacaciones' &&
+        (r.estado === 'Aprobada' || r.estado === 'Pendiente') &&
+        r.id !== excluirId,
+    )
+    .reduce((acc, r) => acc + (r.horasSolicitadas ?? 0), 0);
+  return Math.max(0, estadoPto(employeeId).horasReclamadasHabilitadas - consumidas);
+}
+
+function hayVacacionesEn(employeeId: string, desde: string, hasta: string): boolean {
+  return requests.some(
+    (r) =>
+      r.employeeId === employeeId &&
+      r.tipo === 'Vacaciones' &&
+      (r.estado === 'Aprobada' || r.estado === 'Pendiente') &&
+      r.fechaInicio <= hasta &&
+      r.fechaFin >= desde,
+  );
+}
+
+function balance(employeeId: string): PtoBalance {
+  const estado = estadoPto(employeeId);
+  return {
+    horasDisponibles: disponiblePto(employeeId),
+    horasAcumuladas: estado.horasAcumuladas,
+    horasReclamadasBloqueadas: estado.horasReclamadasBloqueadas,
+    fechaProximaHabilitacion: estado.fechaProximaHabilitacion,
+    diasTrabajadosAnioLaboral: estado.diasTrabajadosAnioLaboral,
+    diasTrabajadosMinimos: DIAS_TRABAJADOS_MINIMOS,
+    fechaLimiteReclamo: `${hoyIso().slice(0, 4)}-12-31`,
+  };
+}
+
 export const mockPtoAdapter = {
   async getBalance(employeeId: string): Promise<PtoBalance> {
+    return delay(balance(employeeId));
+  },
+
+  async claim(employeeId: string): Promise<PtoBalance> {
     const user = findUserOrThrow(employeeId);
-    const hoy = new Date().toISOString().slice(0, 10);
-    const acumuladas = calcularHorasAcumuladas(
-      user.fechaIngreso,
-      user.fechaDesactivacion,
-      hoy,
-    );
-    const consumidas = requests
-      .filter(
-        (r) =>
-          r.employeeId === employeeId &&
-          r.tipo === 'Vacaciones' &&
-          r.estado === 'Aprobada' &&
-          r.fechaInicio.slice(0, 4) === hoy.slice(0, 4),
-      )
-      .reduce((acc, r) => acc + (r.horasSolicitadas ?? 0), 0);
-    return delay({ horasDisponibles: Math.max(0, acumuladas - consumidas) });
+    const ultimoCorte = ptoClaims
+      .filter((c) => c.employeeId === employeeId)
+      .reduce<string | null>((acc, c) => (acc === null || c.corteHasta > acc ? c.corteHasta : acc), null);
+    const tramo = tramoPendiente(user.fechaIngreso, user.fechaDesactivacion, hoyIso(), ultimoCorte);
+    if (!tramo) {
+      throw new Error('No tienes horas acumuladas para reclamar.');
+    }
+    ptoClaims = [...ptoClaims, { employeeId, ...tramo }];
+    return delay(balance(employeeId));
   },
 
   async create(employeeId: string, payload: CreatePtoRequestPayload): Promise<LeaveRequest> {
-    // Mismas 3 reglas que el backend real (PtoRequestsService.CrearAsync).
-    if (payload.horas <= 0 || payload.horas > 8) {
+    // Mismas reglas que el backend real (PtoRequestsService.CrearAsync).
+    if (payload.horas <= 0 || payload.horas > HORAS_POR_DIA) {
       throw new Error(
         'Las horas tienen que ser mayores a 0 y no pueden superar 8 (jornada completa).',
       );
     }
-    const yaReservado = requests.some(
-      (r) =>
-        r.employeeId === employeeId &&
-        r.tipo === 'Vacaciones' &&
-        r.estado === 'Aprobada' &&
-        r.fechaInicio === payload.fecha,
-    );
-    if (yaReservado) {
+    if (hayVacacionesEn(employeeId, payload.fecha, payload.fecha)) {
       throw new Error('Ya tienes PTO reservado para esa fecha.');
     }
-    const { horasDisponibles } = await mockPtoAdapter.getBalance(employeeId);
-    if (payload.horas > horasDisponibles) {
+    if (payload.horas > disponiblePto(employeeId)) {
       throw new Error('No tienes balance de PTO suficiente para esa cantidad de horas.');
     }
 
@@ -391,9 +471,51 @@ export const mockPtoAdapter = {
     return delay(clone(nueva));
   },
 
+  async createVacationRequest(
+    employeeId: string,
+    payload: CreateVacationRequestPayload,
+  ): Promise<LeaveRequest> {
+    // Mismas reglas que el backend real (PtoRequestsService.SolicitarRangoAsync).
+    const { fechaInicio, fechaFin } = payload;
+    if (fechaFin < fechaInicio) {
+      throw new Error('La fecha de fin no puede ser anterior a la fecha de inicio.');
+    }
+    if (fechaInicio < hoyIso()) {
+      throw new Error('No puedes solicitar vacaciones en fechas pasadas.');
+    }
+    if (!esDiaHabil(fechaInicio)) {
+      throw new Error('Las vacaciones no pueden iniciar en sábado ni domingo.');
+    }
+    if (hayVacacionesEn(employeeId, fechaInicio, fechaFin)) {
+      throw new Error('Ya tienes vacaciones solicitadas o reservadas en esas fechas.');
+    }
+    const horas = contarDiasHabiles(fechaInicio, fechaFin) * HORAS_POR_DIA;
+    const disponible = disponiblePto(employeeId);
+    if (horas > disponible) {
+      throw new Error(
+        `No tienes horas suficientes: necesitas ${horas}h y tienes ${disponible}h disponibles.`,
+      );
+    }
+
+    const nueva: LeaveRequest = {
+      id: nextId('r', requests),
+      employeeId,
+      tipo: 'Vacaciones',
+      fechaInicio,
+      fechaFin,
+      horasSolicitadas: horas,
+      motivo: payload.motivo?.trim() || 'Vacaciones — solicitud por rango',
+      estado: 'Pendiente',
+      createdAt: new Date().toISOString(),
+    };
+    requests = [...requests, nueva];
+    return delay(clone(nueva));
+  },
+
   async listCalendario(): Promise<LeaveRequest[]> {
     return delay(
       clone(requests.filter((r) => r.tipo === 'Vacaciones' && r.estado === 'Aprobada')),
     );
   },
 };
+

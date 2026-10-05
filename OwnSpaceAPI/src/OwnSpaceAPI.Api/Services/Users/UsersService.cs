@@ -50,8 +50,15 @@ public sealed class UsersService : IUsersService
         return new UserStats(total, activos, pendientes);
     }
 
-     public async Task<User> CreateAsync(Guid actorId, string nombre, string correo, UserRole rol, DateOnly fechaIngreso)
+     public async Task<User> CreateAsync(Guid actorId, string nombre, string correo, UserRole rol, DateOnly fechaIngreso, string? password = null)
     {
+        // Antes de tocar la base: una contraseña manual inválida no debe
+        // dejar creado un usuario a medias sin invitación.
+        if (password is not null && !PasswordRules.IsValid(password))
+        {
+            throw new BadRequestException("La contraseña no cumple los requisitos mínimos.");
+        }
+
         var correoNormalizado = correo.Trim().ToLowerInvariant();
         var yaExiste = await _db.Users.AnyAsync(u => u.Correo == correoNormalizado);
         if (yaExiste)
@@ -88,7 +95,7 @@ public sealed class UsersService : IUsersService
         {
             // La verificación AnyAsync de arriba no es atómica con el
             // insert: dos altas concurrentes con el mismo correo pueden
-            // pasar las dos la verificación y una de las dos choca acá
+            // pasar las dos la verificación y una de las dos choca aquí
             // contra el índice único — sin este catch, eso daba 500 en
             // vez del 409 que corresponde.
             throw new ConflictException("Ya existe un usuario con ese correo.");
@@ -96,8 +103,9 @@ public sealed class UsersService : IUsersService
 
         // Dispara la invitación a definir contraseña reutilizando el
         // mismo mecanismo de "olvidé mi contraseña" (Tarea 12) — mismo
-        // token de un solo uso, mismo IEmailSender.
-        await _passwordResetService.IssueTemporaryPasswordAsync(user.Correo);
+        // token de un solo uso, mismo IEmailSender. Si el admin eligió la
+        // contraseña, se usa esa como temporal en vez de generar una.
+        await _passwordResetService.IssueTemporaryPasswordAsync(user.Correo, password);
 
         return user;
     }
@@ -158,7 +166,7 @@ public sealed class UsersService : IUsersService
 
         // IssueTemporaryPasswordAsync ya se encarga de reemplazar el
         // hash, rotar el securityStamp y dejar al usuario en condiciones
-        // de loguearse — no hace falta ningún paso intermedio acá (el
+        // de loguearse — no hace falta ningún paso intermedio aquí (el
         // botón de esto en el admin solo se muestra para usuarios
         // Activo, así que nunca pisa la rama "no-op" pensada para
         // Desactivado en el flujo anónimo de forgot-password).
@@ -175,6 +183,13 @@ public sealed class UsersService : IUsersService
         // un Pendiente es seguro, ya que nunca es Activo.
         if (user.Estado == UserStatus.Pendiente || user.Estado == UserStatus.Activo)
         {
+            // Desactivarse a sí mismo cortaría la sesión en el acto. La UI
+            // ya lo bloquea; esto cubre las llamadas directas al API.
+            if (actorId == id)
+            {
+                throw new BadRequestException("No puedes desactivar tu propia cuenta.");
+            }
+
             await EnsureNotLastActiveAdminAsync(user);
 
             user.Estado = UserStatus.Desactivado;

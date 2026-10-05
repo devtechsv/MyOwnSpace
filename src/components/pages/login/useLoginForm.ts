@@ -21,6 +21,7 @@ const useLoginForm = () => {
   const {
     register,
     handleSubmit,
+    resetField,
     formState: { errors },
   } = useForm<LoginInputs>({
     resolver: zodResolver(schema),
@@ -42,6 +43,8 @@ const useLoginForm = () => {
     } catch {
       // Nunca se confirma si el correo existe o no — mensaje genérico.
       setServerError('Correo o contraseña incorrectos.');
+      // No dejar la contraseña tipeada viva en el input tras un fallo.
+      resetField('password');
       setIsSubmitting(false);
     }
   };

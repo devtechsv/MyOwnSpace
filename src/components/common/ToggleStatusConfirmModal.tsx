@@ -8,9 +8,12 @@ interface Props {
   user: User;
   onClose: () => void;
   onSuccess?: () => void;
+  // El admin logueado (fila "TÚ") no puede desactivarse: perdería la
+  // sesión en el acto. Se muestra un aviso en vez de la confirmación.
+  isSelf?: boolean;
 }
 
-export function ToggleStatusConfirmModal({ user, onClose, onSuccess }: Props) {
+export function ToggleStatusConfirmModal({ user, onClose, onSuccess, isSelf = false }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,6 +24,23 @@ export function ToggleStatusConfirmModal({ user, onClose, onSuccess }: Props) {
   const description = isActivating
     ? 'Recuperará acceso al sistema con su contraseña actual.'
     : 'Perderá acceso al sistema hasta que un administrador lo reactive.';
+
+  if (isSelf && !isActivating) {
+    const selfTitle = 'No puedes desactivar tu propia cuenta';
+    return (
+      <div role='dialog' aria-modal='true' aria-label={selfTitle} className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4'>
+        <div ref={containerRef} className='w-full max-w-[380px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8 text-center'>
+          <h2 className='text-base font-bold text-foreground mb-2'>{selfTitle}</h2>
+          <p className='text-[13px] text-muted leading-relaxed mb-6'>
+            Perderías el acceso y se cerraría tu sesión. Si necesitas desactivarla, pídeselo a otro administrador.
+          </p>
+          <Button type='button' onClick={onClose} className='w-full'>
+            Entendido
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const handleConfirm = async () => {
     setError(null);

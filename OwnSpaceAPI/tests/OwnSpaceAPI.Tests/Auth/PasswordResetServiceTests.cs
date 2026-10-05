@@ -76,6 +76,28 @@ public class PasswordResetServiceTests
     }
 
     [Fact]
+    public async Task IssueTemporaryPasswordAsync_ConTemporalIndicada_UsaEsaYLaEnviaPorCorreo()
+    {
+        await using var db = CreateContext();
+        var hasher = new PasswordHashingService();
+        var emailSender = new FakeEmailSender();
+        var user = CrearUsuario("Sofía Nuñez", "sofia.nunez@devtch.com", estado: UserStatus.Pendiente);
+        user.PasswordHash = null;
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new PasswordResetService(db, hasher, emailSender);
+        await service.IssueTemporaryPasswordAsync("sofia.nunez@devtch.com", "Manual#2026x");
+
+        var actualizado = await db.Users.SingleAsync(u => u.Id == user.Id);
+
+        Assert.Equal("Manual#2026x", ExtraerTemporal(emailSender.UltimoCuerpo!));
+        Assert.True(hasher.Verify(actualizado, actualizado.PasswordHash!, "Manual#2026x"));
+        Assert.True(actualizado.MustChangePassword);
+        Assert.Equal(UserStatus.Activo, actualizado.Estado);
+    }
+
+    [Fact]
     public async Task IssueTemporaryPasswordAsync_DejaAlUsuarioActivoConLaTemporalYMustChangePassword()
     {
         await using var db = CreateContext();

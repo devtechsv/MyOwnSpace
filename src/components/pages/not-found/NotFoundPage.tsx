@@ -11,7 +11,7 @@ const NotFoundPage = () => {
       <div className='w-full max-w-[420px] text-center'>
         <Image
           src='/logo.png'
-          alt='Logo DevTech'
+          alt='Logo MyOwnSpace'
           width={48}
           height={48}
           className='mx-auto mb-6 opacity-70'

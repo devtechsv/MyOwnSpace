@@ -139,6 +139,38 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OwnSpaceAPI.Api.Models.Entities.PtoClaim", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("CorteDesde")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("CorteHasta")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Horas")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal(6,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "CorteHasta");
+
+                    b.ToTable("PtoClaims", t =>
+                        {
+                            t.HasCheckConstraint("CK_PtoClaims_Tramo", "[CorteHasta] >= [CorteDesde]");
+                        });
+                });
+
             modelBuilder.Entity("OwnSpaceAPI.Api.Models.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -232,6 +264,17 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                     b.Navigation("Employee");
 
                     b.Navigation("Reviewer");
+                });
+
+            modelBuilder.Entity("OwnSpaceAPI.Api.Models.Entities.PtoClaim", b =>
+                {
+                    b.HasOne("OwnSpaceAPI.Api.Models.Entities.User", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("OwnSpaceAPI.Api.Models.Entities.User", b =>

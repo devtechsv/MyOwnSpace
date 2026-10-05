@@ -16,17 +16,22 @@ public sealed class PtoRequestsService : IPtoRequestsService
     // porque lo comparten los otros 4 tipos, así que se completa con un
     // texto fijo en vez de hacerlo nullable para todo el modelo.
     private const string MotivoAutoservicio = "Vacaciones — autoservicio (sin motivo)";
+    private const string MotivoRango = "Vacaciones — solicitud por rango";
 
     private readonly AppDbContext _db;
     private readonly IPtoBalanceService _ptoBalanceService;
     private readonly IEmailSender _emailSender;
+    private readonly TimeProvider _clock;
 
-    public PtoRequestsService(AppDbContext db, IPtoBalanceService ptoBalanceService, IEmailSender emailSender)
+    public PtoRequestsService(AppDbContext db, IPtoBalanceService ptoBalanceService, IEmailSender emailSender, TimeProvider clock)
     {
         _db = db;
         _ptoBalanceService = ptoBalanceService;
         _emailSender = emailSender;
+        _clock = clock;
     }
+
+    private DateOnly Hoy => DateOnly.FromDateTime(_clock.GetUtcNow().UtcDateTime);
 
     public async Task<LeaveRequest> CrearAsync(Guid employeeId, DateOnly fecha, decimal horas)
     {
@@ -55,17 +60,12 @@ public sealed class PtoRequestsService : IPtoRequestsService
         User employee;
         try
         {
-            var yaReservado = await _db.LeaveRequests.AnyAsync(r =>
-                r.EmployeeId == employeeId
-                && r.Tipo == RequestType.Vacaciones
-                && r.Estado == RequestStatus.Aprobada
-                && r.FechaInicio == fecha);
-            if (yaReservado)
+            if (await HayVacacionesEnAsync(employeeId, fecha, fecha))
             {
                 throw new ConflictException("Ya tienes PTO reservado para esa fecha.");
             }
 
-            var balanceDisponible = await _ptoBalanceService.CalcularBalanceAsync(employeeId);
+            var balanceDisponible = await _ptoBalanceService.CalcularDisponibleAsync(employeeId);
             if (horas > balanceDisponible)
             {
                 throw new ConflictException("No tienes balance de PTO suficiente para esa cantidad de horas.");
@@ -117,6 +117,87 @@ public sealed class PtoRequestsService : IPtoRequestsService
 
         return request;
     }
+
+    public async Task<LeaveRequest> SolicitarRangoAsync(Guid employeeId, DateOnly fechaInicio, DateOnly fechaFin, string? motivo)
+    {
+        if (fechaFin < fechaInicio)
+        {
+            throw new BadRequestException("La fecha de fin no puede ser anterior a la fecha de inicio.");
+        }
+        if (fechaInicio < Hoy)
+        {
+            throw new BadRequestException("No puedes solicitar vacaciones en fechas pasadas.");
+        }
+        // Art. 178: las vacaciones no pueden iniciarse en día de descanso.
+        if (!PtoBalanceCalculator.EsDiaHabil(fechaInicio))
+        {
+            throw new BadRequestException("Las vacaciones no pueden iniciar en sábado ni domingo.");
+        }
+        // Tope de cordura: evita recorrer rangos absurdos día por día.
+        if (fechaFin > fechaInicio.AddYears(1))
+        {
+            throw new BadRequestException("El rango de vacaciones no puede superar un año.");
+        }
+
+        var horas = PtoBalanceCalculator.ContarDiasHabiles(fechaInicio, fechaFin) * PtoBalanceCalculator.HorasPorDia;
+
+        // Mismo criterio Serializable que CrearAsync: el chequeo de saldo y
+        // la inserción tienen que ser atómicos.
+        using var transaction = _db.Database.IsRelational()
+            ? await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+            : null;
+
+        LeaveRequest request;
+        try
+        {
+            if (await HayVacacionesEnAsync(employeeId, fechaInicio, fechaFin))
+            {
+                throw new ConflictException("Ya tienes vacaciones solicitadas o reservadas en esas fechas.");
+            }
+
+            var disponible = await _ptoBalanceService.CalcularDisponibleAsync(employeeId);
+            if (horas > disponible)
+            {
+                throw new ConflictException($"No tienes horas suficientes: necesitas {horas:0.##}h y tienes {disponible:0.##}h disponibles.");
+            }
+
+            request = new LeaveRequest
+            {
+                Id = Guid.NewGuid(),
+                EmployeeId = employeeId,
+                Tipo = RequestType.Vacaciones,
+                FechaInicio = fechaInicio,
+                FechaFin = fechaFin,
+                HorasSolicitadas = horas,
+                Motivo = string.IsNullOrWhiteSpace(motivo) ? MotivoRango : motivo.Trim(),
+                Estado = RequestStatus.Pendiente,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            _db.LeaveRequests.Add(request);
+            await _db.SaveChangesAsync();
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync();
+            }
+        }
+        catch (Exception ex) when (EsDeadlockOTimeoutDeLock(ex))
+        {
+            throw new ConflictException("Hubo mucha actividad al mismo tiempo sobre tu PTO — inténtalo de nuevo.");
+        }
+
+        return request;
+    }
+
+    // Cualquier vacación aprobada o pendiente del empleado que se cruce con
+    // [desde, hasta] — cubre tanto reservas de un día como rangos.
+    private Task<bool> HayVacacionesEnAsync(Guid employeeId, DateOnly desde, DateOnly hasta) =>
+        _db.LeaveRequests.AnyAsync(r =>
+            r.EmployeeId == employeeId
+            && r.Tipo == RequestType.Vacaciones
+            && (r.Estado == RequestStatus.Aprobada || r.Estado == RequestStatus.Pendiente)
+            && r.FechaInicio <= hasta
+            && r.FechaFin >= desde);
 
     public async Task<List<LeaveRequest>> ListarEquipoAsync() =>
         await _db.LeaveRequests

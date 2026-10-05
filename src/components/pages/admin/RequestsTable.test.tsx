@@ -18,6 +18,25 @@ const sample: AdminRequestRow[] = [
 ];
 
 describe('RequestsTable (admin)', () => {
+  it('muestra el rango completo cuando la solicitud abarca varios días', () => {
+    render(
+      <RequestsTable
+        requests={sample}
+        isLoading={false}
+        error={null}
+        actioningId={null}
+        onApprove={jest.fn()}
+        onDeny={jest.fn()}
+      />,
+    );
+
+    // 12 y 13 de septiembre: el día exacto, sin correrse por zona horaria.
+    const formato = { day: '2-digit', month: 'short', year: 'numeric' } as const;
+    const inicio = new Date(2026, 8, 12).toLocaleDateString('es', formato);
+    const fin = new Date(2026, 8, 13).toLocaleDateString('es', formato);
+    expect(screen.getAllByText(`${inicio} – ${fin}`).length).toBeGreaterThan(0);
+  });
+
   it('muestra el estado de carga', () => {
     render(
       <RequestsTable

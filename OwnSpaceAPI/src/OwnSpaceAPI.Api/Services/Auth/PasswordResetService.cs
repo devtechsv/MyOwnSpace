@@ -18,7 +18,7 @@ public sealed class PasswordResetService : IPasswordResetService
     _emailSender = emailSender;
   }
 
-  public async Task IssueTemporaryPasswordAsync(string correo)
+  public async Task IssueTemporaryPasswordAsync(string correo, string? temporal = null)
   {
     var correoNormalizado = correo.Trim().ToLowerInvariant();
     var user = await _db.Users.FirstOrDefaultAsync(u => u.Correo == correoNormalizado);
@@ -28,14 +28,14 @@ public sealed class PasswordResetService : IPasswordResetService
       return; // nunca revela si el correo existe o si está desactivado (SPEC.md §9)
     }
 
-    var temporal = GenerateTemporaryPassword();
+    temporal ??= GenerateTemporaryPassword();
     user.PasswordHash = _passwordHasher.Hash(user, temporal);
     user.MustChangePassword = true;
     // 48h: suficiente para que llegue el fin de semana sin bloquear a
     // nadie, sin dejarla utilizable indefinidamente si nadie la usa.
     user.TempPasswordExpiresAt = DateTime.UtcNow.AddHours(48);
     // Con una contraseña temporal real ya puede loguearse — a diferencia
-    // del viejo flujo por token, acá no hace falta un paso intermedio
+    // del viejo flujo por token, aquí no hace falta un paso intermedio
     // para "terminar" la invitación.
     user.Estado = UserStatus.Activo;
     // Invalida cualquier sesión vieja, mismo criterio que un cambio de
@@ -48,7 +48,7 @@ public sealed class PasswordResetService : IPasswordResetService
         user.Correo,
         "Tu contraseña temporal — MyOwnSpace",
         $"Tu contraseña temporal es: {temporal}\n\n" +
-        "Usala para iniciar sesión — el sistema te va a pedir que definas una nueva apenas entres.");
+        "Úsala para iniciar sesión — el sistema te va a pedir que definas una nueva apenas entres.");
   }
 
   // Genera una contraseña que ya cumple PasswordRules (mayúscula,

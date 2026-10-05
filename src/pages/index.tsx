@@ -45,7 +45,7 @@ const Home: NextPage<Props> = () => {
       <div className='mb-6'>
         <h1 className='text-xl font-bold text-foreground'>Mis solicitudes</h1>
         <p className='text-sm text-muted mt-1'>
-          Consultá el estado de tus permisos y solicitudes.
+          Consulta el estado de tus permisos y solicitudes.
         </p>
       </div>
 

@@ -36,7 +36,7 @@ const ForgotPasswordForm = () => {
 
         <Image
           src='/logo.png'
-          alt='Logo DevTech'
+          alt='Logo MyOwnSpace'
           width={56}
           height={56}
           className='mx-auto mb-4'

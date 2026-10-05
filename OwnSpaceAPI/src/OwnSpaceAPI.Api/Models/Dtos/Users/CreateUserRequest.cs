@@ -10,4 +10,7 @@ public record CreateUserRequest(
     // detecta que el campo faltaba — cae en el primer valor del enum
     // (Empleado) en silencio. Con UserRole? sí lo rechaza.
     [Required] UserRole? Rol,
-    [Required] DateOnly FechaIngreso);
+    [Required] DateOnly FechaIngreso,
+    // Opcional: contraseña temporal elegida por el admin. Si falta, se
+    // genera una automáticamente (comportamiento original).
+    [MaxLength(128)] string? Password = null);

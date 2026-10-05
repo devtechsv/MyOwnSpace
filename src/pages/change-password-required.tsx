@@ -27,7 +27,7 @@ const ChangePasswordRequiredPage: NextPage<Props> = () => {
 };
 
 export const getServerSideProps: GetServerSideProps = withAuth(async (_ctx, { user }) => {
-  // Si alguien llega acá sin tener pendiente el cambio (por ejemplo,
+  // Si alguien llega aquí sin tener pendiente el cambio (por ejemplo,
   // escribiendo la URL a mano), no tiene sentido forzarlo — se lo manda
   // de vuelta a su home normal.
   if (!user.mustChangePassword) {

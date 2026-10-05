@@ -1,6 +1,10 @@
 import { mockPtoAdapter } from '@/services/mocks/mock-adapter';
 import { httpPtoAdapter } from './pto.http-adapter';
-import { CreatePtoRequestPayload, PtoBalance } from '@/contracts/interfaces/pto';
+import {
+  CreatePtoRequestPayload,
+  CreateVacationRequestPayload,
+  PtoBalance,
+} from '@/contracts/interfaces/pto';
 import { LeaveRequest } from '@/contracts/interfaces/request';
 import { USE_REAL_API } from '@/services/use-real-api';
 
@@ -17,6 +21,18 @@ async function create(
   return adapter.create(employeeId, payload);
 }
 
+// Pasa todo lo acumulado a reclamado; devuelve el balance actualizado.
+async function claim(employeeId: string): Promise<PtoBalance> {
+  return adapter.claim(employeeId);
+}
+
+async function createVacationRequest(
+  employeeId: string,
+  payload: CreateVacationRequestPayload,
+): Promise<LeaveRequest> {
+  return adapter.createVacationRequest(employeeId, payload);
+}
+
 async function listCalendario(): Promise<LeaveRequest[]> {
   return adapter.listCalendario();
 }
@@ -24,6 +40,8 @@ async function listCalendario(): Promise<LeaveRequest[]> {
 const pto = {
   getBalance,
   create,
+  claim,
+  createVacationRequest,
   listCalendario,
 };
 

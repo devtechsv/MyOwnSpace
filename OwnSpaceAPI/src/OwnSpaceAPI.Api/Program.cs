@@ -64,6 +64,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IUsersService, UsersService>();
 builder.Services.AddScoped<IRequestsService, RequestsService>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IPtoBalanceService, PtoBalanceService>();
 builder.Services.AddScoped<IPtoRequestsService, PtoRequestsService>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, NotFoundOnForbidResultHandler>();
@@ -187,7 +188,7 @@ var app = builder.Build();
 // Los valores por defecto de KnownNetworks/KnownProxies (loopback)
 // cubren nginx corriendo en la misma máquina/contenedor que la API —
 // si termina desplegado en un host o red distinta, hay que agregar esa
-// IP/red acá (o por configuración) para que se lo siga confiando.
+// IP/red aquí (o por configuración) para que se lo siga confiando.
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
   ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,

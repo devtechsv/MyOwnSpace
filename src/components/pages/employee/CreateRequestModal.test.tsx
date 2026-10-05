@@ -120,7 +120,7 @@ describe('CreateRequestModal', () => {
 
     expect(
       await screen.findByText(
-        'Si cargás una hora de inicio, también hace falta la de fin (y viceversa)',
+        'Si ingresas una hora de inicio, también hace falta la de fin (y viceversa)',
       ),
     ).toBeInTheDocument();
   });

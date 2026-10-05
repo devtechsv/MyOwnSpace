@@ -27,8 +27,25 @@ public class PtoController : ControllerBase
     [Authorize(Roles = nameof(UserRole.Empleado))]
     public async Task<ActionResult<PtoBalanceResponse>> GetBalance()
     {
-        var balance = await _ptoBalanceService.CalcularBalanceAsync(CurrentUserId);
-        return Ok(new PtoBalanceResponse(balance));
+        var resumen = await _ptoBalanceService.ObtenerResumenAsync(CurrentUserId);
+        return Ok(PtoBalanceResponse.FromResumen(resumen));
+    }
+
+    [HttpPost("claim")]
+    [Authorize(Roles = nameof(UserRole.Empleado))]
+    public async Task<ActionResult<PtoBalanceResponse>> Claim()
+    {
+        var resumen = await _ptoBalanceService.ReclamarAsync(CurrentUserId);
+        return Ok(PtoBalanceResponse.FromResumen(resumen));
+    }
+
+    [HttpPost("vacation-requests")]
+    [Authorize(Roles = nameof(UserRole.Empleado))]
+    public async Task<ActionResult<LeaveRequestResponse>> CreateVacationRequest(CreateVacationRequestRequest request)
+    {
+        var created = await _ptoRequestsService.SolicitarRangoAsync(
+            CurrentUserId, request.FechaInicio, request.FechaFin, request.Motivo);
+        return StatusCode(StatusCodes.Status201Created, LeaveRequestResponse.FromEntity(created));
     }
 
     [HttpPost("requests")]

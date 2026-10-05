@@ -32,7 +32,10 @@ export function PtoTeamTable({ rows, isLoading, error }: Props) {
         {rows.map((row) => (
           <tr key={row.id} className='border-b border-border last:border-0'>
             <td className='py-2.5 text-foreground'>{row.employeeName}</td>
-            <td className='py-2.5 text-foreground'>{row.fechaInicio}</td>
+            <td className='py-2.5 text-foreground'>
+              {row.fechaInicio}
+              {row.fechaFin !== row.fechaInicio && <> – {row.fechaFin}</>}
+            </td>
             <td className='py-2.5 text-foreground'>{row.horasSolicitadas}h</td>
           </tr>
         ))}

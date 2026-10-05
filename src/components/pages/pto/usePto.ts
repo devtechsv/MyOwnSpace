@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '@/hooks/useSession';
 import API from '@/services/api-services';
 import { LeaveRequest } from '@/contracts/interfaces/request';
+import { PtoBalance } from '@/contracts/interfaces/pto';
+import { errorMessage } from '@/helpers/error-message';
 
 export function usePto() {
   const session = useSession();
-  const [balance, setBalance] = useState(0);
+  const [balance, setBalance] = useState<PtoBalance | null>(null);
   const [reservas, setReservas] = useState<LeaveRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -17,15 +20,15 @@ export function usePto() {
     try {
       // No hay un "listar mis reservas de PTO" dedicado — se reutiliza
       // /requests/mine filtrando por tipo=Vacaciones server-side (ya
-      // paginado) y por estado=Aprobada acá (ListMineAsync no filtra por
-      // estado). pageSize generoso a propósito: ningún empleado real
-      // acumula más de 100 reservas de Vacaciones en su historial.
+      // paginado). Se muestran aprobadas y pendientes (las pendientes ya
+      // apartan saldo); las denegadas no. pageSize generoso a propósito:
+      // ningún empleado real acumula más de 100 reservas de Vacaciones.
       const [balanceResult, vacaciones] = await Promise.all([
         API.pto.getBalance(session.userId),
         API.requests.listByEmployee(session.userId, { tipo: 'Vacaciones', page: 1, pageSize: 100 }),
       ]);
-      setBalance(balanceResult.horasDisponibles);
-      setReservas(vacaciones.items.filter((r) => r.estado === 'Aprobada'));
+      setBalance(balanceResult);
+      setReservas(vacaciones.items.filter((r) => r.estado !== 'Denegada'));
     } catch {
       setError('No pudimos cargar tu PTO. Intenta de nuevo.');
     } finally {
@@ -38,5 +41,18 @@ export function usePto() {
     load();
   }, [load]);
 
-  return { balance, reservas, isLoading, error, reload: load };
+  const reclamar = useCallback(async () => {
+    if (!session) return;
+    setIsClaiming(true);
+    setError(null);
+    try {
+      setBalance(await API.pto.claim(session.userId));
+    } catch (err) {
+      setError(errorMessage(err, 'No pudimos reclamar tus horas. Intenta de nuevo.'));
+    } finally {
+      setIsClaiming(false);
+    }
+  }, [session]);
+
+  return { balance, reservas, isLoading, error, reload: load, reclamar, isClaiming };
 }

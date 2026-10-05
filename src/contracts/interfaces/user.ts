@@ -35,6 +35,8 @@ export interface CreateUserPayload {
   correo: string;
   rol: UserRole;
   fechaIngreso: string; // ISO 8601 (yyyy-mm-dd)
+  // Temporal elegida por el admin; si se omite, el backend genera una.
+  password?: string;
 }
 
 export type UpdateUserPayload = Partial<

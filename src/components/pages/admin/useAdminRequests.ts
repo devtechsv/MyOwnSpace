@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from '@/hooks/useSession';
 import API from '@/services/api-services';
+import { errorMessage } from '@/helpers/error-message';
 import {
   LeaveRequest,
   RequestStatus,
@@ -126,8 +127,10 @@ export function useAdminRequests() {
       try {
         await API.requests.approve(id, session.userId);
         await load();
-      } catch {
-        setError('No pudimos aprobar la solicitud. Intenta de nuevo.');
+      } catch (err) {
+        // P. ej. vacaciones sin saldo suficiente: el motivo del servidor
+        // es más útil que un mensaje genérico.
+        setError(errorMessage(err, 'No pudimos aprobar la solicitud. Intenta de nuevo.'));
       } finally {
         setActioningId(null);
       }

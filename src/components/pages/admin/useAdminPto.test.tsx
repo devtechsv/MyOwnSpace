@@ -1,6 +1,6 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useAdminPto } from './useAdminPto';
-import { resetMockState, mockPtoAdapter } from '@/services/mocks/mock-adapter';
+import { resetMockState, mockPtoAdapter, mockRequestsAdapter } from '@/services/mocks/mock-adapter';
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
@@ -22,6 +22,32 @@ beforeEach(() => {
 });
 
 describe('useAdminPto', () => {
+  it('un rango de vacaciones aparece también en los meses que abarca después del inicio', async () => {
+    // Solo se fija Date (el mock simula latencia con setTimeout real).
+    jest.useFakeTimers({
+      now: new Date('2026-10-28T12:00:00Z'),
+      doNotFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'nextTick', 'queueMicrotask'],
+    });
+    try {
+      // Jueves 29-oct a martes 3-nov.
+      const solicitud = await mockPtoAdapter.createVacationRequest('u4', {
+        fechaInicio: '2026-10-29',
+        fechaFin: '2026-11-03',
+      });
+      await mockRequestsAdapter.approve(solicitud.id, 'u1');
+
+      const { result } = renderHook(() => useAdminPto());
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      act(() => {
+        result.current.setMesFiltro('2026-11');
+      });
+
+      expect(result.current.rows.map((r) => r.id)).toContain(solicitud.id);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('por defecto solo muestra reservas del mes actual', async () => {
     await mockPtoAdapter.create('u3', { fecha: fechaDelMesActual(2), horas: 8 });
     await mockPtoAdapter.create('u4', { fecha: fechaDelMesAnterior(), horas: 8 });

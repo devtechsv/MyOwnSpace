@@ -4,6 +4,7 @@ using OwnSpaceAPI.Api.Models.Dtos.Common;
 using OwnSpaceAPI.Api.Models.Entities;
 using OwnSpaceAPI.Api.Services.Audit;
 using OwnSpaceAPI.Api.Services.Exceptions;
+using OwnSpaceAPI.Api.Services.Pto;
 
 namespace OwnSpaceAPI.Api.Services.Requests;
 
@@ -14,12 +15,14 @@ public sealed class RequestsService : IRequestsService
     private readonly AppDbContext _db;
     private readonly IEmailSender _emailSender;
     private readonly IAuditLogService _auditLog;
+    private readonly IPtoBalanceService _ptoBalanceService;
 
-    public RequestsService(AppDbContext db, IEmailSender emailSender, IAuditLogService auditLog)
+    public RequestsService(AppDbContext db, IEmailSender emailSender, IAuditLogService auditLog, IPtoBalanceService ptoBalanceService)
     {
         _db = db;
         _emailSender = emailSender;
         _auditLog = auditLog;
+        _ptoBalanceService = ptoBalanceService;
     }
 
     public Task<PagedResult<LeaveRequest>> ListMineAsync(
@@ -33,7 +36,7 @@ public sealed class RequestsService : IRequestsService
     }
 
     // Ordena ascendente a propósito (más vieja primero) — a diferencia
-    // de ListAllAsync, acá el objetivo es que el admin atienda primero
+    // de ListAllAsync, aquí el objetivo es que el admin atienda primero
     // lo que lleva más tiempo pendiente, no lo más reciente.
     public Task<PagedResult<LeaveRequest>> ListPendingAsync(
         RequestType? tipo, DateOnly? fecha, string? nombre, int page, int pageSize)
@@ -137,7 +140,7 @@ public sealed class RequestsService : IRequestsService
 
         if (horaInicio.HasValue != horaFin.HasValue)
         {
-            throw new BadRequestException("Si cargás hora de inicio, también hace falta la hora de fin (y viceversa).");
+            throw new BadRequestException("Si ingresas hora de inicio, también hace falta la hora de fin (y viceversa).");
         }
 
         // Comparar horas solo tiene sentido dentro del mismo día — en un
@@ -184,6 +187,18 @@ public sealed class RequestsService : IRequestsService
         if (request.Estado != RequestStatus.Pendiente)
         {
             throw new ConflictException("La solicitud ya no está Pendiente.");
+        }
+
+        // Vacaciones por rango: el saldo pudo cambiar desde que se pidió
+        // (otra reserva aprobada mientras tanto). Se excluye la propia
+        // solicitud, que como pendiente ya estaba apartando su saldo.
+        if (nuevoEstado == RequestStatus.Aprobada && request.Tipo == RequestType.Vacaciones)
+        {
+            var disponible = await _ptoBalanceService.CalcularDisponibleAsync(request.EmployeeId, excluirSolicitudId: request.Id);
+            if ((request.HorasSolicitadas ?? 0) > disponible)
+            {
+                throw new ConflictException("El empleado ya no tiene horas disponibles suficientes para estas vacaciones.");
+            }
         }
 
         request.Estado = nuevoEstado;

@@ -42,11 +42,11 @@ public class UsersController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<UserResponse>> Create(CreateUserRequest request)
     {
-        // request.Rol no puede ser null acá: [Required] + la validación
+        // request.Rol no puede ser null aquí: [Required] + la validación
         // de modelo automática de [ApiController] ya rechazó la request
         // con 400 antes de que este método se ejecute si faltaba.
         var user = await _usersService.CreateAsync(
-            CurrentUserId, request.Nombre, request.Correo, request.Rol!.Value, request.FechaIngreso);
+            CurrentUserId, request.Nombre, request.Correo, request.Rol!.Value, request.FechaIngreso, request.Password);
         return StatusCode(StatusCodes.Status201Created, UserResponse.FromEntity(user));
     }
 

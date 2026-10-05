@@ -15,7 +15,7 @@ export type { SessionCheckResult };
 // Mientras coexisten mock y backend real: en modo mock, la sesión viaja
 // como JSON (con su propio expiresAt) en la cookie — ver
 // session-cookie.ts y auth.api.ts -> login(). En modo real, el JWT es
-// opaco: no hay nada que decodificar acá, la única forma de saber si
+// opaco: no hay nada que decodificar aquí, la única forma de saber si
 // sigue siendo válido es preguntarle al backend.
 
 const refreshSession = async (
