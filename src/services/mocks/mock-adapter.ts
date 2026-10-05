@@ -19,6 +19,7 @@ import {
 } from '@/contracts/interfaces/auth';
 import { CreatePtoRequestPayload, PtoBalance } from '@/contracts/interfaces/pto';
 import { calcularHorasAcumuladas } from '@/lib/pto-balance-calculator';
+import { isPasswordValid } from '@/lib/password-rules';
 import { mockRequests, mockUsers } from './mock-data';
 
 // Este adaptador implementa las mismas firmas que tendrán las llamadas
@@ -212,7 +213,7 @@ export const mockRequestsAdapter = {
       throw new Error('La fecha de fin no puede ser anterior a la fecha de inicio.');
     }
     if (Boolean(payload.horaInicio) !== Boolean(payload.horaFin)) {
-      throw new Error('Si cargás hora de inicio, también hace falta la hora de fin (y viceversa).');
+      throw new Error('Si ingresas hora de inicio, también hace falta la hora de fin (y viceversa).');
     }
     if (
       payload.horaInicio &&
@@ -271,6 +272,11 @@ export const mockUsersAdapter = {
   },
 
   async create(payload: CreateUserPayload): Promise<User> {
+    // Igual que el backend real: una contraseña manual inválida se
+    // rechaza antes de crear nada.
+    if (payload.password !== undefined && !isPasswordValid(payload.password)) {
+      throw new Error('La contraseña no cumple los requisitos mínimos.');
+    }
     const yaExiste = users.some(
       (u) => u.correo.toLowerCase() === payload.correo.toLowerCase(),
     );

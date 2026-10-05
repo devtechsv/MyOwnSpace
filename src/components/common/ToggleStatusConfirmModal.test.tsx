@@ -67,4 +67,18 @@ describe('ToggleStatusConfirmModal', () => {
     expect(props.onClose).toHaveBeenCalled();
     expect(props.onSuccess).not.toHaveBeenCalled();
   });
+
+  it('si es el propio admin logueado, avisa que no puede desactivarse y no cambia el estado', async () => {
+    const props = renderModal(activo, { isSelf: true });
+
+    expect(screen.getByText('No puedes desactivar tu propia cuenta')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /sí, desactivar/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /entendido/i }));
+
+    expect(props.onClose).toHaveBeenCalled();
+    expect(props.onSuccess).not.toHaveBeenCalled();
+    const usuarios = await mockUsersAdapter.list(1, 20);
+    expect(usuarios.items.find((u) => u.id === 'u1')?.estado).toBe('Activo');
+  });
 });

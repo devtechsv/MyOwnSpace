@@ -30,7 +30,7 @@ const AdminUsersPage: NextPage<Props> = () => {
         <div>
           <h1 className='text-xl font-bold text-foreground'>Usuarios</h1>
           <p className='text-sm text-muted mt-1'>
-            Administrá las cuentas del equipo de DevTech.
+            Administra las cuentas del equipo de DevTech.
           </p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>Crear usuario</Button>
@@ -111,6 +111,7 @@ const AdminUsersPage: NextPage<Props> = () => {
       {togglingUser && (
         <ToggleStatusConfirmModal
           user={togglingUser}
+          isSelf={togglingUser.id === session?.userId}
           onClose={() => setTogglingUser(null)}
           onSuccess={reload}
         />

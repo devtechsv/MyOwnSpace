@@ -18,7 +18,7 @@ const PtoPage: NextPage<Props> = () => {
       <div className='mb-6'>
         <h1 className='text-xl font-bold text-foreground'>Mi PTO</h1>
         <p className='text-sm text-muted mt-1'>
-          Consultá tu balance y reservá días u horas libres.
+          Consulta tu balance y reserva días u horas libres.
         </p>
       </div>
 

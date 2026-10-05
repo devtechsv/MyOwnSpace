@@ -4,6 +4,11 @@ Herramienta interna de DevTech para gestionar solicitudes de permiso (empleado) 
 
 Este repo contiene el **frontend** (Next.js 16 + TypeScript, Pages Router) y, en `OwnSpaceAPI/`, el **backend** (.NET 8 + Entity Framework Core + SQL Server). El frontend puede correr contra el backend real o contra una capa de mocks tipada (`src/services/mocks/`), útil para desarrollar sin tener la API ni SQL Server levantados. Ver `SPEC.md` para el alcance y las reglas de negocio, y `tasks/plan.md` / `tasks/todo.md` para el detalle de implementación.
 
+## Documentación
+
+- [`docs/manual-usuario.md`](docs/manual-usuario.md) — cómo usar la aplicación, para el usuario final (sin nada técnico).
+- [`docs/guia-tecnica.md`](docs/guia-tecnica.md) — referencia de endpoints (CRUD) y guía de dónde tocar el código para mantener o extender cada entidad.
+
 ## Requisitos
 
 - [Node.js 20.9+](https://nodejs.org/) y npm

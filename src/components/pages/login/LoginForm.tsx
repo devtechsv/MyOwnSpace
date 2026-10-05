@@ -4,6 +4,7 @@ import useLoginForm from './useLoginForm';
 import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/common/form/TextInput';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { FullscreenToggle } from '@/components/layout/FullscreenToggle';
 
 const LoginForm = () => {
   const {
@@ -18,7 +19,10 @@ const LoginForm = () => {
 
   return (
     <section className='min-h-screen relative bg-background px-5 grid place-content-center'>
-      <ThemeToggle className='absolute top-6 right-6' />
+      <div className='absolute top-6 right-6 flex gap-2'>
+        <FullscreenToggle />
+        <ThemeToggle />
+      </div>
 
       <div className='w-full max-w-[400px] bg-surface border border-border rounded-2xl shadow-lg px-9 py-10'>
         <Image
@@ -34,7 +38,7 @@ const LoginForm = () => {
           <span className='text-turquoise-blue-400'>DevTech</span>
         </h1>
         <p className='text-center text-sm text-muted mt-1.5 mb-7'>
-          Iniciá sesión para continuar
+          Inicia sesión para continuar
         </p>
 
         {sessionExpired && (
@@ -54,7 +58,7 @@ const LoginForm = () => {
               <polyline points='12 6 12 12 16 14' />
             </svg>
             <span className='text-[12.5px] leading-relaxed text-amber-800 dark:text-amber-300'>
-              Tu sesión expiró por inactividad. Iniciá sesión nuevamente
+              Tu sesión expiró por inactividad. Inicia sesión nuevamente
               para continuar.
             </span>
           </div>

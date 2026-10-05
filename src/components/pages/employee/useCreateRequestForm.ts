@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { useSession } from '@/hooks/useSession';
 import API from '@/services/api-services';
 
-// 'Vacaciones' no vive acá — tiene su propio flujo de autoservicio
+// 'Vacaciones' no vive aquí — tiene su propio flujo de autoservicio
 // (módulo de PTO, ver src/pages/pto.tsx) sin Motivo ni aprobación de
 // admin, estructuralmente distinto de estos 4 tipos.
 const TIPOS = ['Emergencia', 'Enfermedad', 'Permiso personal', 'Otro'] as const;
@@ -25,7 +25,7 @@ const schema = z
     path: ['fechaFin'],
   })
   .refine((data) => Boolean(data.horaInicio) === Boolean(data.horaFin), {
-    message: 'Si cargás una hora de inicio, también hace falta la de fin (y viceversa)',
+    message: 'Si ingresas una hora de inicio, también hace falta la de fin (y viceversa)',
     path: ['horaFin'],
   })
   .refine(

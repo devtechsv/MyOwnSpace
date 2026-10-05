@@ -4,6 +4,7 @@ import { useLogout } from '@/hooks/useLogout';
 import { useSession } from '@/hooks/useSession';
 import { getInitials } from '@/helpers/get-initials';
 import { ThemeToggle } from './ThemeToggle';
+import { FullscreenToggle } from './FullscreenToggle';
 import { ChangePasswordModal } from '@/components/common/ChangePasswordModal';
 
 interface Props {
@@ -62,6 +63,7 @@ export function Topbar({ onMenuClick }: Props = {}) {
       </div>
 
       <div className='flex items-center gap-2 sm:gap-4 relative' ref={menuRef}>
+        <FullscreenToggle />
         <ThemeToggle />
 
         <div className='hidden sm:block w-px h-6 bg-border' aria-hidden='true' />

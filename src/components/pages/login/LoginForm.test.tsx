@@ -77,6 +77,17 @@ describe('LoginForm', () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
+  it('tras un login fallido limpia la contraseña y nunca la expone como atributo value', async () => {
+    render(<LoginForm />);
+
+    fillAndSubmit('no-existe@devtch.com', 'secreta123');
+
+    await screen.findByText('Correo o contraseña incorrectos.');
+    const password = screen.getByLabelText('Contraseña') as HTMLInputElement;
+    expect(password.value).toBe('');
+    expect(password.hasAttribute('value')).toBe(false);
+  });
+
   it('un usuario desactivado tampoco puede iniciar sesión', async () => {
     render(<LoginForm />);
 

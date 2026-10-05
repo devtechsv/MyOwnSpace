@@ -20,10 +20,12 @@ public class UsersServiceTests
     private sealed class FakePasswordResetService : IPasswordResetService
     {
         public string? UltimoCorreoInvitado { get; private set; }
+        public string? UltimaTemporalIndicada { get; private set; }
 
-        public Task IssueTemporaryPasswordAsync(string correo)
+        public Task IssueTemporaryPasswordAsync(string correo, string? temporal = null)
         {
             UltimoCorreoInvitado = correo;
+            UltimaTemporalIndicada = temporal;
             return Task.CompletedTask;
         }
     }
@@ -63,6 +65,45 @@ public class UsersServiceTests
         Assert.Equal(UserStatus.Pendiente, user.Estado);
         Assert.Null(user.PasswordHash);
         Assert.Equal("nuevo@devtch.com", passwordResetService.UltimoCorreoInvitado);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ConContraseñaManual_LaUsaComoTemporalDeLaInvitacion()
+    {
+        await using var db = CreateContext();
+        var passwordResetService = new FakePasswordResetService();
+        var service = new UsersService(db, passwordResetService, new AuditLogService(db));
+
+        await service.CreateAsync(ActorId, "Nuevo Empleado", "nuevo@devtch.com", UserRole.Empleado, new DateOnly(2026, 1, 1), "Manual#2026x");
+
+        Assert.Equal("nuevo@devtch.com", passwordResetService.UltimoCorreoInvitado);
+        Assert.Equal("Manual#2026x", passwordResetService.UltimaTemporalIndicada);
+    }
+
+    [Fact]
+    public async Task CreateAsync_SinContraseñaManual_DejaQueSeGenereAutomaticamente()
+    {
+        await using var db = CreateContext();
+        var passwordResetService = new FakePasswordResetService();
+        var service = new UsersService(db, passwordResetService, new AuditLogService(db));
+
+        await service.CreateAsync(ActorId, "Nuevo Empleado", "nuevo@devtch.com", UserRole.Empleado, new DateOnly(2026, 1, 1));
+
+        Assert.Null(passwordResetService.UltimaTemporalIndicada);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ConContraseñaManualQueNoCumpleLasReglas_TiraBadRequestYNoCreaNada()
+    {
+        await using var db = CreateContext();
+        var passwordResetService = new FakePasswordResetService();
+        var service = new UsersService(db, passwordResetService, new AuditLogService(db));
+
+        await Assert.ThrowsAsync<BadRequestException>(
+            () => service.CreateAsync(ActorId, "Nuevo Empleado", "nuevo@devtch.com", UserRole.Empleado, new DateOnly(2026, 1, 1), "corta"));
+
+        Assert.False(await db.Users.AnyAsync());
+        Assert.Null(passwordResetService.UltimoCorreoInvitado);
     }
 
     [Fact]
@@ -153,7 +194,7 @@ public class UsersServiceTests
     {
         // El "dejar Pendiente"/setear el hash ya no lo hace UsersService
         // — lo delega por completo a IssueTemporaryPasswordAsync (probado
-        // en PasswordResetServiceTests.cs). Acá solo importa que se
+        // en PasswordResetServiceTests.cs). Aquí solo importa que se
         // dispare para el correo correcto.
         await using var db = CreateContext();
         var user = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com", estado: UserStatus.Activo);
@@ -188,6 +229,27 @@ public class UsersServiceTests
         var actualizado = await service.ToggleStatusAsync(ActorId, user.Id);
 
         Assert.Equal(UserStatus.Desactivado, actualizado.Estado);
+    }
+
+    [Fact]
+    public async Task ToggleStatusAsync_AdminDesactivandoseASiMismo_LanzaBadRequestYNoCambiaNada()
+    {
+        await using var db = CreateContext();
+        // Hay otro admin activo, así que la regla del "último admin" no
+        // aplica: el rechazo tiene que venir de la regla de autodesactivación.
+        var yo = CrearUsuario("Julio Pérez", "julio.perez@devtch.com", rol: UserRole.Administrador);
+        var otroAdmin = CrearUsuario("Laura Díaz", "laura.diaz@devtch.com", rol: UserRole.Administrador);
+        db.Users.AddRange(yo, otroAdmin);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+
+        await Assert.ThrowsAsync<BadRequestException>(
+            () => service.ToggleStatusAsync(yo.Id, yo.Id));
+
+        var recargado = await db.Users.FindAsync(yo.Id);
+        Assert.Equal(UserStatus.Activo, recargado!.Estado);
+        Assert.Null(recargado.FechaDesactivacion);
     }
 
     [Fact]

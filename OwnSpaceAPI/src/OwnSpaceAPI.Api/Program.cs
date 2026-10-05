@@ -187,7 +187,7 @@ var app = builder.Build();
 // Los valores por defecto de KnownNetworks/KnownProxies (loopback)
 // cubren nginx corriendo en la misma máquina/contenedor que la API —
 // si termina desplegado en un host o red distinta, hay que agregar esa
-// IP/red acá (o por configuración) para que se lo siga confiando.
+// IP/red aquí (o por configuración) para que se lo siga confiando.
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
   ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,

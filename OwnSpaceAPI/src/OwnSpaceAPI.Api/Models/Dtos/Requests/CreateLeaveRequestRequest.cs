@@ -13,7 +13,7 @@ public record CreateLeaveRequestRequest(
     [Required] DateOnly FechaFin,
     // Opcionales — una solicitud sin hora sigue siendo de día completo,
     // igual que antes de agregar este campo. La regla de "van juntas o
-    // ninguna" se valida en RequestsService, no acá (no es un chequeo de
+    // ninguna" se valida en RequestsService, no aquí (no es un chequeo de
     // formato de un solo campo).
     [property: JsonConverter(typeof(TimeOnlyJsonConverter))] TimeOnly? HoraInicio,
     [property: JsonConverter(typeof(TimeOnlyJsonConverter))] TimeOnly? HoraFin,

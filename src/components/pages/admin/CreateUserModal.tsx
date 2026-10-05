@@ -3,6 +3,8 @@ import { TextInput } from '@/components/common/form/TextInput';
 import { Select } from '@/components/common/form/Select';
 import { useCreateUserForm } from './useCreateUserForm';
 import { useModalAlly } from '@/hooks/useModalAlly';
+import { evaluatePasswordRules } from '@/lib/password-rules';
+import { cx } from '@/helpers/cx';
 
 interface Props {
   isOpen: boolean;
@@ -16,8 +18,15 @@ const ROL_OPTIONS = [
 ];
 
 export function CreateUserModal({ isOpen, onClose, onCreated }: Props) {
-  const { register, handleSubmit, onSubmit, errors, isSubmitting } =
-    useCreateUserForm({
+  const {
+    register,
+    handleSubmit,
+    onSubmit,
+    errors,
+    isSubmitting,
+    generarAutomatica,
+    password,
+  } = useCreateUserForm({
       onSuccess: () => {
         onCreated?.();
         onClose();
@@ -91,6 +100,42 @@ export function CreateUserModal({ isOpen, onClose, onCreated }: Props) {
             {...register('fechaIngreso')}
           />
 
+          <label className='flex items-center gap-2.5 text-sm text-foreground cursor-pointer select-none'>
+            <input
+              type='checkbox'
+              className='w-4 h-4 accent-turquoise-blue-500'
+              {...register('generarAutomatica')}
+            />
+            Generar contraseña automáticamente
+          </label>
+
+          {/* Desmontado (no solo oculto) cuando se genera automática: así
+              no queda un campo de contraseña inaccesible en el DOM. */}
+          {!generarAutomatica && (
+            <>
+              <TextInput
+                label='Contraseña temporal'
+                type='password'
+                autoComplete='new-password'
+                error={errors.password?.message}
+                {...register('password')}
+              />
+              <div className='flex flex-col gap-2 p-3.5 rounded-xl bg-surface-field'>
+                <span className='text-[11px] font-semibold text-muted uppercase tracking-wide mb-0.5'>
+                  La contraseña debe tener
+                </span>
+                {evaluatePasswordRules(password).map((req) => (
+                  <span
+                    key={req.id}
+                    className={cx('text-[13px]', req.met ? 'text-foreground' : 'text-muted')}
+                  >
+                    {req.met ? '✓' : '○'} {req.label}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+
           <div className='flex gap-2.5 p-3.5 rounded-xl bg-turquoise-blue-50 dark:bg-turquoise-blue-950/20'>
             <svg
               width='16'
@@ -108,8 +153,9 @@ export function CreateUserModal({ isOpen, onClose, onCreated }: Props) {
               <line x1='12' y1='8' x2='12.01' y2='8' />
             </svg>
             <span className='text-xs leading-relaxed text-foreground'>
-              El usuario recibirá una contraseña temporal por correo y
-              deberá cambiarla al iniciar sesión por primera vez.
+              {generarAutomatica
+                ? 'El usuario recibirá una contraseña temporal generada automáticamente por correo y deberá cambiarla al iniciar sesión por primera vez.'
+                : 'El usuario recibirá esta contraseña por correo como temporal y deberá cambiarla al iniciar sesión por primera vez.'}
             </span>
           </div>
 

@@ -33,7 +33,7 @@ public sealed class RequestsService : IRequestsService
     }
 
     // Ordena ascendente a propósito (más vieja primero) — a diferencia
-    // de ListAllAsync, acá el objetivo es que el admin atienda primero
+    // de ListAllAsync, aquí el objetivo es que el admin atienda primero
     // lo que lleva más tiempo pendiente, no lo más reciente.
     public Task<PagedResult<LeaveRequest>> ListPendingAsync(
         RequestType? tipo, DateOnly? fecha, string? nombre, int page, int pageSize)
@@ -137,7 +137,7 @@ public sealed class RequestsService : IRequestsService
 
         if (horaInicio.HasValue != horaFin.HasValue)
         {
-            throw new BadRequestException("Si cargás hora de inicio, también hace falta la hora de fin (y viceversa).");
+            throw new BadRequestException("Si ingresas hora de inicio, también hace falta la hora de fin (y viceversa).");
         }
 
         // Comparar horas solo tiene sentido dentro del mismo día — en un

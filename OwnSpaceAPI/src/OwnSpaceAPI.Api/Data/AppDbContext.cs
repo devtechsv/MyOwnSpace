@@ -50,7 +50,7 @@ public class AppDbContext : DbContext
       entity.Property(r => r.HorasSolicitadas).HasPrecision(5, 2);
       entity.Property(r => r.MotivoRechazo).HasMaxLength(1000);
       // "Permiso personal" tiene espacio — el enum de C# no puede
-      // llamarse así (es PermisoPersonal), así que acá se traduce a
+      // llamarse así (es PermisoPersonal), así que aquí se traduce a
       // mano en vez de usar HasConversion<string>() genérico.
 
       entity.Property(r => r.Tipo)

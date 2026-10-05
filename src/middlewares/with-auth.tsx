@@ -39,7 +39,7 @@ function withSessionProp<P extends { [key: string]: any }>(
 // visitante puede no tener sesión (`user` nullable — hay que chequearlo
 // antes de usarlo, como ya hacen login/forgot-password); en una página
 // protegida, si `fn` llega a ejecutarse es porque ya hay sesión válida
-// (`user` nunca null acá).
+// (`user` nunca null aquí).
 export function withAuth<P extends { [key: string]: any }>(
   fn: (
     ctx: GetServerSidePropsContext,
@@ -112,7 +112,7 @@ export function withAuth<P extends { [key: string]: any }>(
       return { notFound: true };
     }
 
-    // Chequeo único acá (en vez de en cada página): con una contraseña
+    // Chequeo único aquí (en vez de en cada página): con una contraseña
     // temporal sin cambiar, cualquier página protegida redirige a
     // /change-password-required — excepto esa misma página, para no
     // entrar en loop.

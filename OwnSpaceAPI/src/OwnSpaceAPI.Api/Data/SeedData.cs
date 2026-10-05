@@ -16,7 +16,7 @@ public static class SeedData
     // toca nada si ya hay un Admin: Seed:AdminPassword solo importa la
     // primera vez que corre contra una base vacía. El resto de los
     // usuarios se crean después desde el panel de Admin
-    // (UsersService.CreateAsync), no acá.
+    // (UsersService.CreateAsync), no aquí.
     public static async Task SeedAdminAsync(
         AppDbContext context,
         IPasswordHashingService hasher,
@@ -32,9 +32,9 @@ public static class SeedData
         if (string.IsNullOrWhiteSpace(password))
         {
             logger.LogWarning(
-                "No se configuró {Key} — no se sembró un Administrador inicial. Configuralo " +
+                "No se configuró {Key} — no se sembró un Administrador inicial. Configúralo " +
                 "(appsettings.Development.json en desarrollo, o la variable de entorno " +
-                "Seed__AdminPassword en producción) y reiniciá la aplicación.",
+                "Seed__AdminPassword en producción) y reinicia la aplicación.",
                 ConfigAdminPasswordKey);
             return;
         }

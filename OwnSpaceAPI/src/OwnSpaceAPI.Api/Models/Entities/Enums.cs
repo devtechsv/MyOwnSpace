@@ -43,7 +43,7 @@ public sealed class RequestTypeJsonConverter : JsonConverter<RequestType>
             return RequestType.PermisoPersonal;
         }
 
-        // TryParse en vez de Parse: un valor inválido acá antes tiraba
+        // TryParse en vez de Parse: un valor inválido aquí antes tiraba
         // ArgumentException, que el formatter de entrada no reconoce
         // como error de deserialización — terminaba como 500 en vez de
         // 400. JsonException sí la reconoce automáticamente.
@@ -92,7 +92,7 @@ public enum AuditEntityType
 // acepta el formato ISO completo "HH:mm:ss" — un <input type="time"> de
 // HTML manda "HH:mm" (sin segundos), que el converter default rechaza
 // con 400. TimeOnly.TryParse es más permisivo (acepta ambos), así que
-// se usa acá en vez de confiar en el converter implícito.
+// se usa aquí en vez de confiar en el converter implícito.
 public sealed class TimeOnlyJsonConverter : JsonConverter<TimeOnly>
 {
     private const string Format = "HH\\:mm";

@@ -99,6 +99,59 @@ describe('CreateUserModal', () => {
     expect(nuevo?.rol).toBe('Empleado');
   });
 
+  it('por defecto genera la contraseña automáticamente y no muestra el campo', async () => {
+    const createSpy = jest.spyOn(mockUsersAdapter, 'create');
+    const props = renderModal();
+
+    expect(
+      screen.getByRole('checkbox', { name: /generar contraseña automáticamente/i }),
+    ).toBeChecked();
+    expect(screen.queryByLabelText('Contraseña temporal')).not.toBeInTheDocument();
+
+    fillValidForm();
+    fireEvent.click(screen.getByRole('button', { name: /crear usuario/i }));
+
+    await waitFor(() => expect(props.onCreated).toHaveBeenCalled());
+    expect(createSpy.mock.calls[0][0]).not.toHaveProperty('password');
+    createSpy.mockRestore();
+  });
+
+  it('al desmarcar la casilla, permite escribir una contraseña manual y la envía', async () => {
+    const createSpy = jest.spyOn(mockUsersAdapter, 'create');
+    const props = renderModal();
+
+    fillValidForm();
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: /generar contraseña automáticamente/i }),
+    );
+    fireEvent.change(screen.getByLabelText('Contraseña temporal'), {
+      target: { value: 'Manual#2026x' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /crear usuario/i }));
+
+    await waitFor(() => expect(props.onCreated).toHaveBeenCalled());
+    expect(createSpy.mock.calls[0][0]).toMatchObject({ password: 'Manual#2026x' });
+    createSpy.mockRestore();
+  });
+
+  it('con una contraseña manual que no cumple las reglas, no crea el usuario', async () => {
+    const props = renderModal();
+
+    fillValidForm();
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: /generar contraseña automáticamente/i }),
+    );
+    fireEvent.change(screen.getByLabelText('Contraseña temporal'), {
+      target: { value: 'corta' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /crear usuario/i }));
+
+    expect(
+      await screen.findByText('La contraseña no cumple los requisitos mínimos'),
+    ).toBeInTheDocument();
+    expect(props.onCreated).not.toHaveBeenCalled();
+  });
+
   it('"Cancelar" cierra el modal sin crear nada', async () => {
     const before = await mockUsersAdapter.list(1, 20);
     const props = renderModal();

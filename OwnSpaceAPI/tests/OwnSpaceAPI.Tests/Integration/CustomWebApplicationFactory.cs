@@ -36,7 +36,7 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         // más abajo, reemplaza el DbContext entero por InMemory.
         builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=(local);Database=Ignored;Trusted_Connection=True;");
         // Mismo motivo que ConnectionStrings arriba: Program.cs lee esto
-        // sincrónicamente antes de Build(), así que tiene que ir acá
+        // sincrónicamente antes de Build(), así que tiene que ir aquí
         // (UseSetting) y no en ConfigureAppConfiguration.
         builder.UseSetting("Resend:ApiKey", "test-key-de-integracion");
         builder.UseSetting("Resend:FromAddress", "test@example.com");

@@ -4,7 +4,7 @@ import { LeaveRequest } from '@/contracts/interfaces/request';
 import { User } from '@/contracts/interfaces/user';
 import { getInitials } from '@/helpers/get-initials';
 
-// GET /users está paginado, pero acá se necesita a TODO el mundo (para
+// GET /users está paginado, pero aquí se necesita a TODO el mundo (para
 // resolver nombre por id de cualquier solicitud del calendario, sin
 // importar en qué página quedaría ese usuario) — pagina en secuencia
 // hasta juntarlos todos, en vez de pedir una sola página gigante.
@@ -76,7 +76,7 @@ export function useAdminPto() {
   }, [load]);
 
   // setPage(1) al cambiar cualquier filtro, para no quedar en una página
-  // que dejó de existir — se hace acá (no en un efecto aparte) para no
+  // que dejó de existir — se hace aquí (no en un efecto aparte) para no
   // sumar otro fetch-en-efecto solo para resetear un número.
   const updateNombreQuery = useCallback((value: string) => {
     setNombreQuery(value);

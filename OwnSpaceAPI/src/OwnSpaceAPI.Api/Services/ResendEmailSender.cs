@@ -12,7 +12,7 @@ public sealed class ResendOptions
 
 // Envío real vía la API HTTP de Resend (https://resend.com/docs/api-reference/emails/send-email).
 // En modo sandbox (sin dominio verificado), Resend solo entrega al
-// correo con el que se registró la cuenta — un 4xx acá no siempre es un
+// correo con el que se registró la cuenta — un 4xx aquí no siempre es un
 // bug propio, puede ser esa restricción.
 public sealed class ResendEmailSender : IEmailSender
 {

@@ -53,7 +53,7 @@ export function DenyRequestModal({ request, onClose, onConfirm }: Props) {
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
           className='w-full mt-1.5 px-3.5 py-3 border border-border rounded-[10px] bg-surface-field text-sm text-foreground focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40 resize-none'
-          placeholder='Explicá brevemente por qué se deniega...'
+          placeholder='Explica brevemente por qué se deniega...'
         />
 
         <div className='flex gap-2.5 mt-5'>

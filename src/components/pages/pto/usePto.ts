@@ -17,7 +17,7 @@ export function usePto() {
     try {
       // No hay un "listar mis reservas de PTO" dedicado — se reutiliza
       // /requests/mine filtrando por tipo=Vacaciones server-side (ya
-      // paginado) y por estado=Aprobada acá (ListMineAsync no filtra por
+      // paginado) y por estado=Aprobada aquí (ListMineAsync no filtra por
       // estado). pageSize generoso a propósito: ningún empleado real
       // acumula más de 100 reservas de Vacaciones en su historial.
       const [balanceResult, vacaciones] = await Promise.all([

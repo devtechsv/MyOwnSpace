@@ -11,7 +11,7 @@ import { PagedResult } from '@/contracts/interfaces/common';
 // ('PermisoPersonal', sin espacio) — a diferencia del body JSON, donde
 // el converter acepta "Permiso personal" (con espacio, lo que usa el
 // resto del frontend). El binder de ASP.NET Core para [FromQuery] no
-// pasa por ese converter, así que acá se traduce a mano.
+// pasa por ese converter, así que aquí se traduce a mano.
 function tipoParaQuery(tipo?: string): string | undefined {
   return tipo === 'Permiso personal' ? 'PermisoPersonal' : tipo;
 }
