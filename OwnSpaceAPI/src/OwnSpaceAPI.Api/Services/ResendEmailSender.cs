@@ -43,8 +43,9 @@ public sealed class ResendEmailSender : IEmailSender
         {
             // No relanza la excepción: un correo que no salió no debería
             // tumbar el flujo de negocio (el usuario igual puede reintentar
-            // "olvidé mi contraseña"). Nunca loguea el cuerpo (tiene el
-            // token) — mismo criterio que LoggingEmailSender.
+            // "olvidé mi contraseña"). Corre en segundo plano vía
+            // EmailDispatcher. Nunca loguea el cuerpo (puede tener una
+            // contraseña temporal) — mismo criterio que LoggingEmailSender.
             var detalle = await response.Content.ReadAsStringAsync();
             _logger.LogError(
                 "Resend rechazó el envío a {Destinatario} ({Status}): {Detalle}",

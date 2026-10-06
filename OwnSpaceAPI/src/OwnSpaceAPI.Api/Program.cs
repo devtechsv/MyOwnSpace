@@ -51,12 +51,19 @@ if (string.IsNullOrWhiteSpace(resendApiKey) || string.IsNullOrWhiteSpace(resendF
 {
   throw new InvalidOperationException("Falta configurar Resend:ApiKey y Resend:FromAddress.");
 }
-builder.Services.AddHttpClient<IEmailSender, ResendEmailSender>(client =>
+builder.Services.AddHttpClient<ResendEmailSender>(client =>
 {
   client.BaseAddress = new Uri("https://api.resend.com/");
   client.DefaultRequestHeaders.Authorization =
       new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", resendApiKey);
 });
+// Los servicios reciben QueuedEmailSender (solo encola); EmailDispatcher
+// entrega en segundo plano con Resend. Ver Services/QueuedEmailSender.cs.
+builder.Services.AddKeyedTransient<IEmailSender>(
+    EmailDispatcher.EntregaKey, (sp, _) => sp.GetRequiredService<ResendEmailSender>());
+builder.Services.AddSingleton<EmailQueue>();
+builder.Services.AddSingleton<IEmailSender, QueuedEmailSender>();
+builder.Services.AddHostedService<EmailDispatcher>();
 
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
@@ -263,7 +270,7 @@ app.Use(async (context, next) =>
       context.Response.StatusCode = StatusCodes.Status403Forbidden;
       await context.Response.WriteAsJsonAsync(new
       {
-        title = "Debés cambiar tu contraseña temporal antes de continuar.",
+        title = "Debes cambiar tu contraseña temporal antes de continuar.",
         status = StatusCodes.Status403Forbidden,
       });
       return;

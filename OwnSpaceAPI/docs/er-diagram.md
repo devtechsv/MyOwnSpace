@@ -15,6 +15,10 @@ erDiagram
         nvarchar_20 Rol "CHECK: Empleado | Administrador"
         nvarchar_20 Estado "CHECK: Pendiente | Activo | Desactivado"
         bit MustChangePassword "true mientras la contraseña sea una temporal sin cambiar"
+        datetime2 TempPasswordExpiresAt "nullable, vencimiento de la temporal (48 h)"
+        nvarchar_max TempPasswordHash "nullable, temporal pedida por forgot-password, aparte de PasswordHash"
+        datetime2 ForgotPasswordWindowStart "nullable, inicio de la ventana de 1 h del límite por correo"
+        int ForgotPasswordCount "temporales emitidas en la ventana actual (máx. 3)"
         date FechaIngreso "cargada por el admin al dar de alta, arranca el devengo de PTO"
         date FechaDesactivacion "nullable, congela el devengo de PTO al desactivar"
         datetime2 CreatedAt
@@ -42,9 +46,13 @@ erDiagram
 ## Notas de diseño
 
 - **Sin tabla de sesiones**: la autenticación es JWT stateless en cookie httpOnly (ver `SPEC.md` §9) — no hay estado de sesión que persistir en la base. El logout es del lado del cliente (ver Open Questions en `SPEC.md`).
-- **Sin tabla de tokens de reset**: "olvidé mi contraseña", la invitación al crear un usuario, y el reset por un admin (`users.api.ts#create` / `#resetPassword`) comparten el mismo mecanismo — generan una contraseña temporal, la escriben directo en `Users.PasswordHash` y la envían por correo, en vez de un token de un solo uso aparte. `Users.MustChangePassword` marca que esa contraseña sigue siendo la temporal; el backend (middleware en `Program.cs`) bloquea el resto de `/api` mientras esté en `true`, hasta que el usuario la cambie por `POST /auth/change-password`.
+- **Sin tabla de tokens de reset**: en vez de un token de un solo uso, se envía por correo una contraseña temporal. Hay dos variantes:
+  - **Invitación al crear un usuario y reset por un admin** (`users.api.ts#create` / `#resetPassword`): la temporal se escribe directo en `Users.PasswordHash`, reemplazando la anterior y cerrando sus sesiones.
+  - **"Olvidé mi contraseña"** (anónimo): la temporal va a `Users.TempPasswordHash` y no toca la contraseña actual, para que nadie pueda dejar a otro sin acceso con solo conocer su correo. Recién cuando alguien entra con ella pasa a `PasswordHash`. Límite de 3 por correo por hora (`ForgotPasswordWindowStart` / `ForgotPasswordCount`).
+
+  `Users.MustChangePassword` marca que la contraseña en `PasswordHash` sigue siendo una temporal; el backend (middleware en `Program.cs`) bloquea el resto de `/api` mientras esté en `true`, hasta que el usuario la cambie por `POST /auth/change-password`.
 - **`Rol`/`Estado` como `nvarchar` + `CHECK`, no tablas de lookup separadas**: son enums cerrados y pequeños (3 y 3 valores respectivamente), no van a crecer dinámicamente ni necesitan metadata propia — una tabla de lookup sería una abstracción sin uso real. Mapean 1:1 a un `enum` de C# en el código.
 - **`Id` como `uniqueidentifier` (GUID)** en vez de `int IDENTITY`: los ids aparecen en URLs (`/users/{id}`, `/requests/{id}`) — un GUID no es adivinable/enumerable como un entero secuencial.
 - **Índice único case-insensitive en `Users.Correo`**: SQL Server usa collation case-insensitive por defecto (`..._CI_AS`), así que un `UNIQUE INDEX` estándar ya replica la comparación case-insensitive que hoy hace el mock (`mockUsersAdapter.create`/`update`) al chequear duplicados — confirmar que la collation de la base efectivamente sea `_CI_` al crearla.
 - **Sin tabla ni ledger de balance de PTO**: el devengo (5h por quincena) y el reinicio anual ("use it or lose it") se calculan al vuelo en cada `GET /pto/balance` a partir de `Users.FechaIngreso`/`FechaDesactivacion` y de la suma de `LeaveRequests.HorasSolicitadas` ya `Aprobada` del año en curso — ver `Services/Pto/PtoBalanceCalculator.cs`. No hay ningún job/cron: el recorte al 1-enero y el congelamiento en `FechaDesactivacion` ya lo resuelve la fórmula sola.
-- **`Vacaciones` vía `/pto/requests` es autoservicio, no pasa por aprobación**: a diferencia de los otros 4 tipos de `LeaveRequests` (que nacen `Pendiente` y requieren `/requests/{id}/approve|deny`), una reserva de PTO nace directo en `Aprobada`, sin `ReviewedBy`/`ReviewedAt` — nadie la revisó. `HorasSolicitadas` solo tiene valor para estas filas.
+- **`Vacaciones` también pasa por aprobación**: como los otros 4 tipos de `LeaveRequests`, nace `Pendiente` (tanto la de un día vía `/pto/requests` como la de rango vía `/pto/vacation-requests`) y la resuelve un admin con `/requests/{id}/approve|deny`, que completa `ReviewedBy`/`ReviewedAt`. `HorasSolicitadas` solo tiene valor para estas filas; las pendientes ya descuentan del disponible. Filas viejas de reservas de un día creadas antes de este cambio pueden figurar `Aprobada` sin `ReviewedBy`.

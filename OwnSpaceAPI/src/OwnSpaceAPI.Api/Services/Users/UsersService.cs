@@ -101,10 +101,11 @@ public sealed class UsersService : IUsersService
             throw new ConflictException("Ya existe un usuario con ese correo.");
         }
 
-        // Dispara la invitación a definir contraseña reutilizando el
-        // mismo mecanismo de "olvidé mi contraseña" (Tarea 12) — mismo
-        // token de un solo uso, mismo IEmailSender. Si el admin eligió la
-        // contraseña, se usa esa como temporal en vez de generar una.
+        // Invitación: emite la temporal con el flujo del admin
+        // (IssueTemporaryPasswordAsync), que la deja como contraseña real
+        // con cambio obligatorio — no el flujo anónimo de "olvidé mi
+        // contraseña". Si el admin eligió la contraseña, se usa esa como
+        // temporal en vez de generar una.
         await _passwordResetService.IssueTemporaryPasswordAsync(user.Correo, password);
 
         return user;

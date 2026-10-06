@@ -19,6 +19,16 @@ public class User
     // siempre. Solo tiene sentido mientras MustChangePassword es true; se
     // limpia en ChangePasswordAsync junto con esa bandera.
     public DateTime? TempPasswordExpiresAt { get; set; }
+    // Temporal pedida desde "olvidé mi contraseña" (flujo anónimo): vive
+    // aparte de PasswordHash para que pedirla no le quite la contraseña
+    // actual a nadie. Solo pasa a PasswordHash cuando alguien entra con
+    // ella (AuthService.ValidateCredentialsAsync). Vence con
+    // TempPasswordExpiresAt.
+    public string? TempPasswordHash { get; set; }
+    // Límite por correo de forgot-password (además del límite por IP):
+    // inicio de la ventana de 1 hora y cuántas temporales se emitieron en ella.
+    public DateTime? ForgotPasswordWindowStart { get; set; }
+    public int ForgotPasswordCount { get; set; }
     //Cargado por el propio admin cuando se da de alta al empleado - empieza todo
     public DateOnly FechaIngreso { get; set; }
     // Completado al desactivar ToggleStatusAsync y se limpia si en caso se reactiva

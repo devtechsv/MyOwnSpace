@@ -23,8 +23,15 @@ Todos bajo `/api/v1`. "Rol" es el único requisito de autorización — todos re
 | Iniciar sesión | `POST /auth/login` | público | `AuthService.ValidateCredentialsAsync` |
 | Sesión actual (renueva) | `GET /auth/session` | cualquiera | `AuthService.GetActiveUserAsync` |
 | Cerrar sesión | `POST /auth/logout` | cualquiera | `AuthService.InvalidateSessionsAsync` |
-| Olvidé mi contraseña | `POST /auth/forgot-password` | público | `PasswordResetService.IssueTemporaryPasswordAsync` |
+| Olvidé mi contraseña | `POST /auth/forgot-password` | público | `PasswordResetService.RequestTemporaryPasswordAsync` |
 | Cambiar mi contraseña | `POST /auth/change-password` | cualquiera | `AuthService.ChangePasswordAsync` |
+
+**Contraseña temporal, dos flujos distintos:**
+
+- **Olvidé mi contraseña (anónimo):** la temporal se guarda aparte (`Users.TempPasswordHash`, vence en 48 h) y **no toca** la contraseña actual ni las sesiones. El login acepta cualquiera de las dos; solo al entrar con la temporal esta reemplaza a la anterior, se cierran las demás sesiones y se pide el cambio. Límite: 3 solicitudes por correo por hora, además del límite por IP. Pasado el límite responde igual (200) sin enviar nada.
+- **Reset del admin y alta de usuario:** `IssueTemporaryPasswordAsync` reemplaza la contraseña en el acto y cierra las sesiones.
+
+Los correos se encolan (`QueuedEmailSender`) y los envía en segundo plano `EmailDispatcher` con Resend: la respuesta no espera a Resend y una falla de envío solo queda en el log. La cola vive en memoria; un reinicio pierde los correos que aún no salieron.
 
 ### Users
 
@@ -55,17 +62,17 @@ No hay **D**elete — un usuario nunca se borra, se desactiva (`Estado = Desacti
 
 No hay **D**elete ni edición del contenido de una solicitud ya creada.
 
-### Pto (vacaciones — flujo de autoservicio, separado de Requests)
+### Pto (vacaciones — flujo propio, separado de Requests)
 
 | Operación | Método y ruta | Rol | Servicio |
 |---|---|---|---|
 | Ver mi balance | `GET /pto/balance` | Empleado | `PtoBalanceService.ObtenerResumenAsync` |
-| **C**rear reserva | `POST /pto/requests` | Empleado | `PtoRequestsService.CrearAsync` |
+| **C**rear solicitud de un día | `POST /pto/requests` | Empleado | `PtoRequestsService.CrearAsync` |
 | Reclamar horas acumuladas | `POST /pto/claim` | Empleado | `PtoBalanceService.ReclamarAsync` |
 | **C**rear vacaciones por rango | `POST /pto/vacation-requests` | Empleado | `PtoRequestsService.SolicitarRangoAsync` |
 | **R**ead (equipo) | `GET /pto/calendario` | Administrador | `PtoRequestsService.ListarEquipoAsync` |
 
-Una reserva de un día (`POST /pto/requests`) nace ya Aprobada (autoservicio, no pasa por Approve/Deny). Las vacaciones por rango (`POST /pto/vacation-requests`) nacen **Pendientes** y las resuelve un admin con `POST /requests/{id}/approve|deny`; al aprobar se vuelve a validar el saldo (409 si ya no alcanza). Ninguna se puede editar ni cancelar desde la API hoy.
+Tanto la solicitud de un día (`POST /pto/requests`, hasta 8 h) como las vacaciones por rango (`POST /pto/vacation-requests`) nacen **Pendientes** y las resuelve un admin con `POST /requests/{id}/approve|deny`; al aprobar se vuelve a validar el saldo (409 si ya no alcanza). Las dos rechazan con 400 una fecha pasada o un sábado/domingo. Mientras están pendientes, sus horas ya se descuentan del disponible. Ninguna se puede editar ni cancelar desde la API hoy.
 
 ### AuditLog (bitácora de auditoría)
 

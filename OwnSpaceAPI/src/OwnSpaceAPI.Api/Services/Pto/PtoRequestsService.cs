@@ -15,7 +15,7 @@ public sealed class PtoRequestsService : IPtoRequestsService
     // el usuario) — el campo sigue siendo required a nivel de entidad
     // porque lo comparten los otros 4 tipos, así que se completa con un
     // texto fijo en vez de hacerlo nullable para todo el modelo.
-    private const string MotivoAutoservicio = "Vacaciones — autoservicio (sin motivo)";
+    private const string MotivoUnDia = "Vacaciones — solicitud de un día";
     private const string MotivoRango = "Vacaciones — solicitud por rango";
 
     private readonly AppDbContext _db;
@@ -38,6 +38,16 @@ public sealed class PtoRequestsService : IPtoRequestsService
         if (horas <= 0 || horas > HorasMaximasPorDia)
         {
             throw new BadRequestException($"Las horas tienen que ser mayores a 0 y no pueden superar {HorasMaximasPorDia} (jornada completa).");
+        }
+        // Mismas reglas de fecha que SolicitarRangoAsync: el calendario ya
+        // las bloquea, pero el API no puede depender de eso.
+        if (fecha < Hoy)
+        {
+            throw new BadRequestException("No puedes solicitar vacaciones en fechas pasadas.");
+        }
+        if (!PtoBalanceCalculator.EsDiaHabil(fecha))
+        {
+            throw new BadRequestException("Las vacaciones no pueden ser en sábado ni domingo.");
         }
 
         // Serializable: el chequeo de balance (una SUM sobre
@@ -82,12 +92,12 @@ public sealed class PtoRequestsService : IPtoRequestsService
                 FechaInicio = fecha,
                 FechaFin = fecha,
                 HorasSolicitadas = horas,
-                Motivo = MotivoAutoservicio,
-                Estado = RequestStatus.Aprobada,
+                Motivo = MotivoUnDia,
+                // Igual que el rango: queda Pendiente hasta que un admin la
+                // apruebe (RequestsService.ReviewAsync vuelve a validar el
+                // saldo). Mientras tanto aparta sus horas del disponible.
+                Estado = RequestStatus.Pendiente,
                 CreatedAt = DateTime.UtcNow,
-                // Nadie revisó esto — nace ya Aprobada, no pasó por un admin.
-                ReviewedBy = null,
-                ReviewedAt = null,
             };
 
             _db.LeaveRequests.Add(request);
@@ -112,8 +122,9 @@ public sealed class PtoRequestsService : IPtoRequestsService
 
         await _emailSender.SendAsync(
             employee.Correo,
-            "Confirmación de PTO — MyOwnSpace",
-            $"Reservaste {horas}h de PTO para el {fecha:dd/MM/yyyy}.");
+            "Solicitud de PTO recibida — MyOwnSpace",
+            $"Solicitaste {horas}h de PTO para el {fecha:dd/MM/yyyy}. Queda pendiente de aprobación; " +
+            "te avisaremos por correo cuando un administrador la revise.");
 
         return request;
     }

@@ -823,3 +823,40 @@ A pedido del usuario, se cerraron los 3 pendientes reales detectados en la revis
 **Verification en vivo:** migración aplicada a la base de desarrollo real. Login del Admin sembrado, cambio de contraseña forzado, `GET /users` paginado y `GET /users/stats` correctos con 1 solo usuario. `POST /users` (crear), `POST /users/{id}/reset-password` y `POST /users/{id}/toggle-status` sobre un usuario de prueba, confirmando en cada caso la fila nueva en `GET /audit-logs` (actor, acción, entidad, detalle, orden descendente por fecha) — usuario y sus 3 entradas de auditoría borrados al final para no dejar datos de prueba.
 
 **Dependencies:** ninguna.
+
+---
+
+## Post-cierre — Bloqueo de cuentas vía forgot-password, capas 1 y 2 (2026-10-06)
+
+**Hallazgo (code review, reproducido en vivo):** `POST /auth/forgot-password` es anónimo y `PasswordResetService.IssueTemporaryPasswordAsync` reemplaza en el acto el `PasswordHash` y rota el `SecurityStamp`. Una sola petición sin sesión, con solo conocer el correo, deja a la víctima sin su contraseña y le cierra todas las sesiones (verificado: sesión activa 200 → 401, login con la contraseña de siempre → 401). Aplica también a Administradores. De paso, el tiempo de respuesta distingue correos existentes (~215 ms, hash + envío a Resend) de inexistentes (~27 ms).
+
+**Decisión — se implementan las capas 1 y 2:**
+1. **Temporal en un campo aparte:** `TempPasswordHash` + `TempPasswordExpiresAt`. El flujo anónimo no toca `PasswordHash` ni el stamp. El login acepta cualquiera de las dos (verificando siempre ambas, para no filtrar por tiempo cuál coincidió); solo al entrar con la temporal se reemplaza el hash, se prende `MustChangePassword` y se rota el stamp. El reset de admin y el alta de usuario siguen invalidando de inmediato.
+2. **Límite por correo:** máximo 3 solicitudes de forgot-password por correo por hora (además del límite por IP existente). Pasado el límite responde igual (200, sin enviar nada).
+- Correo de forgot-password encolado fuera de la petición (`Channel` + `BackgroundService`): tiempo de respuesta independiente de si el correo existe, y una caída de Resend deja de producir 500.
+
+**Diferido — capa 3 (captcha):** Cloudflare Turnstile en forgot-password siempre, y en login solo tras 3 intentos fallidos. Validación del token obligatoria en el backend (`siteverify`); claves de prueba de Cloudflare en Development/tests. Requiere abrir la CSP de `next.config.js` (`script-src`/`frame-src` a `challenges.cloudflare.com`) y un site key de producción. Alternativa sin terceros: ALTCHA (proof-of-work).
+
+**Contrato de la API:** sin cambios (mismos endpoints y respuestas).
+
+**Implementado:** `PasswordResetService.RequestTemporaryPasswordAsync` (flujo anónimo, usado por `AuthController.ForgotPassword`) separado de `IssueTemporaryPasswordAsync` (admin y alta, sin cambios de comportamiento salvo descartar una temporal anónima pendiente). `AuthService.ValidateCredentialsAsync` verifica siempre las dos contraseñas. Correo: `QueuedEmailSender` + `EmailQueue` + `EmailDispatcher` (decorador de `IEmailSender`; Resend registrado con clave `EmailDispatcher.EntregaKey`). Migración `SeparateTempPassword` (3 columnas nuevas en `Users`, aditiva). Mock del frontend alineado. Documentación: `docs/guia-tecnica.md`, `docs/manual-usuario.md`, `docs/openapi.yaml`, `docs/er-diagram.md` y el texto de la pantalla "Revisa tu correo".
+
+**Verificación:** `dotnet test` **145/145** (13 nuevos, incluido `ForgotPasswordLockoutTests`, que falla con el código anterior y pasa con el arreglo). Frontend `npm test` **286/286**, `tsc` limpio, lint sin errores (los 2 warnings de `watch()` preexistentes). En vivo contra la API local: tras un forgot-password anónimo, la sesión activa sigue en 200 (antes 401) y la contraseña de siempre sigue funcionando (antes 401); tiempos de forgot-password ~118 ms existente vs ~114 ms inexistente (antes ~215 vs ~27 ms); el límite por correo cortó la 4.ª solicitud. Prueba manual del usuario en el navegador (pruebas A, B y C) sin problemas.
+
+**Dependencies:** ninguna.
+
+---
+
+## Post-cierre — Vacaciones de un día pasan por aprobación (2026-10-06)
+
+**Hallazgo (code review, reproducido en vivo):** `POST /pto/requests` creaba la reserva de un día directamente `Aprobada` y sin validar la fecha. El calendario del frontend bloqueaba fechas pasadas y fines de semana, pero llamando al API se podía reservar un sábado o una fecha pasada (cubrir una ausencia retroactivamente), y se podía esquivar la aprobación del admin pidiendo días sueltos uno por uno en vez de un rango (verificado: 5 días seguidos aprobados con `reviewedBy=null`).
+
+**Decisión del usuario:** toda solicitud de vacaciones queda **Pendiente** de aprobación, también la de un día.
+
+**Cambio:** `PtoRequestsService.CrearAsync` crea la solicitud `Pendiente` (motivo fijo "Vacaciones — solicitud de un día") y rechaza con 400 fecha pasada y sábado/domingo, igual que `SolicitarRangoAsync`. Al aprobar, `RequestsService.ReviewAsync` ya revalidaba el saldo de las `Vacaciones`. Correo al empleado: "Solicitud de PTO recibida", aclarando que queda pendiente. Frontend: el modal pasa a "Solicitar PTO", avisa que queda pendiente y muestra el `detail` real del API (`errorMessage`) en vez de "Request failed…". Mock alineado. Documentación: `docs/guia-tecnica.md`, `docs/manual-usuario.md`, `docs/openapi.yaml`, `docs/er-diagram.md`.
+
+**Tests:** las pruebas de frontend que armaban "PTO del equipo" creaban reservas en días 1..8 del mes actual o del anterior (fechas pasadas y fines de semana); pasaban solo porque no se validaba la fecha. Reescritas con fecha fija y días hábiles futuros, aprobando cada reserva como lo haría un admin.
+
+**Datos existentes:** las reservas de un día creadas antes de este cambio siguen `Aprobada` sin `ReviewedBy`; no se migran.
+
+**Dependencies:** ninguna.

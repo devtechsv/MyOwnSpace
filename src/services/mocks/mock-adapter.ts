@@ -148,11 +148,13 @@ export const mockAuthAdapter = {
 
   async forgotPassword(payload: ForgotPasswordPayload): Promise<void> {
     // Siempre resuelve igual, exista o no el correo (SPEC.md: nunca
-    // revelar si un correo está registrado) — pero si existe, simula la
-    // contraseña temporal real: queda Activo y con mustChangePassword.
+    // revelar si un correo está registrado). Igual que el backend, pedir
+    // una temporal no le quita la contraseña a un usuario Activo (solo
+    // cambiaría si entrara con ella); un Pendiente, que no tiene
+    // contraseña propia, queda Activo y con mustChangePassword.
     const correoNormalizado = payload.correo.trim().toLowerCase();
     const user = users.find((u) => u.correo.toLowerCase() === correoNormalizado);
-    if (user && user.estado !== 'Desactivado') {
+    if (user && user.estado === 'Pendiente') {
       user.estado = 'Activo';
       user.mustChangePassword = true;
       user.contrasenaAsignada = true;
@@ -449,6 +451,12 @@ export const mockPtoAdapter = {
         'Las horas tienen que ser mayores a 0 y no pueden superar 8 (jornada completa).',
       );
     }
+    if (payload.fecha < hoyIso()) {
+      throw new Error('No puedes solicitar vacaciones en fechas pasadas.');
+    }
+    if (!esDiaHabil(payload.fecha)) {
+      throw new Error('Las vacaciones no pueden ser en sábado ni domingo.');
+    }
     if (hayVacacionesEn(employeeId, payload.fecha, payload.fecha)) {
       throw new Error('Ya tienes PTO reservado para esa fecha.');
     }
@@ -463,8 +471,9 @@ export const mockPtoAdapter = {
       fechaInicio: payload.fecha,
       fechaFin: payload.fecha,
       horasSolicitadas: payload.horas,
-      motivo: 'Vacaciones — autoservicio (sin motivo)',
-      estado: 'Aprobada',
+      motivo: 'Vacaciones — solicitud de un día',
+      // Igual que el backend: queda Pendiente hasta que un admin la apruebe.
+      estado: 'Pendiente',
       createdAt: new Date().toISOString(),
     };
     requests = [...requests, nueva];

@@ -71,14 +71,16 @@ public class PtoRequestsServiceTests
         new PtoBalanceService(db, new RelojFijo(Hoy)).CalcularDisponibleAsync(userId);
 
     [Fact]
-    public async Task CrearAsync_ConHorasDentroDelBalance_CreaLaSolicitudAprobadaYNotifica()
+    public async Task CrearAsync_ConHorasDentroDelBalance_CreaLaSolicitudPendienteYNotifica()
     {
+        // Regresión: antes nacía Aprobada y salteaba la aprobación del admin
+        // (reservando días sueltos uno por uno, sin revisión).
         var (db, user, service, emailSender) = Preparar();
 
         var creada = await service.CrearAsync(user.Id, Hoy, 8m);
 
         Assert.Equal(RequestType.Vacaciones, creada.Tipo);
-        Assert.Equal(RequestStatus.Aprobada, creada.Estado);
+        Assert.Equal(RequestStatus.Pendiente, creada.Estado);
         Assert.Equal(8m, creada.HorasSolicitadas);
         Assert.Equal(Hoy, creada.FechaInicio);
         Assert.Equal(Hoy, creada.FechaFin);
@@ -133,6 +135,28 @@ public class PtoRequestsServiceTests
         var (db, user, service, _) = Preparar();
 
         await Assert.ThrowsAsync<BadRequestException>(() => service.CrearAsync(user.Id, Hoy, horas));
+        await db.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task CrearAsync_ConFechaPasada_TiraBadRequestYNoCreaNada()
+    {
+        var (db, user, service, _) = Preparar();
+
+        await Assert.ThrowsAsync<BadRequestException>(() => service.CrearAsync(user.Id, Hoy.AddDays(-6), 8m));
+        Assert.Empty(db.LeaveRequests);
+        await db.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task CrearAsync_EnFinDeSemana_TiraBadRequestYNoCreaNada()
+    {
+        var (db, user, service, _) = Preparar();
+
+        // Hoy es lunes 5-oct: el 10-oct es sábado y el 11-oct domingo.
+        await Assert.ThrowsAsync<BadRequestException>(() => service.CrearAsync(user.Id, new DateOnly(2026, 10, 10), 8m));
+        await Assert.ThrowsAsync<BadRequestException>(() => service.CrearAsync(user.Id, new DateOnly(2026, 10, 11), 8m));
+        Assert.Empty(db.LeaveRequests);
         await db.DisposeAsync();
     }
 
@@ -209,7 +233,10 @@ public class PtoRequestsServiceTests
     public async Task ListarEquipoAsync_DevuelveSoloVacacionesAprobadas()
     {
         var (db, user, service, _) = Preparar();
-        await service.CrearAsync(user.Id, Hoy, 8m);
+        var aprobada = await service.CrearAsync(user.Id, Hoy, 8m);
+        aprobada.Estado = RequestStatus.Aprobada;
+        // Pendiente: todavía no es PTO del equipo.
+        await service.CrearAsync(user.Id, Hoy.AddDays(1), 8m);
 
         db.LeaveRequests.Add(new LeaveRequest
         {

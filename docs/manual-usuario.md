@@ -15,7 +15,9 @@ Si tu sesión estuvo inactiva mucho tiempo, la próxima vez que hagas algo vas a
 
 1. En la pantalla de ingreso, toca **"¿Olvidaste tu contraseña?"**.
 2. Ingresa tu correo y toca **"Enviar instrucciones"**.
-3. Vas a ver el mensaje **"Revisa tu correo"** — si tu correo está registrado, en unos minutos te va a llegar una contraseña temporal. Usala para ingresar; después el sistema te va a pedir que definas una nueva.
+3. Vas a ver el mensaje **"Revisa tu correo"** — si tu correo está registrado, en unos minutos te va a llegar una contraseña temporal. Úsala para ingresar; después el sistema te va a pedir que definas una nueva. La temporal vence en 48 horas.
+
+Pedir una temporal **no** cambia tu contraseña actual: si la recuerdas, puedes seguir entrando con ella y la temporal se descarta. Si recibes un correo con una temporal que no pediste, puedes ignorarlo. Solo se envían hasta 3 temporales por hora para un mismo correo.
 
 ### La primera vez que ingresas (o después de que te resetean la contraseña)
 
@@ -60,7 +62,7 @@ Aquí reclamas las horas de vacaciones que vas ganando y pides tus vacaciones.
 **Cómo pedir vacaciones:**
 
 - **Varios días:** toca **"Solicitar vacaciones"**, elige la **fecha de inicio** y la **fecha de fin**. Antes de enviar verás cuántos días hábiles son y cuántas horas descuentan (solo cuentan de lunes a viernes, 8 horas por día). No pueden empezar en sábado ni domingo. La solicitud queda **pendiente** hasta que un administrador la apruebe, y mientras tanto ya aparta esas horas.
-- **Un solo día o unas horas:** toca un día disponible en el calendario y elige **"Jornada completa (8h)"** o **"Tiempo personalizado"**. Esta reserva se confirma al momento.
+- **Un solo día o unas horas:** toca un día disponible en el calendario y elige **"Jornada completa (8h)"** o **"Tiempo personalizado"**. Igual que las vacaciones por rango, queda **pendiente** hasta que un administrador la apruebe; mientras tanto, esas horas ya se descuentan de tu disponible. No se pueden pedir días pasados ni sábados o domingos.
 - En el calendario, los días aprobados se marcan en color y los pendientes de aprobación en ámbar.
 
 ## Si eres Administrador
@@ -73,7 +75,7 @@ Aquí revisas y decides las solicitudes de todo el equipo. Hay pestañas: **Pend
 
 - Para aprobar una solicitud pendiente, toca **"Aprobar"**.
 - Para denegarla, toca **"Denegar"** — te va a pedir un **"Motivo del rechazo"**, que el empleado va a ver junto a su solicitud. Toca **"Denegar"** para confirmar.
-- Las **vacaciones por rango** que piden los empleados también llegan aquí (tipo **Vacaciones**, con fecha de inicio y fin). Al aprobarlas, el sistema vuelve a revisar que el empleado tenga horas suficientes; si ya no le alcanzan, te avisa y la solicitud sigue pendiente.
+- Las **vacaciones** que piden los empleados también llegan aquí (tipo **Vacaciones**), tanto las de un solo día como las de un rango de fechas. Al aprobarlas, el sistema vuelve a revisar que el empleado tenga horas suficientes; si ya no le alcanzan, te avisa y la solicitud sigue pendiente.
 
 ### Usuarios
 
@@ -81,12 +83,12 @@ Aquí administras las cuentas del equipo. Arriba vas a ver tres contadores: **To
 
 - **Crear usuario:** toca **"Crear usuario"**, completa **Nombre completo**, **Correo electrónico**, **Rol** (Empleado o Administrador) y **Fecha de ingreso**. Por defecto, la casilla **"Generar contraseña automáticamente"** está marcada y el sistema crea la contraseña. Si la desmarcas, puedes escribir tú la **Contraseña temporal** (debe cumplir los mismos requisitos que cualquier contraseña). En ambos casos el nuevo usuario la recibe por correo y debe cambiarla al ingresar por primera vez.
 - **Editar usuario:** toca el ícono de **"Editar"** en la fila del usuario para cambiar su nombre, correo o rol.
-- **Resetear contraseña:** disponible solo para usuarios Activos. Le manda una nueva contraseña temporal por correo y su cuenta vuelve a quedar Pendiente hasta que la use.
+- **Resetear contraseña:** disponible solo para usuarios Activos. Le manda una nueva contraseña temporal por correo: su contraseña anterior deja de funcionar en el acto, se cierran sus sesiones y deberá cambiar la temporal al ingresar.
 - **Activar / Desactivar:** desactivar a alguien le quita el acceso al sistema hasta que un administrador lo reactive.
 
 ### PTO del equipo
 
-Vista de solo lectura para planificar — muestra las reservas de vacaciones ya confirmadas de todo el equipo (no requieren tu aprobación, cada empleado las reserva solo desde "Mi PTO"). Puedes filtrar por mes o buscar por nombre.
+Vista de solo lectura para planificar — muestra las vacaciones ya aprobadas de todo el equipo (las pendientes se deciden en "Solicitudes"). Puedes filtrar por mes o buscar por nombre.
 
 ## Otras cosas útiles
 
