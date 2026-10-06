@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LeaveRequest } from '@/contracts/interfaces/request';
-import { sumarDias } from '@/lib/pto-balance-calculator';
+import { sumarDias } from '@/lib/dias-habiles';
 
 interface Props {
   reservas: LeaveRequest[];

@@ -1,7 +1,6 @@
 import {
   Ausencia,
   calcularEstadoPto,
-  contarDiasHabiles,
   contarQuincenasCompletadas,
   diasTrabajados,
   inicioPeriodo,
@@ -94,11 +93,7 @@ describe('calcularEstadoPto', () => {
   });
 });
 
-describe('días hábiles', () => {
-  it('solo cuenta de lunes a viernes', () => {
-    expect(contarDiasHabiles('2026-10-05', '2026-10-11')).toBe(5);
-  });
-
+describe('días trabajados y año laboral', () => {
   it('no descuenta fines de semana ni duplica ausencias superpuestas', () => {
     const ausencias = [
       { desde: '2026-10-09', hasta: '2026-10-12' },

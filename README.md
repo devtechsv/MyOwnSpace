@@ -104,12 +104,13 @@ npm run lint              # ESLint
     - `api-services.ts` — punto de acceso único al backend
     - `use-real-api.ts` — switch entre mocks y API real (`NEXT_PUBLIC_USE_REAL_API`)
     - `auth/`, `users/`, `requests/`, `pto/` — adaptadores por dominio (mock + HTTP)
-    - `mocks/` — capa de mocks tipada para desarrollar sin backend
+    - `mocks/` — capa de mocks tipada para desarrollar sin backend, incluida su copia de la calculadora de PTO (`pto-balance-calculator.ts`)
   - `contracts/`
     - `interfaces/` — contratos compartidos (`User`, `LeaveRequest`, `Session`, etc.)
     - `enums/endpoints/` — constantes de rutas de la API
   - `middlewares/with-auth.tsx` — guard de sesión/rol para `getServerSideProps`
   - `hooks/` — `useSession`, `useTheme`, `useLogout`, `useModalAlly`
-  - `lib/` — `password-rules.ts` (duplica a mano la política del backend, solo para feedback en vivo del formulario), `pto-balance-calculator.ts`, `theme-init-script.js`
+  - `lib/` — `password-rules.ts` (duplica a mano la política del backend, solo para feedback en vivo del formulario), `dias-habiles.ts` (aritmética de días hábiles para el calendario y la solicitud por rango), `theme-init-script.js`
   - `styles/` — Tailwind y tokens de tema (claro/oscuro)
+- `test-data/` — `pto-calculadora-casos.json`: casos de la calculadora de PTO que corren las pruebas del backend y del frontend
 - `tasks/` — `plan.md` / `todo.md`, historial de implementación

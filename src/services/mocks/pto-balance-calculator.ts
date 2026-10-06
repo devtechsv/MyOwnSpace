@@ -1,11 +1,16 @@
 // Port a TypeScript de OwnSpaceAPI/.../Services/Pto/PtoBalanceCalculator.cs
-// — mismo algoritmo, para que el mock pueda replicar el PTO sin backend
-// real (ver los comentarios de allá para el detalle de cada regla).
+// — mismo algoritmo, SOLO para que el modo simulado replique el PTO sin
+// backend real (ver los comentarios de allá para el detalle de cada
+// regla). Ninguna pantalla debe importarlo: la fuente de verdad es el
+// backend. Las dos implementaciones corren los mismos casos de
+// test-data/pto-calculadora-casos.json, así que si una regla cambia en un
+// solo lado, una prueba falla.
 // Fechas siempre en ISO 8601 (yyyy-mm-dd); la comparación lexicográfica
 // de esas cadenas ya es cronológica, así que se usa directo donde alcanza
 // (mismo criterio que el resto del proyecto, ver mock-adapter.ts).
+import { contarDiasHabiles, esDiaHabil, sumarDias } from '@/lib/dias-habiles';
+
 export const HORAS_POR_QUINCENA = 5;
-export const HORAS_POR_DIA = 8;
 export const DIAS_TRABAJADOS_MINIMOS = 200;
 
 export interface TramoReclamado {
@@ -39,18 +44,8 @@ function toIso(year: number, monthZeroBased: number, day: number): string {
   return `${year}-${pad(monthZeroBased + 1)}-${pad(day)}`;
 }
 
-function fromDate(fecha: Date): string {
-  return toIso(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate());
-}
-
 function ultimoDiaDelMes(year: number, monthZeroBased: number): number {
   return new Date(Date.UTC(year, monthZeroBased + 1, 0)).getUTCDate();
-}
-
-export function sumarDias(iso: string, dias: number): string {
-  const fecha = toUtcDate(iso);
-  fecha.setUTCDate(fecha.getUTCDate() + dias);
-  return fromDate(fecha);
 }
 
 // Igual que DateOnly.AddYears de .NET: un 29-feb cae en 28-feb si el año
@@ -102,20 +97,6 @@ export function contarQuincenasCompletadas(inicioIso: string, finIso: string): n
   }
 
   return contador;
-}
-
-export function esDiaHabil(iso: string): boolean {
-  const diaSemana = toUtcDate(iso).getUTCDay();
-  return diaSemana !== 0 && diaSemana !== 6;
-}
-
-// Lunes a viernes dentro de [desde, hasta], ambos inclusive.
-export function contarDiasHabiles(desde: string, hasta: string): number {
-  let dias = 0;
-  for (let dia = desde; dia <= hasta; dia = sumarDias(dia, 1)) {
-    if (esDiaHabil(dia)) dias++;
-  }
-  return dias;
 }
 
 // Días hábiles de [inicio, fin] menos los cubiertos por ausencias

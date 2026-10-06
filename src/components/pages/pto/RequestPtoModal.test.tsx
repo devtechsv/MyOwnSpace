@@ -3,7 +3,7 @@ import { RequestPtoModal } from './RequestPtoModal';
 import { SessionContext } from '@/hooks/useSession';
 import { resetMockState, mockUsersAdapter } from '@/services/mocks/mock-adapter';
 import API from '@/services/api-services';
-import { esDiaHabil, sumarDias } from '@/lib/pto-balance-calculator';
+import { esDiaHabil, sumarDias } from '@/lib/dias-habiles';
 import { hoyIso } from '@/helpers/hoy-iso';
 
 const session = {
