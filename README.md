@@ -47,6 +47,22 @@ Este repo contiene el **frontend** (Next.js 16 + TypeScript, Pages Router) y, en
 
    Abre `http://localhost:3000`.
 
+### Al traer cambios nuevos
+
+- Corre `npm install` si cambió `package.json` o `package-lock.json`, y **reinicia** `npm run dev`: un servidor que quedó corriendo con las dependencias anteriores responde 500 en todas las páginas.
+- Si usas el backend real, aplica las migraciones pendientes antes de levantarlo (ver [Actualizar un ambiente existente](OwnSpaceAPI/README.md#actualizar-un-ambiente-existente)).
+
+## Despliegue
+
+1. **Backend primero:** aplica las migraciones pendientes y despliega la API siguiendo [Actualizar un ambiente existente](OwnSpaceAPI/README.md#actualizar-un-ambiente-existente).
+2. **Frontend después:** `NEXT_PUBLIC_USE_REAL_API=true` y `NEXT_PUBLIC_API_URL` (URL pública de la API, terminada en `/api/v1`) se fijan **al momento del build** (`npm run build`), no al arrancar: si cambian, hay que volver a compilar.
+3. **Frontend y API en el mismo dominio**, por HTTPS. El frontend verifica la sesión desde su servidor (`withAuth`) leyendo la cookie que crea la API, así que el navegador tiene que mandársela a los dos. Hay dos formas:
+   - **Mismo host** (sin configurar nada): la API detrás de un proxy en el mismo dominio, p. ej. `https://app.dominio.com/api/v1`.
+   - **Subdominios distintos** (`app.dominio.com` y `api.dominio.com`): define `Auth__CookieDomain=dominio.com` en el backend para que la cookie valga para ambos. Sin esto, el login responde bien pero cada página vuelve al login.
+
+   Dominios totalmente distintos (`miapp.com` y `otraapi.com`) no funcionan: la cookie es `SameSite=Lax`. En local no hace falta nada porque las cookies ignoran el puerto (`localhost:3000` y `localhost:7127` cuentan como el mismo host).
+4. La URL del frontend tiene que estar en `Cors__AllowedOrigins` del backend.
+
 ## Comandos
 
 ```bash

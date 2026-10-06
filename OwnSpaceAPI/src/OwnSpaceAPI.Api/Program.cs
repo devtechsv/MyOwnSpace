@@ -44,6 +44,15 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<IPasswordHashingService, PasswordHashingService>();
 
+// Solo el dominio ("dominio.com"), sin esquema, puerto ni ruta: si no,
+// el navegador descarta la cookie en silencio y nadie puede iniciar sesión.
+var cookieDomain = builder.Configuration["Auth:CookieDomain"];
+if (!string.IsNullOrWhiteSpace(cookieDomain) && cookieDomain.IndexOfAny([':', '/']) >= 0)
+{
+  throw new InvalidOperationException(
+    $"Auth:CookieDomain debe ser solo el dominio (p. ej. \"dominio.com\"), sin https://, puerto ni ruta. Valor actual: \"{cookieDomain}\".");
+}
+
 builder.Services.Configure<ResendOptions>(builder.Configuration.GetSection("Resend"));
 var resendApiKey = builder.Configuration["Resend:ApiKey"];
 var resendFromAddress = builder.Configuration["Resend:FromAddress"];
@@ -94,9 +103,9 @@ builder.Services.AddCors(options =>
     //
     // La cookie de sesión usa SameSite=Lax (ver SetAccessTokenCookie en
     // AuthController) en vez de None: eso asume que front y back se
-    // despliegan same-site (incluso si son subdominios/puertos
-    // distintos). Si algún día el frontend pasa a servirse desde un
-    // dominio de verdad distinto al del backend, esto hay que
+    // despliegan same-site (mismo host, o subdominios del mismo dominio
+    // con Auth:CookieDomain). Si algún día el frontend pasa a servirse
+    // desde un dominio de verdad distinto al del backend, esto hay que
     // revisarlo junto con SameSite (Lax no viaja en ese caso).
     policy.WithOrigins(allowedOrigins)
           .AllowAnyHeader()

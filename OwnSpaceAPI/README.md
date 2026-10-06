@@ -11,7 +11,7 @@ Backend de MyOwnSpace (.NET 8 + Entity Framework Core + SQL Server). Ver `SPEC.m
 ## Setup
 
 1. Clona el repo y ubícate dentro de `OwnSpaceAPI/`.
-2. Crea `src/OwnSpaceAPI.Api/appsettings.Development.json` (no se commitea) con tu connection string real, una clave de firma JWT propia, el origen de tu frontend, y la contraseña temporal del primer Administrador:
+2. Crea `src/OwnSpaceAPI.Api/appsettings.Development.json` (no se commitea) con tu connection string real, una clave de firma JWT propia, el origen de tu frontend, la cuenta de Resend para enviar correos y la contraseña temporal del primer Administrador:
 
    ```json
    {
@@ -26,17 +26,25 @@ Backend de MyOwnSpace (.NET 8 + Entity Framework Core + SQL Server). Ver `SPEC.m
      "Cors": {
        "AllowedOrigins": ["http://localhost:3000"]
      },
+     "Resend": {
+       "ApiKey": "<API key de resend.com>",
+       "FromAddress": "MyOwnSpace <onboarding@resend.dev>"
+     },
      "Seed": {
        "AdminPassword": "<contraseña temporal del primer Administrador>"
      }
    }
    ```
 
+   `Resend` es obligatorio: sin `ApiKey` y `FromAddress` la API no arranca. Con una cuenta de Resend sin dominio verificado (modo de prueba) solo se entregan correos a la dirección dueña de la cuenta; para enviar a cualquier empleado hay que verificar el dominio en resend.com y usar un `FromAddress` de ese dominio.
+
 3. Aplica las migraciones (crea la base si no existe):
 
    ```bash
    dotnet ef database update --project src/OwnSpaceAPI.Api --startup-project src/OwnSpaceAPI.Api
    ```
+
+   La API **no** aplica migraciones sola al arrancar: este paso se repite cada vez que traes cambios que agregan una migración (ver [Actualizar un ambiente existente](#actualizar-un-ambiente-existente)).
 
 4. Levanta la API:
 
@@ -60,6 +68,60 @@ Esta siembra corre en todo entorno (no solo desarrollo) porque es idempotente: n
 - Si es el único Admin y nadie sabe la contraseña, no hay forma de recuperarla (está hasheada). Hay que borrar esa fila de `Users` y reiniciar el backend — `SeedAdminAsync` vuelve a sembrarlo con `Seed:AdminPassword` (pierde el `Id` y el historial de ese usuario).
 
 Para evitar llegar a este punto, mantén siempre 2 o más Administradores activos.
+
+## Actualizar un ambiente existente
+
+Cada vez que se trae una versión nueva del backend a un ambiente que ya tiene base de datos (otro equipo de desarrollo, QA, producción):
+
+1. **Revisa qué migraciones faltan** en esa base:
+
+   ```bash
+   dotnet ef migrations list --project src/OwnSpaceAPI.Api --startup-project src/OwnSpaceAPI.Api
+   ```
+
+   Las que aparecen como `(Pending)` todavía no se aplicaron. Los comandos de `dotnet ef` compilan el proyecto: si la API está corriendo en ese mismo equipo, detenla antes (o agrega `--no-build` si ya está compilado).
+
+2. **Aplícalas antes de levantar la API nueva** — el código nuevo espera las columnas nuevas y falla si no existen. Elige una forma:
+
+   - Con acceso directo a la base: `dotnet ef database update` usa la connection string configurada. Para apuntar a otra base solo durante el comando (PowerShell):
+
+     ```powershell
+     $env:ConnectionStrings__DefaultConnection = "Server=...;Database=...;User Id=...;Password=..."
+     dotnet ef database update --project src/OwnSpaceAPI.Api --startup-project src/OwnSpaceAPI.Api
+     Remove-Item Env:ConnectionStrings__DefaultConnection
+     ```
+
+   - Sin acceso directo (lo habitual en producción): genera un script SQL y entrégaselo a quien administre la base. `--idempotent` lo hace seguro de ejecutar aunque algunas migraciones ya estén aplicadas:
+
+     ```bash
+     dotnet ef migrations script --idempotent --project src/OwnSpaceAPI.Api --startup-project src/OwnSpaceAPI.Api -o migraciones.sql
+     ```
+
+3. **Despliega primero el backend y después el frontend** (o los dos juntos). El frontend nuevo puede enviar filtros que un backend anterior ignora sin dar error, y mostraría datos sin filtrar.
+
+### Configuración fuera de desarrollo
+
+Fuera de desarrollo no se usa `appsettings.Development.json`: cada valor va como variable de entorno (`:` se escribe `__`), nunca en `appsettings.json`:
+
+| Variable | Contenido |
+|---|---|
+| `ConnectionStrings__DefaultConnection` | Connection string de SQL Server |
+| `Jwt__SigningKey` | Clave aleatoria de 32+ caracteres, distinta a la de desarrollo |
+| `Cors__AllowedOrigins__0` | URL pública del frontend (`__1`, `__2`… para más de una) |
+| `Auth__CookieDomain` | Opcional. Solo si frontend y API están en subdominios distintos: el dominio común, p. ej. `dominio.com` (ver [Despliegue](../README.md#despliegue)) |
+| `Resend__ApiKey`, `Resend__FromAddress` | Cuenta de Resend con el dominio verificado |
+| `Seed__AdminPassword` | Solo para el primer arranque contra una base vacía |
+
+Otras consideraciones:
+
+- **Zona horaria:** las fechas de negocio ("hoy", vencimiento del PTO) se calculan en hora de El Salvador. Si el servidor no tiene la base de zonas horarias (p. ej. un contenedor Linux mínimo sin `tzdata`), se usa UTC−6 fijo, que da el mismo resultado porque El Salvador no tiene horario de verano.
+- **Correos:** se envían en segundo plano desde una cola en memoria. Si la API se reinicia justo después de una acción que envía correo (p. ej. "Olvidé mi contraseña"), ese correo puede perderse; basta con repetir la acción.
+
+### Migraciones con efecto a tener en cuenta
+
+| Migración | Qué hace |
+|---|---|
+| `20261006142507_SeparateTempPassword` | Agrega 3 columnas a `Users` (`TempPasswordHash`, `ForgotPasswordWindowStart`, `ForgotPasswordCount`). No modifica datos existentes. Desde esta versión, "Olvidé mi contraseña" ya no invalida la contraseña actual y las vacaciones de un solo día quedan pendientes de aprobación. |
 
 ## Comandos
 
