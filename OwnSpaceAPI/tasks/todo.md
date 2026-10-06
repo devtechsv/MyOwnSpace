@@ -823,3 +823,20 @@ A pedido del usuario, se cerraron los 3 pendientes reales detectados en la revis
 **Verification en vivo:** migración aplicada a la base de desarrollo real. Login del Admin sembrado, cambio de contraseña forzado, `GET /users` paginado y `GET /users/stats` correctos con 1 solo usuario. `POST /users` (crear), `POST /users/{id}/reset-password` y `POST /users/{id}/toggle-status` sobre un usuario de prueba, confirmando en cada caso la fila nueva en `GET /audit-logs` (actor, acción, entidad, detalle, orden descendente por fecha) — usuario y sus 3 entradas de auditoría borrados al final para no dejar datos de prueba.
 
 **Dependencies:** ninguna.
+
+---
+
+## Pendiente — Bloqueo de cuentas vía forgot-password (2026-10-06)
+
+**Hallazgo (code review, reproducido en vivo):** `POST /auth/forgot-password` es anónimo y `PasswordResetService.IssueTemporaryPasswordAsync` reemplaza en el acto el `PasswordHash` y rota el `SecurityStamp`. Una sola petición sin sesión, con solo conocer el correo, deja a la víctima sin su contraseña y le cierra todas las sesiones (verificado: sesión activa 200 → 401, login con la contraseña de siempre → 401). Aplica también a Administradores. De paso, el tiempo de respuesta distingue correos existentes (~215 ms, hash + envío a Resend) de inexistentes (~27 ms).
+
+**Decisión — se implementan las capas 1 y 2:**
+1. **Temporal en un campo aparte:** `TempPasswordHash` + `TempPasswordExpiresAt`. El flujo anónimo no toca `PasswordHash` ni el stamp. El login acepta cualquiera de las dos (verificando siempre ambas, para no filtrar por tiempo cuál coincidió); solo al entrar con la temporal se reemplaza el hash, se prende `MustChangePassword` y se rota el stamp. El reset de admin y el alta de usuario siguen invalidando de inmediato.
+2. **Límite por correo:** máximo 3 solicitudes de forgot-password por correo por hora (además del límite por IP existente). Pasado el límite responde igual (200, sin enviar nada).
+- Correo de forgot-password encolado fuera de la petición (`Channel` + `BackgroundService`): tiempo de respuesta independiente de si el correo existe, y una caída de Resend deja de producir 500.
+
+**Diferido — capa 3 (captcha):** Cloudflare Turnstile en forgot-password siempre, y en login solo tras 3 intentos fallidos. Validación del token obligatoria en el backend (`siteverify`); claves de prueba de Cloudflare en Development/tests. Requiere abrir la CSP de `next.config.js` (`script-src`/`frame-src` a `challenges.cloudflare.com`) y un site key de producción. Alternativa sin terceros: ALTCHA (proof-of-work).
+
+**Contrato de la API:** sin cambios (mismos endpoints y respuestas).
+
+**Dependencies:** ninguna.
