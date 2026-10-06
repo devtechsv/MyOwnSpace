@@ -5,6 +5,10 @@ import { useRouter } from 'next/router';
 import { z } from 'zod';
 import API from '@/services/api-services';
 import { getHomeRoute } from '@/helpers/get-home-route';
+import { esServidorNoDisponible } from '@/helpers/servidor-no-disponible';
+
+export const MENSAJE_SERVIDOR_NO_DISPONIBLE =
+  'No pudimos conectar con el servidor. Intenta de nuevo en unos minutos.';
 
 const schema = z.object({
   email: z.string().min(1, 'Ingresa tu correo').email('Correo inválido'),
@@ -28,6 +32,7 @@ const useLoginForm = () => {
   });
 
   const sessionExpired = router.query.expired === '1';
+  const servidorNoDisponible = router.query.unavailable === '1';
 
   const onSubmit: SubmitHandler<LoginInputs> = async (data) => {
     setServerError(null);
@@ -40,9 +45,13 @@ const useLoginForm = () => {
       });
 
       await router.push(getHomeRoute(session.rol));
-    } catch {
-      // Nunca se confirma si el correo existe o no — mensaje genérico.
-      setServerError('Correo o contraseña incorrectos.');
+    } catch (err) {
+      // Con la API caída no hay que culpar a las credenciales. Si el
+      // servidor sí respondió, mensaje genérico: nunca se confirma si el
+      // correo existe o no.
+      setServerError(
+        esServidorNoDisponible(err) ? MENSAJE_SERVIDOR_NO_DISPONIBLE : 'Correo o contraseña incorrectos.',
+      );
       // No dejar la contraseña tipeada viva en el input tras un fallo.
       resetField('password');
       setIsSubmitting(false);
@@ -57,6 +66,7 @@ const useLoginForm = () => {
     serverError,
     isSubmitting,
     sessionExpired,
+    servidorNoDisponible,
   };
 };
 

@@ -56,6 +56,18 @@ describe('withAuth (rutas protegidas)', () => {
     expect(fn).not.toHaveBeenCalled();
   });
 
+  it('con la API caída, redirige a /login?unavailable=1 (no a "sesión expirada")', async () => {
+    refreshSessionMock.mockResolvedValue({ status: 'unavailable' });
+    const fn = jest.fn();
+
+    const result = await withAuth(fn)(createContext());
+
+    expect(result).toEqual({
+      redirect: { destination: '/login?unavailable=1', permanent: false },
+    });
+    expect(fn).not.toHaveBeenCalled();
+  });
+
   it('con sesión válida, llama a fn con el usuario', async () => {
     refreshSessionMock.mockResolvedValue({
       status: 'valid',

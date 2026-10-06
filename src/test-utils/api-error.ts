@@ -13,3 +13,8 @@ export function errorDelApi(status: number, detail?: string): AxiosError {
     { status, data: detail ? { detail } : {} } as AxiosResponse,
   );
 }
+
+// Error de axios sin respuesta: la API está caída o no hay red.
+export function errorDeRed(): AxiosError {
+  return new AxiosError('Network Error', 'ERR_NETWORK');
+}
