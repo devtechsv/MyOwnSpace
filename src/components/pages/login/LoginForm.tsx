@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import useLoginForm from './useLoginForm';
+import useLoginForm, { MENSAJE_SERVIDOR_NO_DISPONIBLE } from './useLoginForm';
 import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/common/form/TextInput';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
@@ -15,6 +15,7 @@ const LoginForm = () => {
     serverError,
     isSubmitting,
     sessionExpired,
+    servidorNoDisponible,
   } = useLoginForm();
 
   return (
@@ -61,6 +62,12 @@ const LoginForm = () => {
               Tu sesión expiró por inactividad. Inicia sesión nuevamente
               para continuar.
             </span>
+          </div>
+        )}
+
+        {servidorNoDisponible && !serverError && (
+          <div className='mb-5 rounded-[10px] bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600 dark:text-red-400'>
+            {MENSAJE_SERVIDOR_NO_DISPONIBLE}
           </div>
         )}
 

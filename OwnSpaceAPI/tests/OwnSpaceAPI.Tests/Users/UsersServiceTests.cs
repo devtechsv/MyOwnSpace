@@ -214,6 +214,52 @@ public class UsersServiceTests
     }
 
     [Fact]
+    public async Task ResetPasswordAsync_ConUsuarioDesactivado_TiraConflictSinAuditarNiEmitirTemporal()
+    {
+        // Antes respondía 200 y dejaba "ContrasenaReseteada" en la bitácora
+        // aunque no se hacía nada.
+        await using var db = CreateContext();
+        var user = CrearUsuario("Marta Gómez", "marta.gomez@devtch.com", estado: UserStatus.Desactivado);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var passwordResetService = new FakePasswordResetService();
+        var service = new UsersService(db, passwordResetService, new AuditLogService(db));
+
+        await Assert.ThrowsAsync<ConflictException>(() => service.ResetPasswordAsync(ActorId, user.Id));
+        Assert.Null(passwordResetService.UltimoCorreoInvitado);
+        Assert.False(await db.AuditLogs.AnyAsync(a => a.Accion == AuditAction.ContrasenaReseteada));
+    }
+
+    [Fact]
+    public async Task CreateAsync_GuardaElCorreoSinEspaciosYEnMinusculas()
+    {
+        await using var db = CreateContext();
+        var passwordResetService = new FakePasswordResetService();
+        var service = new UsersService(db, passwordResetService, new AuditLogService(db));
+
+        var user = await service.CreateAsync(ActorId, "Nuevo Empleado", "  Nuevo.Empleado@DevTch.com ", UserRole.Empleado, new DateOnly(2026, 1, 1));
+
+        Assert.Equal("nuevo.empleado@devtch.com", user.Correo);
+        Assert.Equal("nuevo.empleado@devtch.com", (await db.Users.SingleAsync()).Correo);
+        Assert.Equal("nuevo.empleado@devtch.com", passwordResetService.UltimoCorreoInvitado);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_GuardaElCorreoSinEspaciosYEnMinusculas()
+    {
+        await using var db = CreateContext();
+        var user = CrearUsuario("Carlos Rivas", "carlos.rivas@devtch.com");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db));
+        var actualizado = await service.UpdateAsync(ActorId, user.Id, null, " Carlos.Rivas2@DevTch.com", null);
+
+        Assert.Equal("carlos.rivas2@devtch.com", actualizado.Correo);
+    }
+
+    [Fact]
     public async Task ResetPasswordAsync_ConIdInexistente_TiraNotFound()
     {
         await using var db = CreateContext();

@@ -108,6 +108,15 @@ export function withAuth<P extends { [key: string]: any }>(
       };
     }
 
+    if (result.status === 'unavailable') {
+      return {
+        redirect: {
+          destination: '/login?unavailable=1',
+          permanent: false,
+        },
+      };
+    }
+
     if (options?.roles && !options.roles.includes(result.session.rol)) {
       return { notFound: true };
     }

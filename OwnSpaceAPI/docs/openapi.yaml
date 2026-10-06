@@ -196,6 +196,8 @@ paths:
           description: Reseteo iniciado.
         '404':
           description: Usuario no encontrado, o rol insuficiente.
+        '409':
+          description: El usuario está desactivado; hay que activarlo antes de resetear su contraseña.
 
   /users/{id}/toggle-status:
     post:

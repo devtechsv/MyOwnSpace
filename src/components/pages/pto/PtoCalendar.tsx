@@ -51,7 +51,7 @@ export function PtoCalendar({ reservas, onSelectDate }: Props) {
   ];
 
   const nombreMes = new Date(cursor.year, cursor.month, 1).toLocaleDateString(
-    'es-AR',
+    'es-SV',
     { month: 'long', year: 'numeric' },
   );
 

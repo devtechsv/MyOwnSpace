@@ -1,19 +1,18 @@
 # Cambios: PTO con reclamo de horas
 
 **Fecha:** 05/10/2026
-**Rama:** `chore/nextjs-16-migration`
+**Rama:** `chore/nextjs-16-migration`, fusionada en `Develop` (PR #4).
 
 ## Estado
 
-- **Respaldo:** el commit `20bd9b5` guarda el estado anterior a este trabajo. Si algo sale mal: `git stash` o `git checkout .` para volver a él.
-- **Este trabajo no tiene commit todavía.** Hay 39 archivos modificados y 7 nuevos. Ver `git status`.
-- **Verificación:**
+- **Commit:** `04ab0e7` (`feat: claim-based PTO model`), en `Develop`. Las correcciones posteriores del code review (2026-10-06) están en los PR #5 a #9.
+- **Verificación al momento del commit:**
   - Backend: 132 tests pasan.
   - Frontend: 285 tests pasan, también con `TZ=America/El_Salvador`.
   - Typecheck y lint sin errores (quedan 2 advertencias que ya existían).
   - Prueba real contra el API: 13 de 13 pasos correctos.
-- **Sin probar:** las pantallas en un navegador real.
-- **Migración:** `AddPtoClaims` ya está aplicada en la base local `OwnSpaceDb`.
+- **Probado después en el navegador** (2026-10-06), con la API real, incluido un video de demostración.
+- **Migración:** `AddPtoClaims`. Para aplicarla en otro ambiente, ver "Actualizar un ambiente existente" en `OwnSpaceAPI/README.md`.
 
 ## Reglas implementadas
 

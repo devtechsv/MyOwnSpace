@@ -70,7 +70,8 @@ public sealed class UsersService : IUsersService
         {
             Id = Guid.NewGuid(),
             Nombre = nombre,
-            Correo = correo,
+            // Se guarda igual que se busca: sin espacios y en minúsculas.
+            Correo = correoNormalizado,
             Rol = rol,
             Estado = UserStatus.Pendiente,
             PasswordHash = null,
@@ -124,7 +125,7 @@ public sealed class UsersService : IUsersService
             {
                 throw new ConflictException("Ya existe un usuario con ese correo.");
             }
-            user.Correo = correo;
+            user.Correo = correoNormalizado;
         }
 
         if (nombre is not null)
@@ -161,6 +162,15 @@ public sealed class UsersService : IUsersService
     {
         var user = await _db.Users.FindAsync(id)
             ?? throw new NotFoundException($"Usuario {id} no encontrado.");
+
+        // IssueTemporaryPasswordAsync no hace nada con un Desactivado (así
+        // el flujo anónimo no revela nada): antes esto respondía 200 y
+        // auditaba un reseteo que nunca pasó. El panel solo ofrece el botón
+        // para usuarios activos; esto cubre una llamada directa a la API.
+        if (user.Estado == UserStatus.Desactivado)
+        {
+            throw new ConflictException("El usuario está desactivado. Actívalo antes de resetear su contraseña.");
+        }
 
         await _auditLog.RegistrarAsync(actorId, AuditAction.ContrasenaReseteada, AuditEntityType.Usuario, id);
         await _db.SaveChangesAsync();

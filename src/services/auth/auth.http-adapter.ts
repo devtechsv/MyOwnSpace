@@ -9,10 +9,14 @@ import {
 
 
 import { SESSION_COOKIE } from './session-cookie';
+import { esServidorNoDisponible } from '@/helpers/servidor-no-disponible';
 
 export type SessionCheckResult =
   | { status: 'valid'; session: Session }
   | { status: 'expired' }
+  // La API no respondió o falló (5xx): la sesión puede seguir siendo
+  // válida, así que no se le dice al usuario que expiró.
+  | { status: 'unavailable' }
   | { status: 'none' };
 
 export const httpAuthAdapter = {
@@ -48,8 +52,8 @@ export const httpAuthAdapter = {
       }
 
       return { status: 'valid', session: response.data };
-    } catch {
-      return { status: 'expired' };
+    } catch (err) {
+      return esServidorNoDisponible(err) ? { status: 'unavailable' } : { status: 'expired' };
     }
   },
     async changePassword(payload: ChangePasswordPayload): Promise<void> {
