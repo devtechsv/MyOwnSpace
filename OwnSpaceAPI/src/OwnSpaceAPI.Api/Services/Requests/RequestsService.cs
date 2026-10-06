@@ -123,9 +123,9 @@ public sealed class RequestsService : IRequestsService
         Guid employeeId, RequestType tipo, DateOnly fechaInicio, DateOnly fechaFin,
         TimeOnly? horaInicio, TimeOnly? horaFin, string motivo)
     {
-        // Vacaciones tiene su propio flujo de autoservicio (POST
-        // /pto/requests, ver PtoRequestsService) — nace directo Aprobada
-        // y valida contra el balance de PTO. Si este endpoint genérico la
+        // Vacaciones tiene su propio flujo (POST /pto/requests y
+        // /pto/vacation-requests, ver PtoRequestsService) — valida contra el
+        // balance de PTO antes de crearla Pendiente. Si este endpoint genérico la
         // aceptara, se podría crear una Vacaciones Pendiente esquivando
         // por completo esa validación de balance.
         if (tipo == RequestType.Vacaciones)

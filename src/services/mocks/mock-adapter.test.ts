@@ -81,6 +81,16 @@ describe('mockAuthAdapter', () => {
     expect(sofia?.mustChangePassword).toBe(true);
   });
 
+  it('forgotPassword no le fuerza el cambio de contraseña a un usuario Activo', async () => {
+    // Igual que el backend: pedir una temporal no invalida la contraseña actual.
+    await mockAuthAdapter.forgotPassword({ correo: 'ana.martinez@devtch.com' });
+
+    const usuarios = await mockUsersAdapter.list(1, 20);
+    const ana = usuarios.items.find((u) => u.correo === 'ana.martinez@devtch.com');
+    expect(ana?.estado).toBe('Activo');
+    expect(ana?.mustChangePassword).toBeFalsy();
+  });
+
   it('forgotPassword no reactiva a un usuario Desactivado', async () => {
     await mockAuthAdapter.forgotPassword({ correo: 'marta.gomez@devtch.com' }); // u6, Desactivado
 
@@ -343,6 +353,21 @@ describe('mockPtoAdapter', () => {
     await expect(mockPtoAdapter.create('u4', { fecha: '2026-10-07', horas: 8.5 })).rejects.toThrow();
   });
 
+  it('create deja la solicitud de un día Pendiente de aprobación', async () => {
+    const creada = await mockPtoAdapter.create('u4', { fecha: '2026-10-06', horas: 8 });
+
+    expect(creada.estado).toBe('Pendiente');
+  });
+
+  it('create rechaza fechas pasadas y fines de semana', async () => {
+    await expect(mockPtoAdapter.create('u4', { fecha: '2026-09-29', horas: 8 })).rejects.toThrow(
+      'No puedes solicitar vacaciones en fechas pasadas.',
+    );
+    await expect(mockPtoAdapter.create('u4', { fecha: '2026-10-10', horas: 8 })).rejects.toThrow(
+      'Las vacaciones no pueden ser en sábado ni domingo.',
+    );
+  });
+
   it('create rechaza una segunda reserva para la misma fecha', async () => {
     await mockPtoAdapter.create('u4', { fecha: '2026-10-05', horas: 4 });
 
@@ -415,12 +440,15 @@ describe('mockPtoAdapter', () => {
   });
 
   it('listCalendario devuelve solo Vacaciones Aprobada, de todos los empleados', async () => {
-    await mockPtoAdapter.create('u4', { fecha: '2026-10-05', horas: 4 });
+    const unDia = await mockPtoAdapter.create('u4', { fecha: '2026-10-05', horas: 4 });
+    await mockRequestsAdapter.approve(unDia.id, 'u1');
+    // El rango queda Pendiente: no aparece hasta que lo aprueben.
     await mockPtoAdapter.createVacationRequest('u4', { fechaInicio: '2026-10-12', fechaFin: '2026-10-16' });
 
     const calendario = await mockPtoAdapter.listCalendario();
 
     expect(calendario).toHaveLength(1);
+    expect(calendario[0].id).toBe(unDia.id);
     expect(calendario.every((r) => r.tipo === 'Vacaciones' && r.estado === 'Aprobada')).toBe(true);
   });
 });

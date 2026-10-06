@@ -28,7 +28,7 @@ export function RequestPtoModal({ isOpen, fecha, onClose, onCreated }: Props) {
     <div
       role='dialog'
       aria-modal='true'
-      aria-label='Reservar PTO'
+      aria-label='Solicitar PTO'
       className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4'
     >
       <div
@@ -37,7 +37,7 @@ export function RequestPtoModal({ isOpen, fecha, onClose, onCreated }: Props) {
       >
         <div className='flex items-center justify-between mb-5'>
           <h2 className='text-base font-bold text-foreground'>
-            Reservar PTO — {fecha}
+            Solicitar PTO — {fecha}
           </h2>
           <button
             type='button'
@@ -60,6 +60,11 @@ export function RequestPtoModal({ isOpen, fecha, onClose, onCreated }: Props) {
             </svg>
           </button>
         </div>
+
+        <p className='mb-4 text-sm text-muted'>
+          Quedará pendiente hasta que un administrador la apruebe. Mientras
+          tanto, esas horas ya se descuentan de tu disponible.
+        </p>
 
         {serverError && (
           <div

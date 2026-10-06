@@ -82,7 +82,7 @@ public class AuthController : ControllerBase
   [EnableRateLimiting("auth")]
   public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
   {
-    await _passwordResetService.IssueTemporaryPasswordAsync(request.Correo);
+    await _passwordResetService.RequestTemporaryPasswordAsync(request.Correo);
     return Ok();
   }
 

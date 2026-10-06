@@ -28,6 +28,11 @@ public class UsersServiceTests
             UltimaTemporalIndicada = temporal;
             return Task.CompletedTask;
         }
+
+        // UsersService (acciones del admin) nunca debe usar el flujo
+        // anónimo, que no invalida la contraseña actual.
+        public Task RequestTemporaryPasswordAsync(string correo) =>
+            throw new InvalidOperationException("UsersService no debe usar el flujo anónimo de forgot-password.");
     }
 
     private static AppDbContext CreateContext() =>

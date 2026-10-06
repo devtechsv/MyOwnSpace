@@ -3,6 +3,7 @@ import { RequestPtoModal } from './RequestPtoModal';
 import { SessionContext } from '@/hooks/useSession';
 import { resetMockState, mockUsersAdapter } from '@/services/mocks/mock-adapter';
 import API from '@/services/api-services';
+import { esDiaHabil, sumarDias } from '@/lib/pto-balance-calculator';
 
 const session = {
   userId: 'u4',
@@ -12,7 +13,15 @@ const session = {
   mustChangePassword: false,
 };
 
-const hoy = new Date().toISOString().slice(0, 10);
+// Próximo día hábil desde hoy (incluido): la API rechaza fechas pasadas y
+// fines de semana, así que "hoy" a secas fallaría si la suite corre en sábado.
+function proximoDiaHabil(): string {
+  let dia = new Date().toISOString().slice(0, 10);
+  while (!esDiaHabil(dia)) dia = sumarDias(dia, 1);
+  return dia;
+}
+
+const hoy = proximoDiaHabil();
 
 function renderModal(props: Partial<React.ComponentProps<typeof RequestPtoModal>> = {}) {
   const defaultProps = {
@@ -70,7 +79,7 @@ describe('RequestPtoModal', () => {
     ).toBeInTheDocument();
   });
 
-  it('con "Jornada completa", reserva 8h y llama a onCreated/onClose', async () => {
+  it('con "Jornada completa", solicita 8h pendientes de aprobación y llama a onCreated/onClose', async () => {
     const props = renderModal();
 
     fireEvent.click(screen.getByRole('button', { name: /confirmar/i }));
@@ -81,7 +90,7 @@ describe('RequestPtoModal', () => {
     const reservas = await API.requests.listByEmployee('u4', { page: 1, pageSize: 20 });
     const nueva = reservas.items.find((r) => r.tipo === 'Vacaciones' && r.fechaInicio === hoy);
     expect(nueva?.horasSolicitadas).toBe(8);
-    expect(nueva?.estado).toBe('Aprobada');
+    expect(nueva?.estado).toBe('Pendiente');
   });
 
   it('con balance insuficiente, muestra el error del servidor', async () => {

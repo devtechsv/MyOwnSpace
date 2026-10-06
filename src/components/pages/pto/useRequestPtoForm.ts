@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useSession } from '@/hooks/useSession';
 import API from '@/services/api-services';
+import { errorMessage } from '@/helpers/error-message';
 
 const schema = z
   .object({
@@ -65,9 +66,9 @@ export function useRequestPtoForm({ fecha, onSuccess }: Options) {
       reset();
       onSuccess?.();
     } catch (err) {
-      setServerError(
-        err instanceof Error ? err.message : 'No pudimos reservar el PTO.',
-      );
+      // errorMessage: el `detail` del API (fecha pasada, fin de semana,
+      // saldo insuficiente…) en vez de "Request failed with status code 400".
+      setServerError(errorMessage(err, 'No pudimos solicitar el PTO.'));
     } finally {
       setIsSubmitting(false);
     }

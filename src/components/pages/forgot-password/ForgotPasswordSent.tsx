@@ -36,8 +36,9 @@ const ForgotPasswordSent = () => {
         <p className='text-sm text-muted leading-relaxed mb-7'>
           Si <strong className='text-foreground'>{correo}</strong> está
           registrado, vas a recibir una contraseña temporal en los
-          próximos minutos. Usala para iniciar sesión — después te vamos
-          a pedir que definas una nueva.
+          próximos minutos. Úsala para iniciar sesión — después te vamos
+          a pedir que definas una nueva. Si recuerdas tu contraseña
+          actual, sigue funcionando.
         </p>
 
         <Link

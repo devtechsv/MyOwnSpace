@@ -242,4 +242,106 @@ public class AuthServiceTests
         await Assert.ThrowsAsync<BadRequestException>(
             () => service.ChangePasswordAsync(user.Id, "Correcta123!", "corta1"));
     }
+
+    // --- Temporal pedida por forgot-password (TempPasswordHash) ---
+
+    private static User ConTemporalPendiente(IPasswordHashingService hasher, User user, string temporal, DateTime vence)
+    {
+        user.TempPasswordHash = hasher.Hash(user, temporal);
+        user.TempPasswordExpiresAt = vence;
+        return user;
+    }
+
+    [Fact]
+    public async Task ValidateCredentialsAsync_ConTemporalPendiente_LaContraseniaDeSiempreSigueFuncionando()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = ConTemporalPendiente(hasher,
+            CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!"), "Temporal#2026x", DateTime.UtcNow.AddHours(48));
+        var stampOriginal = user.SecurityStamp;
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+        var resultado = await service.ValidateCredentialsAsync("empleado@devtch.com", "Correcta123!");
+
+        // Recordó su contraseña: entra sin cambio forzado y la temporal se descarta.
+        Assert.False(resultado.MustChangePassword);
+        Assert.Null(resultado.TempPasswordHash);
+        Assert.Equal(stampOriginal, resultado.SecurityStamp);
+    }
+
+    [Fact]
+    public async Task ValidateCredentialsAsync_ConLaTemporal_LaVuelveDefinitivaYCierraLasOtrasSesiones()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = ConTemporalPendiente(hasher,
+            CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!"), "Temporal#2026x", DateTime.UtcNow.AddHours(48));
+        var stampOriginal = user.SecurityStamp;
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+        var resultado = await service.ValidateCredentialsAsync("empleado@devtch.com", "Temporal#2026x");
+
+        Assert.True(resultado.MustChangePassword);
+        Assert.Null(resultado.TempPasswordHash);
+        Assert.NotEqual(stampOriginal, resultado.SecurityStamp);
+        Assert.True(hasher.Verify(resultado, resultado.PasswordHash!, "Temporal#2026x"));
+        await Assert.ThrowsAsync<UnauthorizedException>(
+            () => service.ValidateCredentialsAsync("empleado@devtch.com", "Correcta123!"));
+    }
+
+    [Fact]
+    public async Task ValidateCredentialsAsync_ConLaTemporalVencida_TiraUnauthorized()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = ConTemporalPendiente(hasher,
+            CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!"), "Temporal#2026x", DateTime.UtcNow.AddMinutes(-1));
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+
+        await Assert.ThrowsAsync<UnauthorizedException>(
+            () => service.ValidateCredentialsAsync("empleado@devtch.com", "Temporal#2026x"));
+    }
+
+    [Fact]
+    public async Task ValidateCredentialsAsync_PendienteSinContraseniaPropia_EntraConLaTemporal()
+    {
+        // Pendiente que pidió "olvidé mi contraseña": solo tiene la temporal.
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "nuevo@devtch.com", "NoImporta123!");
+        user.PasswordHash = null;
+        ConTemporalPendiente(hasher, user, "Temporal#2026x", DateTime.UtcNow.AddHours(48));
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+        var resultado = await service.ValidateCredentialsAsync("nuevo@devtch.com", "Temporal#2026x");
+
+        Assert.True(resultado.MustChangePassword);
+        Assert.NotNull(resultado.PasswordHash);
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_DescartaUnaTemporalPendiente()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = ConTemporalPendiente(hasher,
+            CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!"), "Temporal#2026x", DateTime.UtcNow.AddHours(48));
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher);
+        var resultado = await service.ChangePasswordAsync(user.Id, "Correcta123!", "NuevaSegura#2026");
+
+        Assert.Null(resultado.TempPasswordHash);
+    }
 }

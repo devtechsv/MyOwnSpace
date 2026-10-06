@@ -35,28 +35,62 @@ public sealed class AuthService : IAuthService
         var correoNormalizado = correo.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Correo == correoNormalizado);
 
+        // Siempre dos verificaciones completas (la contraseña actual y la
+        // temporal pedida por "olvidé mi contraseña"), existan o no: así el
+        // tiempo de respuesta no revela si hay una temporal pendiente ni
+        // cuál de las dos coincidió.
         var passwordOk = _passwordHasher.Verify(
             user ?? DummyUser,
             user?.PasswordHash ?? DummyPasswordHash,
             password);
+        var temporalOk = _passwordHasher.Verify(
+            user ?? DummyUser,
+            user?.TempPasswordHash ?? DummyPasswordHash,
+            password);
 
-        // Misma verificación completa de hash arriba aunque esté vencida
-        // (mismo motivo que DummyUser/DummyPasswordHash) — así el tiempo
-        // de respuesta tampoco distingue "temporal vencida" de "contraseña
-        // incorrecta".
-        var temporalVencida = user is not null
-            && user.MustChangePassword
-            && user.TempPasswordExpiresAt is not null
-            && user.TempPasswordExpiresAt < DateTime.UtcNow;
+        var ahora = DateTime.UtcNow;
+        var temporalVencida = user?.TempPasswordExpiresAt is not null && user.TempPasswordExpiresAt < ahora;
+        var temporalVigente = user?.TempPasswordExpiresAt is not null && !temporalVencida;
 
-        if (user is null
-            || user.Estado != UserStatus.Activo
-            || user.PasswordHash is null
-            || !passwordOk
-            || temporalVencida)
+        // MustChangePassword con PasswordHash = temporal del admin (o una
+        // temporal anónima ya usada): vence igual que antes.
+        var principalValida = passwordOk
+            && user?.PasswordHash is not null
+            && !(user.MustChangePassword && temporalVencida);
+        var temporalValida = temporalOk
+            && user?.TempPasswordHash is not null
+            && temporalVigente;
+
+        if (user is null || user.Estado != UserStatus.Activo || (!principalValida && !temporalValida))
         {
             throw new UnauthorizedException(CredencialesInvalidasMensaje);
         }
+
+        if (principalValida)
+        {
+            // Recordó su contraseña: la temporal pendiente ya no hace falta.
+            if (user.TempPasswordHash is not null)
+            {
+                user.TempPasswordHash = null;
+                if (!user.MustChangePassword)
+                {
+                    user.TempPasswordExpiresAt = null;
+                }
+                user.UpdatedAt = ahora;
+                await _db.SaveChangesAsync();
+            }
+            return user;
+        }
+
+        // Entró con la temporal: recién ahora reemplaza a la contraseña
+        // anterior y cierra las demás sesiones. TempPasswordExpiresAt se
+        // conserva: sigue venciendo en la misma fecha si no la cambia.
+        user.PasswordHash = user.TempPasswordHash;
+        user.TempPasswordHash = null;
+        user.MustChangePassword = true;
+        user.SecurityStamp = Guid.NewGuid().ToString("N");
+        user.UpdatedAt = ahora;
+        await _db.SaveChangesAsync();
 
         return user;
     }
@@ -99,6 +133,7 @@ public sealed class AuthService : IAuthService
         user.PasswordHash = _passwordHasher.Hash(user, passwordNueva);
         user.MustChangePassword = false;
         user.TempPasswordExpiresAt = null;
+        user.TempPasswordHash = null;
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
