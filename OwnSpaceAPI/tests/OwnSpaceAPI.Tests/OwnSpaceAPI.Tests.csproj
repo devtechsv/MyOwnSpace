@@ -22,6 +22,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Casos de PTO compartidos con el frontend (src/services/mocks/pto-balance-calculator.casos.test.ts). -->
+  <ItemGroup>
+    <None Include="..\..\..\test-data\pto-calculadora-casos.json" Link="Pto\pto-calculadora-casos.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\OwnSpaceAPI.Api\OwnSpaceAPI.Api.csproj" />
   </ItemGroup>

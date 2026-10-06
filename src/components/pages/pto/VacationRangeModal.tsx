@@ -5,7 +5,7 @@ import { useModalAlly } from '@/hooks/useModalAlly';
 import { useSession } from '@/hooks/useSession';
 import { errorMessage } from '@/helpers/error-message';
 import { hoyIso } from '@/helpers/hoy-iso';
-import { contarDiasHabiles, esDiaHabil, HORAS_POR_DIA } from '@/lib/pto-balance-calculator';
+import { contarDiasHabiles, esDiaHabil, HORAS_POR_DIA } from '@/lib/dias-habiles';
 import API from '@/services/api-services';
 
 interface Props {

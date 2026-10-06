@@ -22,15 +22,13 @@ import {
   CreateVacationRequestPayload,
   PtoBalance,
 } from '@/contracts/interfaces/pto';
+import { contarDiasHabiles, esDiaHabil, HORAS_POR_DIA } from '@/lib/dias-habiles';
 import {
   calcularEstadoPto,
-  contarDiasHabiles,
   DIAS_TRABAJADOS_MINIMOS,
-  esDiaHabil,
-  HORAS_POR_DIA,
   TramoReclamado,
   tramoPendiente,
-} from '@/lib/pto-balance-calculator';
+} from './pto-balance-calculator';
 import { isPasswordValid } from '@/lib/password-rules';
 import { hoyIso } from '@/helpers/hoy-iso';
 import { mockPtoClaims, mockRequests, mockUsers } from './mock-data';

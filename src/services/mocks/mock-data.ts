@@ -1,6 +1,6 @@
 import { User } from '@/contracts/interfaces/user';
 import { LeaveRequest } from '@/contracts/interfaces/request';
-import { TramoReclamado } from '@/lib/pto-balance-calculator';
+import { TramoReclamado } from './pto-balance-calculator';
 
 // Datos de ejemplo coherentes con los usados en el mockup de Claude Design,
 // para que la demo local se sienta consistente con las pantallas validadas.
