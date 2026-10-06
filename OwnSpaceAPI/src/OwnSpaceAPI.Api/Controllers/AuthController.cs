@@ -16,15 +16,23 @@ public class AuthController : ControllerBase
   private readonly IAuthService _authService;
   private readonly IJwtTokenService _jwtTokenService;
   private readonly IPasswordResetService _passwordResetService;
+  // null = cookie host-only (solo la recibe el host de la API). Con un
+  // dominio (Auth:CookieDomain, p. ej. "dominio.com") la reciben también
+  // sus subdominios: hace falta si el frontend y la API viven en hosts
+  // distintos, porque withAuth lee la cookie en el servidor del frontend.
+  private readonly string? _cookieDomain;
 
   public AuthController(
     IAuthService authService,
     IJwtTokenService jwtTokenService,
-    IPasswordResetService passwordResetService)
+    IPasswordResetService passwordResetService,
+    IConfiguration configuration)
   {
     _authService = authService;
     _jwtTokenService = jwtTokenService;
     _passwordResetService = passwordResetService;
+    var cookieDomain = configuration["Auth:CookieDomain"];
+    _cookieDomain = string.IsNullOrWhiteSpace(cookieDomain) ? null : cookieDomain.Trim();
   }
 
   [HttpPost("login")]
@@ -113,6 +121,7 @@ public class AuthController : ControllerBase
       Secure = true,
       SameSite = SameSiteMode.Lax,
       Path = "/",
+      Domain = _cookieDomain,
       Expires = DateTimeOffset.UtcNow.AddHours(2),
     });
   }
@@ -121,13 +130,15 @@ public class AuthController : ControllerBase
   {
     // Delete necesita los mismos atributos (HttpOnly/Secure/SameSite)
     // que Append: si no coinciden, algunos navegadores no la borran y
-    // la cookie vieja queda pegada.
+    // la cookie vieja queda pegada. Con Domain es obligatorio: sin él, el
+    // borrado apunta a otra cookie y la sesión sigue viva.
     Response.Cookies.Delete(AccessTokenCookie, new CookieOptions
     {
       HttpOnly = true,
       Secure = true,
       SameSite = SameSiteMode.Lax,
       Path = "/",
+      Domain = _cookieDomain,
     });
   }
 }
