@@ -55,7 +55,7 @@ const Home: NextPage<Props> = () => {
             value={tipoFiltro}
             onChange={(e) => setTipoFiltro(e.target.value as EmployeeRequestsTipoFilter)}
             aria-label='Filtrar por tipo de solicitud'
-            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
           >
             {TIPO_FILTER_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -69,7 +69,7 @@ const Home: NextPage<Props> = () => {
             value={fechaFiltro}
             onChange={(e) => setFechaFiltro(e.target.value)}
             aria-label='Filtrar por fecha'
-            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
           />
         </div>
 

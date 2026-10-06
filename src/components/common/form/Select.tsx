@@ -37,7 +37,7 @@ export const Select = forwardRef<HTMLSelectElement, Props>(
           id={name}
           name={name}
           className={cx(
-            'w-full px-3.5 py-3 border border-border rounded-[10px] bg-surface-field text-sm text-foreground appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40',
+            'w-full px-3.5 py-3 border border-border rounded-[10px] bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40',
             classNames?.select,
             className,
           )}

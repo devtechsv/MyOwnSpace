@@ -122,7 +122,7 @@ Se sigue el patrón ya presente en el repo — no se introducen convenciones nue
 - **Clases condicionales**: helper `cx()` existente (`src/helpers/cx.ts`), no `clsx` ni `classnames` directo en componentes.
 - **Iconos**: `react-icons` (ya en dependencias) — no SVGs sueltos pegados en componentes de producción (a diferencia del mockup, que sí los usa por ser HTML estático).
 - **Tipado**: sin `any`; los contratos de datos (`User`, `LeaveRequest`, etc.) viven en `src/contracts/interfaces/` y se importan, no se redefinen inline en cada componente.
-- **Tailwind**: se extiende `tailwind.config.ts` con `darkMode: 'class'` y tokens semánticos (`bg`, `surface`, `border`, `text`, `text-muted`) para claro/oscuro, siguiendo los valores ya validados en el mockup — en vez de repetir clases `dark:bg-[#...]` sueltas por todo el código.
+- **Tailwind** (v4, configurado en CSS, sin `tailwind.config.ts`): `src/styles/globals.css` define la variante `dark` por clase y tokens semánticos (`background`, `surface`, `surface-field`, `border`, `foreground`, `muted`) para claro/oscuro, siguiendo los valores ya validados en el mockup — en vez de repetir clases `dark:bg-[#...]` sueltas por todo el código.
 - **Nombres de dominio en español**: los tipos de solicitud, estados y textos de UI se mantienen en español (`'Pendiente' | 'Aprobada' | 'Denegada'`), consistente con el resto del proyecto y el mockup — no se traducen a inglés.
 
 ---

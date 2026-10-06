@@ -1,28 +1,91 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-turquoise-blue-50: #ecfeff;
+  --color-turquoise-blue-100: #cffbfe;
+  --color-turquoise-blue-200: #a6f5fb;
+  --color-turquoise-blue-300: #68eaf8;
+  --color-turquoise-blue-400: #3edbef;
+  --color-turquoise-blue-500: #07b9d3;
+  --color-turquoise-blue-600: #0993b1;
+  --color-turquoise-blue-700: #0f768f;
+  --color-turquoise-blue-800: #166074;
+  --color-turquoise-blue-900: #164f63;
+  --color-turquoise-blue-950: #083444;
+}
 
 /*
- * Tokens semánticos de tema, en RGB espaciado por blancos para soportar
- * opacidad vía la notación `rgb(var(--x) / <alpha-value>)` de Tailwind.
- * Valores tomados del mockup validado en Claude Design.
+ * Tokens semánticos (bg-background, text-muted, border-border…): `inline`
+ * hace que cada utilidad apunte a la variable --app-* en vez de copiar su
+ * valor, así cambian solas con la clase `dark`. Los nombres --app-* no
+ * pueden ser --color-*: Tailwind publica cada color de @theme con ese
+ * nombre y quedaría una variable definida a partir de sí misma.
+ * Las opacidades (text-muted/50) funcionan con color-mix().
+ */
+@theme inline {
+  --color-background: var(--app-background);
+  --color-surface: var(--app-surface);
+  --color-surface-field: var(--app-surface-field);
+  --color-border: var(--app-border);
+  --color-foreground: var(--app-foreground);
+  --color-muted: var(--app-muted);
+}
+
+/*
+ * Compatibilidad con los valores por defecto de Tailwind 3, para que la
+ * migración a v4 no cambie nada visible. Para quitar una regla, hay que
+ * agregar la utilidad explícita en cada elemento que dependa de ella.
+ * v4 pinta los bordes con `currentcolor`; v3 usaba gray-200.
+ */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  /* v4 deja los botones con el cursor por defecto; v3 mostraba la mano. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* v4 quita el relleno interno de los campos de fecha/mes (2px menos de alto). */
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: revert;
+  }
+
+  /* v4 usa el color del texto al 50 % para el placeholder; v3, gray-400. */
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+}
+
+/*
+ * Valores de los tokens semánticos por tema (los usa @theme inline).
+ * Tomados del mockup validado en Claude Design.
  */
 :root {
-  --color-background: 246 248 251; /* #f6f8fb */
-  --color-surface: 255 255 255; /* #ffffff */
-  --color-surface-field: 248 250 252; /* #f8fafc */
-  --color-border: 227 232 239; /* #e3e8ef */
-  --color-foreground: 15 23 42; /* #0f172a */
-  --color-muted: 100 116 139; /* #64748b */
+  --app-background: #f6f8fb;
+  --app-surface: #ffffff;
+  --app-surface-field: #f8fafc;
+  --app-border: #e3e8ef;
+  --app-foreground: #0f172a;
+  --app-muted: #64748b;
 }
 
 .dark {
-  --color-background: 11 18 32; /* #0b1220 */
-  --color-surface: 17 26 44; /* #111a2c */
-  --color-surface-field: 14 22 38; /* #0e1626 */
-  --color-border: 31 42 61; /* #1f2a3d */
-  --color-foreground: 230 237 245; /* #e6edf5 */
-  --color-muted: 143 161 184; /* #8fa1b8 */
+  --app-background: #0b1220;
+  --app-surface: #111a2c;
+  --app-surface-field: #0e1626;
+  --app-border: #1f2a3d;
+  --app-foreground: #e6edf5;
+  --app-muted: #8fa1b8;
 }
 
 /*
@@ -32,7 +95,7 @@
  */
 html,
 body {
-  background-color: rgb(var(--color-background));
+  background-color: var(--app-background);
 }
 
 /*
@@ -43,8 +106,8 @@ body {
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-text-fill-color: rgb(var(--color-foreground));
-  -webkit-box-shadow: 0 0 0px 1000px rgb(var(--color-surface-field)) inset;
-  box-shadow: 0 0 0px 1000px rgb(var(--color-surface-field)) inset;
+  -webkit-text-fill-color: var(--app-foreground);
+  -webkit-box-shadow: 0 0 0px 1000px var(--app-surface-field) inset;
+  box-shadow: 0 0 0px 1000px var(--app-surface-field) inset;
   transition: background-color 9999s ease-in-out 0s;
 }

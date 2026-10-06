@@ -79,7 +79,7 @@ export function RequestsTable({ requests, isLoading, error, emptyMessage }: Prop
             onClick={() => toggleExpanded(request.id)}
             aria-expanded={isExpanded}
             aria-label={`${isExpanded ? 'Ocultar' : 'Ver'} motivo completo — ${request.tipo}`}
-            className='shrink-0 p-1 rounded text-muted hover:text-foreground'
+            className='shrink-0 p-1 rounded-sm text-muted hover:text-foreground'
           >
             <svg
               width='14'
