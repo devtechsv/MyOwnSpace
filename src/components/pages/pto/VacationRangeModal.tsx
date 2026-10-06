@@ -4,6 +4,7 @@ import { TextInput } from '@/components/common/form/TextInput';
 import { useModalAlly } from '@/hooks/useModalAlly';
 import { useSession } from '@/hooks/useSession';
 import { errorMessage } from '@/helpers/error-message';
+import { hoyIso } from '@/helpers/hoy-iso';
 import { contarDiasHabiles, esDiaHabil, HORAS_POR_DIA } from '@/lib/pto-balance-calculator';
 import API from '@/services/api-services';
 
@@ -28,7 +29,7 @@ export function VacationRangeModal({ isOpen, horasDisponibles, onClose, onCreate
 
   if (!isOpen) return null;
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyIso();
   const completo = Boolean(fechaInicio && fechaFin);
   const dias = completo && fechaFin >= fechaInicio ? contarDiasHabiles(fechaInicio, fechaFin) : 0;
   const horas = dias * HORAS_POR_DIA;

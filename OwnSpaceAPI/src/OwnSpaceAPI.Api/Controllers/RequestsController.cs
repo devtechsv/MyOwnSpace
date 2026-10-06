@@ -47,20 +47,20 @@ public class RequestsController : ControllerBase
   [HttpGet("pending")]
   [Authorize(Roles = nameof(UserRole.Administrador))]
   public async Task<ActionResult<PagedResult<LeaveRequestResponse>>> ListPending(
-    [FromQuery] RequestType? tipo, [FromQuery] DateOnly? fecha, [FromQuery] string? nombre,
+    [FromQuery] RequestType? tipo, [FromQuery] DateOnly? fecha, [FromQuery] string? nombre, [FromQuery] Guid? employeeId,
     [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
   {
-    var result = await _requestsService.ListPendingAsync(tipo, fecha, nombre, page, pageSize);
+    var result = await _requestsService.ListPendingAsync(tipo, fecha, nombre, page, pageSize, employeeId);
     return Ok(MapPage(result));
   }
 
   [HttpGet]
   [Authorize(Roles = nameof(UserRole.Administrador))]
   public async Task<ActionResult<PagedResult<LeaveRequestResponse>>> List(
-    [FromQuery] RequestStatus? estado, [FromQuery] RequestType? tipo, [FromQuery] DateOnly? fecha, [FromQuery] string? nombre,
+    [FromQuery] RequestStatus? estado, [FromQuery] RequestType? tipo, [FromQuery] DateOnly? fecha, [FromQuery] string? nombre, [FromQuery] Guid? employeeId,
     [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
   {
-    var result = await _requestsService.ListAllAsync(estado, tipo, fecha, nombre, page, pageSize);
+    var result = await _requestsService.ListAllAsync(estado, tipo, fecha, nombre, page, pageSize, employeeId);
     return Ok(MapPage(result));
   }
 

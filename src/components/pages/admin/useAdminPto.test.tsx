@@ -1,6 +1,6 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useAdminPto } from './useAdminPto';
-import { resetMockState, mockPtoAdapter, mockRequestsAdapter } from '@/services/mocks/mock-adapter';
+import { resetMockState, mockPtoAdapter, mockRequestsAdapter, mockUsersAdapter } from '@/services/mocks/mock-adapter';
 
 // Fecha fija (jueves 2026-10-01): la API rechaza fechas pasadas y fines
 // de semana, así que las reservas de prueba usan días hábiles futuros en
@@ -30,6 +30,7 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+  jest.restoreAllMocks();
 });
 
 describe('useAdminPto', () => {
@@ -53,10 +54,26 @@ describe('useAdminPto', () => {
         result.current.setMesFiltro('2026-11');
       });
 
-      expect(result.current.rows.map((r) => r.id)).toContain(solicitud.id);
+      // Cambiar de mes vuelve a pedir al servidor: hay que esperar la respuesta.
+      await waitFor(() => expect(result.current.rows.map((r) => r.id)).toContain(solicitud.id));
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  it('no descarga la lista de usuarios: pide solo el mes al servidor y usa el nombre que trae cada fila', async () => {
+    // Regresión: antes paginaba GET /users entero (admins incluidos) solo
+    // para resolver nombres, y traía todo el historial de vacaciones.
+    const usersSpy = jest.spyOn(mockUsersAdapter, 'list');
+    const calendarioSpy = jest.spyOn(mockPtoAdapter, 'listCalendario');
+    await reservaAprobada('u3', DIAS_HABILES_OCT[1], 8);
+
+    const { result } = renderHook(() => useAdminPto());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(usersSpy).not.toHaveBeenCalled();
+    expect(calendarioSpy).toHaveBeenCalledWith('2026-10');
+    expect(result.current.rows[0].employeeName).toBe('Ana Martínez');
   });
 
   it('por defecto solo muestra reservas del mes actual', async () => {
@@ -81,7 +98,8 @@ describe('useAdminPto', () => {
       result.current.setMesFiltro('');
     });
 
-    expect(result.current.totalCount).toBe(2);
+    // Cambiar de mes vuelve a pedir al servidor: hay que esperar la respuesta.
+    await waitFor(() => expect(result.current.totalCount).toBe(2));
   });
 
   it(
@@ -119,7 +137,7 @@ describe('useAdminPto', () => {
   );
 
   it(
-    'cambiar el filtro de nombre vuelve a la página 1',
+    'elegir un empleado de la lista vuelve a la página 1 y filtra por su id',
     async () => {
       for (const fecha of DIAS_HABILES_OCT) {
         await reservaAprobada('u3', fecha, 1);
@@ -137,14 +155,52 @@ describe('useAdminPto', () => {
       await waitFor(() => expect(result.current.page).toBe(2));
 
       act(() => {
-        result.current.setNombreQuery('ana'); // u3 = Ana Martínez
+        result.current.setEmpleadoFiltro('u3'); // Ana Martínez
       });
 
       expect(result.current.page).toBe(1);
-      expect(
-        result.current.rows.every((r) => r.employeeName === 'Ana Martínez'),
-      ).toBe(true);
+      expect(result.current.totalCount).toBe(8);
+      expect(result.current.rows.every((r) => r.employeeId === 'u3')).toBe(true);
     },
     15000,
   );
+
+  it('la lista ofrece a cada empleado con reservas una sola vez, ordenados por nombre', async () => {
+    await reservaAprobada('u4', DIAS_HABILES_OCT[2], 8);
+    await reservaAprobada('u3', DIAS_HABILES_OCT[1], 8);
+    await reservaAprobada('u3', DIAS_HABILES_OCT[3], 8);
+
+    const { result } = renderHook(() => useAdminPto());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // Ana Martínez (u3) antes que Carlos Rivas (u4), aunque u3 tenga dos reservas.
+    expect(result.current.empleados.map((e) => e.id)).toEqual(['u3', 'u4']);
+  });
+
+  it('el empleado elegido se conserva al cambiar a un mes donde no tiene reservas', async () => {
+    await reservaAprobada('u3', DIAS_HABILES_OCT[1], 8);
+    await reservaAprobada('u4', DIA_HABIL_NOV, 8);
+
+    const { result } = renderHook(() => useAdminPto());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    // u4 solo tiene reservas en noviembre: no aparece en la lista de octubre.
+    expect(result.current.empleados.map((e) => e.id)).toEqual(['u3']);
+
+    act(() => {
+      result.current.setEmpleadoFiltro('u3');
+    });
+    act(() => {
+      result.current.setMesFiltro('2026-11');
+    });
+    await waitFor(() => expect(result.current.empleados.map((e) => e.id)).toContain('u4'));
+
+    expect(result.current.empleadoFiltro).toBe('u3');
+    expect(result.current.empleados.map((e) => e.id)).toContain('u3');
+    expect(result.current.totalCount).toBe(0);
+
+    act(() => {
+      result.current.setEmpleadoFiltro(''); // "Todos los empleados"
+    });
+    expect(result.current.totalCount).toBe(1);
+  });
 });

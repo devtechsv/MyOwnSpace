@@ -367,6 +367,27 @@ public class RequestsServiceTests
   }
 
   [Fact]
+  public async Task ListAllAsync_ConEmployeeId_SoloDevuelveLasDeEseEmpleadoAunqueOtroTengaUnNombreQueLoContiene()
+  {
+    // El LIKE de "nombre" no sirve para la lista de empleados: buscar
+    // "Ana Martínez" también traería a "Ana Martínez López".
+    await using var db = CreateContext();
+    var ana = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
+    var anaLopez = CrearUsuario("Ana Martínez López", "ana.lopez@devtch.com");
+    db.Users.AddRange(ana, anaLopez);
+    db.LeaveRequests.AddRange(NuevaSolicitud(ana.Id), NuevaSolicitud(anaLopez.Id));
+    await db.SaveChangesAsync();
+
+    var service = CrearServicio(db);
+    var todas = await service.ListAllAsync(estado: null, tipo: null, fecha: null, nombre: null, page: 1, pageSize: 20, employeeId: ana.Id);
+    var pendientes = await service.ListPendingAsync(tipo: null, fecha: null, nombre: null, page: 1, pageSize: 20, employeeId: ana.Id);
+
+    Assert.Equal(ana.Id, Assert.Single(todas.Items).EmployeeId);
+    Assert.Equal(1, todas.TotalCount);
+    Assert.Equal(ana.Id, Assert.Single(pendientes.Items).EmployeeId);
+  }
+
+  [Fact]
   public async Task ListAllAsync_ConGuionBajoLiteralEnElNombre_NoLoTrataComoComodin()
   {
     // "_" es comodín de SQL LIKE (matchea cualquier caracter) — sin

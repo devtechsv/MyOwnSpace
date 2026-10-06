@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { EditUserModal } from './EditUserModal';
 import { resetMockState, mockUsersAdapter } from '@/services/mocks/mock-adapter';
 import { User } from '@/contracts/interfaces/user';
+import { errorDelApi } from '@/test-utils/api-error';
 
 const julio: User = {
   id: 'u1',
@@ -68,6 +69,23 @@ describe('EditUserModal', () => {
       await screen.findByText('Ya existe un usuario con el correo ingresado.'),
     ).toBeInTheDocument();
     expect(props.onUpdated).not.toHaveBeenCalled();
+  });
+
+  it('contra el API real, un correo duplicado (409) muestra el detail, no "Request failed…"', async () => {
+    jest.spyOn(mockUsersAdapter, 'update').mockRejectedValueOnce(
+      errorDelApi(409, 'Ya existe un usuario con ese correo.'),
+    );
+    renderModal();
+
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), {
+      target: { value: 'carlos.rivas@devtch.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }));
+
+    expect(
+      await screen.findByText('Ya existe un usuario con ese correo.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/request failed/i)).not.toBeInTheDocument();
   });
 
   it('con datos válidos, actualiza el usuario y llama a onUpdated/onClose', async () => {

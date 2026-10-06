@@ -3,6 +3,7 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import API from '@/services/api-services';
+import { errorMessage } from '@/helpers/error-message';
 import { User } from '@/contracts/interfaces/user';
 
 const ROLES = ['Empleado', 'Administrador'] as const;
@@ -44,8 +45,9 @@ export function useEditUserForm({ user, onSuccess }: Options) {
       onSuccess?.();
     } catch (err) {
       setError('correo', {
-        message:
-          err instanceof Error ? err.message : 'No pudimos editar el usuario.',
+        // errorMessage: el `detail` del API (p. ej. "Ya existe un usuario
+        // con ese correo.") en vez de "Request failed with status code 409".
+        message: errorMessage(err, 'No pudimos editar el usuario.'),
       });
     } finally {
       setIsSubmitting(false);

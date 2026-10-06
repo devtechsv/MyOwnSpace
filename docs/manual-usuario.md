@@ -71,7 +71,7 @@ Además de tu propia sección de empleado, tienes tres pantallas más en el men�
 
 ### Solicitudes del equipo
 
-Aquí revisas y decides las solicitudes de todo el equipo. Hay pestañas: **Pendientes**, **Aprobadas**, **Denegadas** y **Todas** (cada una muestra su cantidad). Puedes filtrar por tipo o buscar por nombre del empleado.
+Aquí revisas y decides las solicitudes de todo el equipo. Hay pestañas: **Pendientes**, **Aprobadas**, **Denegadas** y **Todas** (cada una muestra su cantidad). Puedes filtrar por tipo, por fecha o elegir un empleado de la lista.
 
 - Para aprobar una solicitud pendiente, toca **"Aprobar"**.
 - Para denegarla, toca **"Denegar"** — te va a pedir un **"Motivo del rechazo"**, que el empleado va a ver junto a su solicitud. Toca **"Denegar"** para confirmar.
@@ -88,7 +88,7 @@ Aquí administras las cuentas del equipo. Arriba vas a ver tres contadores: **To
 
 ### PTO del equipo
 
-Vista de solo lectura para planificar — muestra las vacaciones ya aprobadas de todo el equipo (las pendientes se deciden en "Solicitudes"). Puedes filtrar por mes o buscar por nombre.
+Vista de solo lectura para planificar — muestra las vacaciones ya aprobadas de todo el equipo (las pendientes se deciden en "Solicitudes"). Puedes filtrar por mes y elegir un empleado de la lista (aparecen quienes tienen vacaciones en el mes elegido).
 
 ## Otras cosas útiles
 

@@ -1,5 +1,4 @@
 using System.Data;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using OwnSpaceAPI.Api.Data;
 using OwnSpaceAPI.Api.Models.Entities;
@@ -31,7 +30,8 @@ public sealed class PtoRequestsService : IPtoRequestsService
         _clock = clock;
     }
 
-    private DateOnly Hoy => DateOnly.FromDateTime(_clock.GetUtcNow().UtcDateTime);
+    // Hora de El Salvador, no UTC (ver FechaLocal).
+    private DateOnly Hoy => _clock.HoyLocal();
 
     public async Task<LeaveRequest> CrearAsync(Guid employeeId, DateOnly fecha, decimal horas)
     {
@@ -107,16 +107,8 @@ public sealed class PtoRequestsService : IPtoRequestsService
                 await transaction.CommitAsync();
             }
         }
-        catch (Exception ex) when (EsDeadlockOTimeoutDeLock(ex))
+        catch (Exception ex) when (SqlConcurrencia.EsDeadlockOTimeoutDeLock(ex))
         {
-            // 1205 (deadlock, elegida como víctima) y 1222 (timeout
-            // esperando un lock) son el costo esperado de Serializable
-            // bajo alta concurrencia (varias reservas del mismo empleado
-            // a la vez) — se traducen a un 409 legible en vez de dejar
-            // escapar el 500 crudo. EF Core envuelve el SqlException real
-            // en un DbUpdateException (si pasó durante SaveChangesAsync)
-            // y a veces en un InvalidOperationException encima — por eso
-            // hay que recorrer InnerException en vez de un catch directo.
             throw new ConflictException("Hubo mucha actividad al mismo tiempo sobre tu PTO — inténtalo de nuevo.");
         }
 
@@ -192,7 +184,7 @@ public sealed class PtoRequestsService : IPtoRequestsService
                 await transaction.CommitAsync();
             }
         }
-        catch (Exception ex) when (EsDeadlockOTimeoutDeLock(ex))
+        catch (Exception ex) when (SqlConcurrencia.EsDeadlockOTimeoutDeLock(ex))
         {
             throw new ConflictException("Hubo mucha actividad al mismo tiempo sobre tu PTO — inténtalo de nuevo.");
         }
@@ -210,22 +202,22 @@ public sealed class PtoRequestsService : IPtoRequestsService
             && r.FechaInicio <= hasta
             && r.FechaFin >= desde);
 
-    public async Task<List<LeaveRequest>> ListarEquipoAsync() =>
-        await _db.LeaveRequests
-            .Where(r => r.Tipo == RequestType.Vacaciones && r.Estado == RequestStatus.Aprobada)
-            .OrderBy(r => r.FechaInicio)
-            .ToListAsync();
-
-    private static bool EsDeadlockOTimeoutDeLock(Exception ex)
+    public async Task<List<LeaveRequest>> ListarEquipoAsync(DateOnly? mes = null)
     {
-        for (var actual = ex; actual is not null; actual = actual.InnerException)
+        // Include: el nombre del empleado viaja en la respuesta
+        // (EmployeeNombre) — sin esto el frontend tenía que descargar a
+        // todos los usuarios, admins incluidos, solo para resolver nombres.
+        var query = _db.LeaveRequests
+            .Include(r => r.Employee)
+            .Where(r => r.Tipo == RequestType.Vacaciones && r.Estado == RequestStatus.Aprobada);
+
+        if (mes is { } inicioMes)
         {
-            if (actual is SqlException sqlEx && sqlEx.Number is 1205 or 1222)
-            {
-                return true;
-            }
+            // Un rango aparece en todos los meses que toca, no solo en el de inicio.
+            var finMes = inicioMes.AddMonths(1).AddDays(-1);
+            query = query.Where(r => r.FechaInicio <= finMes && r.FechaFin >= inicioMes);
         }
 
-        return false;
+        return await query.OrderBy(r => r.FechaInicio).ToListAsync();
     }
 }

@@ -22,6 +22,7 @@ function paramsDeListado(params: RequestsListParams, extra?: Record<string, unkn
     tipo: tipoParaQuery(params.tipo),
     fecha: params.fecha || undefined,
     nombre: params.nombre || undefined,
+    employeeId: params.employeeId || undefined,
     page: params.page,
     pageSize: params.pageSize,
   };

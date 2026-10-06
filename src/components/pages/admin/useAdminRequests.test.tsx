@@ -21,14 +21,12 @@ function wrapper({ children }: { children: ReactNode }) {
   );
 }
 
-// El debounce de nombreQuery (350ms) + la latencia simulada del mock
-// (150ms) hacen que estos casos tarden un poco más que el default de
-// waitFor — se les sube el timeout en vez de usar fake timers (que
-// complicarían el setTimeout interno del propio mock).
-const DEBOUNCE_WAIT = { timeout: 2000 };
-
 beforeEach(() => {
   resetMockState();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 describe('useAdminRequests', () => {
@@ -88,56 +86,50 @@ describe('useAdminRequests', () => {
     );
   });
 
-  it(
-    'nombreQuery filtra por nombre de empleado con debounce (sin distinguir mayúsculas), y ahora totalCount sí refleja el filtro',
-    async () => {
-      const { result } = renderHook(() => useAdminRequests(), { wrapper });
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+  it('empleadoFiltro filtra por el id del empleado y totalCount refleja el filtro', async () => {
+    const { result } = renderHook(() => useAdminRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      act(() => {
-        result.current.setFiltro('Todas');
-      });
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+    act(() => {
+      result.current.setFiltro('Todas');
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const totalSinFiltrar = result.current.totalCount;
 
-      const totalSinFiltrar = result.current.totalCount;
+    act(() => {
+      result.current.setEmpleadoFiltro('u3'); // Ana Martínez
+    });
 
-      act(() => {
-        result.current.setNombreQuery('ana mart');
-      });
+    await waitFor(() => expect(result.current.totalCount).toBeLessThan(totalSinFiltrar));
+    expect(result.current.requests.length).toBeGreaterThan(0);
+    expect(result.current.requests.every((r) => r.employeeId === 'u3')).toBe(true);
+    expect(result.current.page).toBe(1);
+  });
 
-      await waitFor(() => {
-        expect(result.current.requests.length).toBeGreaterThan(0);
-        expect(
-          result.current.requests.every((r) => r.employeeName === 'Ana Martínez'),
-        ).toBe(true);
-      }, DEBOUNCE_WAIT);
+  it('la lista de empleados deja fuera a los admins, va en orden alfabético y marca a los desactivados', async () => {
+    const { result } = renderHook(() => useAdminRequests(), { wrapper });
 
-      // A diferencia del filtro client-side anterior, en server-side
-      // totalCount viene del mismo query filtrado — ya no tiene sentido
-      // (ni es gratis) mantenerlo "sin achicar".
-      expect(result.current.totalCount).toBeLessThan(totalSinFiltrar);
-    },
-    10000,
-  );
+    await waitFor(() => expect(result.current.empleados.length).toBeGreaterThan(0));
 
-  it(
-    'nombreQuery sin coincidencias deja la lista vacía sin tirar error',
-    async () => {
-      const { result } = renderHook(() => useAdminRequests(), { wrapper });
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+    // u1 y u2 son administradores: no crean solicitudes.
+    expect(result.current.empleados).toEqual([
+      { id: 'u3', nombre: 'Ana Martínez' },
+      { id: 'u4', nombre: 'Carlos Rivas' },
+      { id: 'u6', nombre: 'Marta Gómez (desactivado)' },
+      { id: 'u5', nombre: 'Sofía Nuñez' },
+    ]);
+  });
 
-      act(() => {
-        result.current.setNombreQuery('nombre que no existe');
-      });
+  it('si no se puede cargar la lista de empleados, las solicitudes se cargan igual', async () => {
+    jest.spyOn(API.users, 'list').mockRejectedValue(new Error('caído'));
 
-      await waitFor(
-        () => expect(result.current.requests).toHaveLength(0),
-        DEBOUNCE_WAIT,
-      );
-      expect(result.current.error).toBeNull();
-    },
-    10000,
-  );
+    const { result } = renderHook(() => useAdminRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.requests.length).toBeGreaterThan(0);
+    expect(result.current.empleados).toEqual([]);
+  });
 
   it('tipoFiltro filtra por tipo de solicitud', async () => {
     const { result } = renderHook(() => useAdminRequests(), { wrapper });
@@ -156,29 +148,24 @@ describe('useAdminRequests', () => {
     ).toBe(true);
   });
 
-  it(
-    'tipoFiltro combinado con nombreQuery sin coincidencias deja la lista vacía',
-    async () => {
-      const { result } = renderHook(() => useAdminRequests(), { wrapper });
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+  it('tipoFiltro combinado con un empleado sin coincidencias deja la lista vacía', async () => {
+    const { result } = renderHook(() => useAdminRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      act(() => {
-        result.current.setTipoFiltro('Permiso personal');
-      });
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
+    act(() => {
+      result.current.setTipoFiltro('Permiso personal');
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.requests.length).toBeGreaterThan(0);
 
-      act(() => {
-        result.current.setNombreQuery('carlos');
-      });
+    act(() => {
+      result.current.setEmpleadoFiltro('u4');
+    });
 
-      // Carlos Rivas (r6) no tiene ninguna solicitud "Permiso personal".
-      await waitFor(
-        () => expect(result.current.requests).toHaveLength(0),
-        DEBOUNCE_WAIT,
-      );
-    },
-    10000,
-  );
+    // Carlos Rivas (u4) no tiene ninguna solicitud "Permiso personal".
+    await waitFor(() => expect(result.current.requests).toHaveLength(0));
+    expect(result.current.error).toBeNull();
+  });
 
   it('fechaFiltro filtra las solicitudes cuyo rango de fechas incluye esa fecha', async () => {
     const { result } = renderHook(() => useAdminRequests(), { wrapper });

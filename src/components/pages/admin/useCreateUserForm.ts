@@ -3,6 +3,7 @@ import { useForm, useWatch, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import API from '@/services/api-services';
+import { errorMessage } from '@/helpers/error-message';
 import { isPasswordValid } from '@/lib/password-rules';
 
 const ROLES = ['Empleado', 'Administrador'] as const;
@@ -60,8 +61,11 @@ export function useCreateUserForm({ onSuccess }: Options = {}) {
       reset();
       onSuccess?.();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'No pudimos crear el usuario.';
+      // errorMessage: el `detail` del API ("Ya existe un usuario con ese
+      // correo.", "La contraseña no cumple…") en vez de "Request failed
+      // with status code 409" — y con el texto real, la regex de abajo
+      // manda cada error a su campo.
+      const message = errorMessage(err, 'No pudimos crear el usuario.');
       // El backend también valida la contraseña: su error va a ese campo,
       // cualquier otro (correo duplicado, etc.) al de correo.
       setError(/contraseña/i.test(message) ? 'password' : 'correo', { message });

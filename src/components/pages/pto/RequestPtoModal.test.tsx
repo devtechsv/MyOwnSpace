@@ -4,6 +4,7 @@ import { SessionContext } from '@/hooks/useSession';
 import { resetMockState, mockUsersAdapter } from '@/services/mocks/mock-adapter';
 import API from '@/services/api-services';
 import { esDiaHabil, sumarDias } from '@/lib/pto-balance-calculator';
+import { hoyIso } from '@/helpers/hoy-iso';
 
 const session = {
   userId: 'u4',
@@ -16,7 +17,7 @@ const session = {
 // Próximo día hábil desde hoy (incluido): la API rechaza fechas pasadas y
 // fines de semana, así que "hoy" a secas fallaría si la suite corre en sábado.
 function proximoDiaHabil(): string {
-  let dia = new Date().toISOString().slice(0, 10);
+  let dia = hoyIso();
   while (!esDiaHabil(dia)) dia = sumarDias(dia, 1);
   return dia;
 }
@@ -100,7 +101,7 @@ describe('RequestPtoModal', () => {
       nombre: 'Sin Balance',
       correo: 'sin.balance@devtch.com',
       rol: 'Empleado',
-      fechaIngreso: mañana.toISOString().slice(0, 10),
+      fechaIngreso: hoyIso(mañana),
     });
     const sessionSinBalance = { ...session, userId: nuevo.id };
 

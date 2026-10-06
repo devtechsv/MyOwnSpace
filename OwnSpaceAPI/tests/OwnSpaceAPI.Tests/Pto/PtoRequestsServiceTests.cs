@@ -161,6 +161,24 @@ public class PtoRequestsServiceTests
     }
 
     [Fact]
+    public async Task SolicitarRangoAsync_A_Las7PmHoraLocal_AceptaVacacionesQueEmpiezanHoy()
+    {
+        // Regresión: con "hoy" en UTC, a las 7 p. m. del 6-oct en San
+        // Salvador ya era 7-oct y el 6-oct se rechazaba como fecha pasada.
+        await using var db = CreateContext();
+        var user = CrearUsuario(new DateOnly(2024, 1, 15));
+        db.Users.Add(user);
+        db.PtoClaims.Add(Reclamo(user.Id, new DateOnly(2025, 1, 15), new DateOnly(2026, 1, 14)));
+        await db.SaveChangesAsync();
+        var reloj = new RelojEnInstante(DateTimeOffset.Parse("2026-10-07T01:00:00Z"));
+        var service = new PtoRequestsService(db, new PtoBalanceService(db, reloj), new FakeEmailSender(), reloj);
+
+        var creada = await service.SolicitarRangoAsync(user.Id, new DateOnly(2026, 10, 6), new DateOnly(2026, 10, 6), null);
+
+        Assert.Equal(RequestStatus.Pendiente, creada.Estado);
+    }
+
+    [Fact]
     public async Task CrearAsync_SegundaReservaMismaFecha_TiraConflict()
     {
         var (db, user, service, _) = Preparar();
@@ -256,5 +274,72 @@ public class PtoRequestsServiceTests
         Assert.Single(equipo);
         Assert.Equal(RequestType.Vacaciones, equipo[0].Tipo);
         await db.DisposeAsync();
+    }
+
+    private static LeaveRequest VacacionAprobada(Guid employeeId, DateOnly desde, DateOnly hasta) => new()
+    {
+        Id = Guid.NewGuid(),
+        EmployeeId = employeeId,
+        Tipo = RequestType.Vacaciones,
+        FechaInicio = desde,
+        FechaFin = hasta,
+        HorasSolicitadas = PtoBalanceCalculator.ContarDiasHabiles(desde, hasta) * PtoBalanceCalculator.HorasPorDia,
+        Motivo = "Vacaciones",
+        Estado = RequestStatus.Aprobada,
+        CreatedAt = DateTime.UtcNow,
+    };
+
+    // Siembra con un contexto y consulta con otro sobre la misma base: así
+    // el nombre solo llega si ListarEquipoAsync hace el Include (con el mismo
+    // contexto, EF lo completaría solo desde lo que ya tiene en memoria).
+    private static async Task<List<LeaveRequest>> ListarEquipoEnContextoNuevoAsync(
+        Action<AppDbContext> sembrar, DateOnly? mes)
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        await using (var seed = new AppDbContext(options))
+        {
+            sembrar(seed);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var db = new AppDbContext(options);
+        var reloj = new RelojFijo(Hoy);
+        var service = new PtoRequestsService(db, new PtoBalanceService(db, reloj), new FakeEmailSender(), reloj);
+        return await service.ListarEquipoAsync(mes);
+    }
+
+    [Fact]
+    public async Task ListarEquipoAsync_IncluyeElNombreDelEmpleado()
+    {
+        var user = CrearUsuario(new DateOnly(2024, 1, 15));
+
+        var equipo = await ListarEquipoEnContextoNuevoAsync(db =>
+        {
+            db.Users.Add(user);
+            db.LeaveRequests.Add(VacacionAprobada(user.Id, new DateOnly(2026, 10, 12), new DateOnly(2026, 10, 12)));
+        }, mes: null);
+
+        Assert.Equal("Empleado de prueba", Assert.Single(equipo).Employee?.Nombre);
+    }
+
+    [Fact]
+    public async Task ListarEquipoAsync_ConMes_DevuelveSoloLasQueTocanEseMes_IncluidosLosRangosQueLoCruzan()
+    {
+        var user = CrearUsuario(new DateOnly(2024, 1, 15));
+        var septiembre = VacacionAprobada(user.Id, new DateOnly(2026, 9, 14), new DateOnly(2026, 9, 18));
+        var cruzaSepOct = VacacionAprobada(user.Id, new DateOnly(2026, 9, 28), new DateOnly(2026, 10, 2));
+        var octubre = VacacionAprobada(user.Id, new DateOnly(2026, 10, 12), new DateOnly(2026, 10, 12));
+        var cruzaOctNov = VacacionAprobada(user.Id, new DateOnly(2026, 10, 29), new DateOnly(2026, 11, 3));
+        var noviembre = VacacionAprobada(user.Id, new DateOnly(2026, 11, 16), new DateOnly(2026, 11, 16));
+
+        var equipo = await ListarEquipoEnContextoNuevoAsync(db =>
+        {
+            db.Users.Add(user);
+            db.LeaveRequests.AddRange(septiembre, cruzaSepOct, octubre, cruzaOctNov, noviembre);
+        }, mes: new DateOnly(2026, 10, 1));
+
+        Assert.Equal(new[] { cruzaSepOct.Id, octubre.Id, cruzaOctNov.Id }, equipo.Select(r => r.Id));
     }
 }

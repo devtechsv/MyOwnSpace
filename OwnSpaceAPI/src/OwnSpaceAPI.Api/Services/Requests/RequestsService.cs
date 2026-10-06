@@ -39,17 +39,17 @@ public sealed class RequestsService : IRequestsService
     // de ListAllAsync, aquí el objetivo es que el admin atienda primero
     // lo que lleva más tiempo pendiente, no lo más reciente.
     public Task<PagedResult<LeaveRequest>> ListPendingAsync(
-        RequestType? tipo, DateOnly? fecha, string? nombre, int page, int pageSize)
+        RequestType? tipo, DateOnly? fecha, string? nombre, int page, int pageSize, Guid? employeeId = null)
     {
         var query = AplicarFiltros(
             _db.LeaveRequests.Include(r => r.Employee).Where(r => r.Estado == RequestStatus.Pendiente),
-            tipo, fecha, nombre);
+            tipo, fecha, nombre, employeeId);
 
         return PaginarAsync(query.OrderBy(r => r.CreatedAt), page, pageSize);
     }
 
     public Task<PagedResult<LeaveRequest>> ListAllAsync(
-        RequestStatus? estado, RequestType? tipo, DateOnly? fecha, string? nombre, int page, int pageSize)
+        RequestStatus? estado, RequestType? tipo, DateOnly? fecha, string? nombre, int page, int pageSize, Guid? employeeId = null)
     {
         var query = _db.LeaveRequests.Include(r => r.Employee).AsQueryable();
         if (estado is not null)
@@ -57,14 +57,22 @@ public sealed class RequestsService : IRequestsService
             query = query.Where(r => r.Estado == estado);
         }
 
-        query = AplicarFiltros(query, tipo, fecha, nombre);
+        query = AplicarFiltros(query, tipo, fecha, nombre, employeeId);
 
         return PaginarAsync(query.OrderByDescending(r => r.CreatedAt), page, pageSize);
     }
 
     private static IQueryable<LeaveRequest> AplicarFiltros(
-        IQueryable<LeaveRequest> query, RequestType? tipo, DateOnly? fecha, string? nombre)
+        IQueryable<LeaveRequest> query, RequestType? tipo, DateOnly? fecha, string? nombre, Guid? employeeId = null)
     {
+        // Filtro exacto de la lista de empleados del panel: a diferencia de
+        // "nombre" (LIKE parcial), "Ana Martínez" no trae también a
+        // "Ana Martínez López".
+        if (employeeId is not null)
+        {
+            query = query.Where(r => r.EmployeeId == employeeId);
+        }
+
         if (tipo is not null)
         {
             query = query.Where(r => r.Tipo == tipo);

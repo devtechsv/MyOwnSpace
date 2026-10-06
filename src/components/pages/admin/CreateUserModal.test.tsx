@@ -1,6 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { CreateUserModal } from './CreateUserModal';
 import { resetMockState, mockUsersAdapter } from '@/services/mocks/mock-adapter';
+import { errorDelApi } from '@/test-utils/api-error';
 
 function renderModal(
   props: Partial<React.ComponentProps<typeof CreateUserModal>> = {},
@@ -80,6 +81,41 @@ describe('CreateUserModal', () => {
       await screen.findByText('Ya existe un usuario con ese correo.'),
     ).toBeInTheDocument();
     expect(props.onCreated).not.toHaveBeenCalled();
+  });
+
+  it('contra el API real, un correo duplicado (409) muestra el detail, no "Request failed…"', async () => {
+    jest.spyOn(mockUsersAdapter, 'create').mockRejectedValueOnce(
+      errorDelApi(409, 'Ya existe un usuario con ese correo.'),
+    );
+    renderModal();
+
+    fillValidForm();
+    fireEvent.click(screen.getByRole('button', { name: /crear usuario/i }));
+
+    expect(
+      await screen.findByText('Ya existe un usuario con ese correo.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/request failed/i)).not.toBeInTheDocument();
+  });
+
+  it('contra el API real, una contraseña rechazada (400) muestra el error en el campo Contraseña', async () => {
+    jest.spyOn(mockUsersAdapter, 'create').mockRejectedValueOnce(
+      errorDelApi(400, 'La contraseña no cumple los requisitos mínimos.'),
+    );
+    renderModal();
+
+    fillValidForm();
+    fireEvent.click(screen.getByLabelText(/generar contraseña automáticamente/i));
+    fireEvent.change(screen.getByLabelText('Contraseña temporal'), {
+      target: { value: 'Valida#2026x' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /crear usuario/i }));
+
+    await screen.findByText('La contraseña no cumple los requisitos mínimos.');
+    // Bajo el campo Contraseña, no bajo Correo (antes caía en Correo porque
+    // "Request failed…" no contiene la palabra "contraseña").
+    const campoPassword = screen.getByLabelText('Contraseña temporal').closest('.relative')!.parentElement!;
+    expect(within(campoPassword).getByText('La contraseña no cumple los requisitos mínimos.')).toBeInTheDocument();
   });
 
   it('con datos válidos, crea el usuario en Pendiente y llama a onCreated/onClose', async () => {

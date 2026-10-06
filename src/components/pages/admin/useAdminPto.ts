@@ -1,27 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import API from '@/services/api-services';
 import { LeaveRequest } from '@/contracts/interfaces/request';
-import { User } from '@/contracts/interfaces/user';
 import { getInitials } from '@/helpers/get-initials';
-
-// GET /users está paginado, pero aquí se necesita a TODO el mundo (para
-// resolver nombre por id de cualquier solicitud del calendario, sin
-// importar en qué página quedaría ese usuario) — pagina en secuencia
-// hasta juntarlos todos, en vez de pedir una sola página gigante.
-const USERS_LOOKUP_PAGE_SIZE = 100;
-
-async function fetchAllUsers(): Promise<User[]> {
-  let page = 1;
-  let acumulados: User[] = [];
-  for (;;) {
-    const result = await API.users.list(page, USERS_LOOKUP_PAGE_SIZE);
-    acumulados = acumulados.concat(result.items);
-    if (acumulados.length >= result.totalCount || result.items.length === 0) {
-      return acumulados;
-    }
-    page += 1;
-  }
-}
 
 export interface PtoRow extends LeaveRequest {
   employeeName: string;
@@ -37,7 +17,9 @@ function mesActual(): string {
 
 export function useAdminPto() {
   const [rows, setRows] = useState<PtoRow[]>([]);
-  const [nombreQuery, setNombreQuery] = useState('');
+  // Se guarda también el nombre para seguir mostrando al elegido en la
+  // lista aunque no tenga reservas en el mes que se esté viendo.
+  const [empleado, setEmpleado] = useState<{ id: string; nombre: string } | null>(null);
   // Default al mes actual — sin esto, la tabla crece sin límite a medida
   // que se acumulan meses de reservas. "" (input vacío) muestra todos.
   const [mesFiltro, setMesFiltro] = useState(mesActual());
@@ -45,17 +27,22 @@ export function useAdminPto() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Al cambiar rápido de mes puede llegar primero la respuesta vieja: solo
+  // se aplica la del último pedido.
+  const ultimoPedido = useRef(0);
+
   const load = useCallback(async () => {
+    const pedido = ++ultimoPedido.current;
     setIsLoading(true);
     setError(null);
     try {
-      const [items, users] = await Promise.all([
-        API.pto.listCalendario(),
-        fetchAllUsers(),
-      ]);
-      const userById = new Map(users.map((u) => [u.id, u]));
+      // El filtro de mes va al servidor (solo viaja ese mes) y cada fila ya
+      // trae employeeNombre — antes se descargaba todo el historial más
+      // todos los usuarios, admins incluidos, para resolver nombres.
+      const items = await API.pto.listCalendario(mesFiltro || undefined);
+      if (pedido !== ultimoPedido.current) return;
       const enriched = items.map((request) => {
-        const nombre = userById.get(request.employeeId)?.nombre ?? 'Empleado';
+        const nombre = request.employeeNombre ?? 'Empleado';
         return {
           ...request,
           employeeName: nombre,
@@ -64,11 +51,12 @@ export function useAdminPto() {
       });
       setRows(enriched);
     } catch {
+      if (pedido !== ultimoPedido.current) return;
       setError('No pudimos cargar el PTO del equipo. Intenta de nuevo.');
     } finally {
-      setIsLoading(false);
+      if (pedido === ultimoPedido.current) setIsLoading(false);
     }
-  }, []);
+  }, [mesFiltro]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -78,26 +66,38 @@ export function useAdminPto() {
   // setPage(1) al cambiar cualquier filtro, para no quedar en una página
   // que dejó de existir — se hace aquí (no en un efecto aparte) para no
   // sumar otro fetch-en-efecto solo para resetear un número.
-  const updateNombreQuery = useCallback((value: string) => {
-    setNombreQuery(value);
-    setPage(1);
-  }, []);
+  // Opciones de la lista: quienes tienen reservas en el mes cargado (no
+  // hace falta pedir /users) más el elegido, para que el filtro sobreviva
+  // al cambiar de mes — la tabla queda vacía en vez de perder la selección.
+  const empleados = useMemo(() => {
+    const porId = new Map<string, string>();
+    for (const r of rows) porId.set(r.employeeId, r.employeeName);
+    if (empleado) porId.set(empleado.id, empleado.nombre);
+    return [...porId]
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }, [rows, empleado]);
+
+  const updateEmpleadoFiltro = useCallback(
+    (id: string) => {
+      const elegido = empleados.find((e) => e.id === id);
+      setEmpleado(elegido ?? null);
+      setPage(1);
+    },
+    [empleados],
+  );
 
   const updateMesFiltro = useCallback((value: string) => {
     setMesFiltro(value);
     setPage(1);
   }, []);
 
-  const filteredRows = useMemo(() => {
-    const query = nombreQuery.trim().toLowerCase();
-    return rows.filter((r) => {
-      const coincideNombre = !query || r.employeeName.toLowerCase().includes(query);
-      // Un rango aparece en todos los meses que toca, no solo en el de inicio.
-      const coincideMes =
-        !mesFiltro || (r.fechaInicio.slice(0, 7) <= mesFiltro && r.fechaFin.slice(0, 7) >= mesFiltro);
-      return coincideNombre && coincideMes;
-    });
-  }, [rows, nombreQuery, mesFiltro]);
+  // El mes ya lo filtró el servidor; el empleado se filtra aquí sobre ese
+  // mes, por id (dos empleados pueden llamarse igual).
+  const filteredRows = useMemo(
+    () => (empleado ? rows.filter((r) => r.employeeId === empleado.id) : rows),
+    [rows, empleado],
+  );
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const paginaEfectiva = Math.min(page, totalPages);
@@ -114,8 +114,9 @@ export function useAdminPto() {
     setPage,
     isLoading,
     error,
-    nombreQuery,
-    setNombreQuery: updateNombreQuery,
+    empleados,
+    empleadoFiltro: empleado?.id ?? '',
+    setEmpleadoFiltro: updateEmpleadoFiltro,
     mesFiltro,
     setMesFiltro: updateMesFiltro,
     reload: load,
