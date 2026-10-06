@@ -40,7 +40,7 @@ const AdminPtoPage: NextPage<Props> = () => {
             value={mesFiltro}
             onChange={(e) => setMesFiltro(e.target.value)}
             aria-label='Filtrar por mes'
-            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
           />
           {mesFiltro && (
             <button
@@ -56,7 +56,7 @@ const AdminPtoPage: NextPage<Props> = () => {
           value={empleadoFiltro}
           onChange={(e) => setEmpleadoFiltro(e.target.value)}
           aria-label='Filtrar por empleado'
-          className='w-64 px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-none focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+          className='w-64 px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
         >
           <option value=''>Todos los empleados</option>
           {empleados.map((e) => (
