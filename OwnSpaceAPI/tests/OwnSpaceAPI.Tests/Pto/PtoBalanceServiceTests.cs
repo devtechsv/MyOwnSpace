@@ -62,6 +62,24 @@ public class PtoBalanceServiceTests
     };
 
     [Fact]
+    public async Task ObtenerResumenAsync_El31DeDiciembreALas1130PmHoraLocal_TodaviaPermiteReclamarLoDelAño()
+    {
+        // Regresión: con "hoy" en UTC, a las 11:30 p. m. del 31-dic en San
+        // Salvador ya era 1-ene — lo acumulado del año se perdía 6 horas antes.
+        await using var db = CreateContext();
+        var user = CrearUsuario();
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        var service = new PtoBalanceService(db, new RelojEnInstante(DateTimeOffset.Parse("2027-01-01T05:30:00Z")));
+
+        var resumen = await service.ObtenerResumenAsync(user.Id);
+
+        Assert.Equal(new DateOnly(2026, 12, 31), resumen.FechaLimiteReclamo);
+        // Las 24 quincenas de 2026, todavía reclamables.
+        Assert.Equal(120m, resumen.HorasAcumuladas);
+    }
+
+    [Fact]
     public async Task ObtenerResumenAsync_SeparaAcumuladasReclamadasYDisponibles()
     {
         await using var db = CreateContext();

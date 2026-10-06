@@ -18,21 +18,41 @@ export interface AdminRequestRow extends LeaveRequest {
 export type AdminRequestsFilter = 'Pendiente' | RequestStatus | 'Todas';
 export type AdminRequestsTipoFilter = RequestType | 'Todos';
 
+export interface EmpleadoOpcion {
+  id: string;
+  nombre: string;
+}
+
 const PAGE_SIZE = 20;
-// Espera a que el usuario deje de tipear antes de pedirle al backend —
-// a diferencia del filtro client-side de antes (gratis en cada tecla),
-// cada búsqueda por nombre ahora es un request HTTP.
-const NOMBRE_DEBOUNCE_MS = 350;
+// Máximo que acepta GET /users por página.
+const USERS_PAGE_SIZE = 100;
+
+// Solo los empleados crean solicitudes: los admins no van en la lista.
+// Se recorren todas las páginas una vez al abrir el panel.
+async function cargarEmpleados(): Promise<EmpleadoOpcion[]> {
+  const empleados: EmpleadoOpcion[] = [];
+  for (let page = 1; ; page++) {
+    const { items, totalCount } = await API.users.list(page, USERS_PAGE_SIZE);
+    for (const u of items) {
+      if (u.rol !== 'Empleado') continue;
+      // Un desactivado puede tener solicitudes viejas: se mantiene en la
+      // lista, marcado para no confundirlo con alguien activo.
+      const nombre = u.estado === 'Desactivado' ? `${u.nombre} (desactivado)` : u.nombre;
+      empleados.push({ id: u.id, nombre });
+    }
+    if (items.length === 0 || page * USERS_PAGE_SIZE >= totalCount) break;
+  }
+  return empleados.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
 
 export function useAdminRequests() {
   const session = useSession();
   const [filtro, setFiltroRaw] = useState<AdminRequestsFilter>('Pendiente');
   const [requests, setRequests] = useState<AdminRequestRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [nombreQuery, setNombreQuery] = useState('');
-  // Valor efectivamente enviado al backend, actualizado recién cuando
-  // el usuario deja de tipear (ver el efecto de debounce más abajo).
-  const [nombreDebounced, setNombreDebounced] = useState('');
+  // '' = todos; si no, el id del empleado (filtro exacto en el backend).
+  const [empleadoFiltro, setEmpleadoFiltroRaw] = useState('');
+  const [empleados, setEmpleados] = useState<EmpleadoOpcion[]>([]);
   const [tipoFiltro, setTipoFiltroRaw] = useState<AdminRequestsTipoFilter>('Todos');
   // '' = sin filtro; si no, fecha en formato "YYYY-MM-DD" (mismo formato
   // que devuelve un <input type="date"> y que ya usan fechaInicio/fechaFin).
@@ -42,16 +62,19 @@ export function useAdminRequests() {
   const [error, setError] = useState<string | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
 
-  // Debounce: recién después de NOMBRE_DEBOUNCE_MS sin tipear se
-  // actualiza nombreDebounced (lo que dispara el fetch) y se vuelve a
-  // la página 1 — mismo criterio que el resto de los filtros.
+  // Si falla, la lista queda solo con "Todos los empleados": el resto
+  // del panel sigue funcionando.
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setNombreDebounced(nombreQuery);
-      setPage(1);
-    }, NOMBRE_DEBOUNCE_MS);
-    return () => clearTimeout(timeout);
-  }, [nombreQuery]);
+    let vigente = true;
+    cargarEmpleados()
+      .then((lista) => {
+        if (vigente) setEmpleados(lista);
+      })
+      .catch(() => {});
+    return () => {
+      vigente = false;
+    };
+  }, []);
 
   // Cambiar cualquier otro filtro vuelve a la página 1, para no quedar
   // en una página que dejó de existir con el nuevo filtro aplicado.
@@ -70,6 +93,11 @@ export function useAdminRequests() {
     setPage(1);
   }, []);
 
+  const setEmpleadoFiltro = useCallback((value: string) => {
+    setEmpleadoFiltroRaw(value);
+    setPage(1);
+  }, []);
+
   const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -77,7 +105,7 @@ export function useAdminRequests() {
       const params: RequestsListParams = {
         tipo: tipoFiltro === 'Todos' ? undefined : tipoFiltro,
         fecha: fechaFiltro || undefined,
-        nombre: nombreDebounced || undefined,
+        employeeId: empleadoFiltro || undefined,
         page,
         pageSize: PAGE_SIZE,
       };
@@ -110,7 +138,7 @@ export function useAdminRequests() {
     } finally {
       setIsLoading(false);
     }
-  }, [filtro, tipoFiltro, fechaFiltro, nombreDebounced, page]);
+  }, [filtro, tipoFiltro, fechaFiltro, empleadoFiltro, page]);
 
   useEffect(() => {
     // load() dispara setState propio (loading/error/data) — patrón de
@@ -168,8 +196,9 @@ export function useAdminRequests() {
     reload: load,
     filtro,
     setFiltro,
-    nombreQuery,
-    setNombreQuery,
+    empleados,
+    empleadoFiltro,
+    setEmpleadoFiltro,
     tipoFiltro,
     setTipoFiltro,
     fechaFiltro,

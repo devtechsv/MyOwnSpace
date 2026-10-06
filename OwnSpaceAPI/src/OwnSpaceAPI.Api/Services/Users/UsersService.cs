@@ -194,7 +194,7 @@ public sealed class UsersService : IUsersService
             await EnsureNotLastActiveAdminAsync(user);
 
             user.Estado = UserStatus.Desactivado;
-            user.FechaDesactivacion = DateOnly.FromDateTime(DateTime.UtcNow);
+            user.FechaDesactivacion = TimeProvider.System.HoyLocal();
         }
         else
         {

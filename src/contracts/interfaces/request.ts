@@ -50,6 +50,7 @@ export interface RequestsListParams {
   tipo?: RequestType;
   fecha?: string; // YYYY-MM-DD
   nombre?: string;
+  employeeId?: string; // filtro exacto (lista de empleados del panel admin)
   page: number;
   pageSize: number;
 }

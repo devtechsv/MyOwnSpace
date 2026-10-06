@@ -32,8 +32,10 @@ export const httpPtoAdapter = {
     return data;
   },
 
-  async listCalendario(): Promise<LeaveRequest[]> {
-    const { data } = await apiClient.get<LeaveRequest[]>('/pto/calendario');
+  async listCalendario(mes?: string): Promise<LeaveRequest[]> {
+    const { data } = await apiClient.get<LeaveRequest[]>('/pto/calendario', {
+      params: mes ? { mes } : undefined,
+    });
     return data;
   },
 };

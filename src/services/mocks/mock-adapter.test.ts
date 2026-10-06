@@ -6,6 +6,7 @@ import {
   resetMockState,
 } from './mock-adapter';
 import { mockUsers, mockRequests } from './mock-data';
+import { hoyIso } from '@/helpers/hoy-iso';
 
 beforeEach(() => {
   resetMockState();
@@ -144,6 +145,15 @@ describe('mockRequestsAdapter', () => {
       pageSize: 20,
     });
     expect(porNombre.items.every((r) => r.employeeNombre === 'Ana Martínez')).toBe(true);
+
+    const porEmpleado = await mockRequestsAdapter.listAll(undefined, {
+      employeeId: 'u4',
+      page: 1,
+      pageSize: 20,
+    });
+    expect(porEmpleado.items.length).toBeGreaterThan(0);
+    expect(porEmpleado.items.every((r) => r.employeeId === 'u4')).toBe(true);
+    expect(porEmpleado.totalCount).toBe(porEmpleado.items.length);
   });
 
   it('create agrega una nueva solicitud en estado Pendiente', async () => {
@@ -304,7 +314,7 @@ describe('mockUsersAdapter', () => {
 
   it('toggleStatus registra fechaDesactivacion al desactivar y la limpia al reactivar', async () => {
     const desactivado = await mockUsersAdapter.toggleStatus('u3');
-    expect(desactivado.fechaDesactivacion).toBe(new Date().toISOString().slice(0, 10));
+    expect(desactivado.fechaDesactivacion).toBe(hoyIso());
 
     const reactivado = await mockUsersAdapter.toggleStatus('u3');
     expect(reactivado.fechaDesactivacion).toBeUndefined();

@@ -860,3 +860,38 @@ A pedido del usuario, se cerraron los 3 pendientes reales detectados en la revis
 **Datos existentes:** las reservas de un día creadas antes de este cambio siguen `Aprobada` sin `ReviewedBy`; no se migran.
 
 **Dependencies:** ninguna.
+
+---
+
+## Post-cierre — "PTO del equipo" por mes y errores reales en formularios de usuario (2026-10-06)
+
+**Hallazgos (code review):**
+- `GET /pto/calendario` devolvía todo el historial de vacaciones aprobadas sin el nombre del empleado (`ListarEquipoAsync` no hacía `Include`). Para compensar, `useAdminPto` paginaba `GET /users` completo, administradores incluidos, solo para resolver nombres, y filtraba por mes en el cliente. Ambas cosas crecían sin límite.
+- Crear y editar usuario mostraban "Request failed with status code 409" en vez del `detail` del API ("Ya existe un usuario con ese correo."). Al crear, además, un rechazo de contraseña (400) caía bajo el campo Correo, porque el texto genérico no contiene "contraseña". Las pruebas no lo detectaban porque el mock lanza `Error` con el texto ya legible; el API real lanza `AxiosError`.
+
+**Cambio:**
+- `ListarEquipoAsync(DateOnly? mes)` hace `Include(r => r.Employee)` y, con mes, devuelve solo las vacaciones que tocan ese mes (los rangos aparecen en todos los meses que cruzan). `GET /pto/calendario?mes=AAAA-MM`, opcional (sin mes devuelve todas, compatible); formato inválido → 400.
+- `useAdminPto` ya no consulta `GET /users`: pide el mes seleccionado al servidor y usa `employeeNombre`; el filtro por nombre sigue en el cliente sobre ese mes. Si llegan respuestas fuera de orden al cambiar rápido de mes, solo se aplica la última.
+- `useCreateUserForm` y `useEditUserForm` usan `errorMessage()`.
+- Pruebas: helper `src/test-utils/api-error.ts` (`errorDelApi`) que simula el `AxiosError` del API real; pruebas nuevas de `errorMessage` y de los dos modales (fallan con el código anterior). Prueba de `ListarEquipoAsync` con un contexto nuevo, para que el nombre solo llegue si hay `Include` (falla sin él).
+
+**Verificación:** `dotnet test` **149/149**, `npm test` **295/295**, `tsc` limpio, lint sin errores. En vivo: `?mes=2026-10` y `?mes=2026-11` devuelven solo su mes, siempre con nombre; `?mes=octubre` → 400.
+
+**Dependencies:** ninguna.
+
+---
+
+## Post-cierre — "Hoy" en hora de El Salvador y doble clic en "Reclamar" (2026-10-06)
+
+**Hallazgos (code review):**
+- "Hoy" se calculaba en UTC (`DateOnly.FromDateTime(UtcNow)` en `PtoBalanceService`, `PtoRequestsService` y `UsersService`; `toISOString().slice(0, 10)` en `VacationRangeModal` y el mock). Desde las 6 p. m. en El Salvador ya era el día siguiente: lo acumulado se perdía 6 horas antes del 1-ene, se rechazaba como pasada una solicitud que empieza hoy, `FechaDesactivacion` quedaba corrida un día y el mínimo del formulario por rango no coincidía con el calendario.
+- Dos `POST /pto/claim` simultáneos (doble clic o script): la transacción Serializable elegía a uno como víctima de deadlock y respondía 500, aunque el reclamo ya estaba hecho (reproducido en vivo).
+
+**Cambio:**
+- Backend: `TimeProvider.HoyLocal()` (`Services/FechaLocal.cs`) convierte a la zona de El Salvador (ID IANA o de Windows; UTC−6 fijo si el host no tiene ninguno). Usado en los dos servicios de PTO y al desactivar usuarios.
+- Frontend: `hoyIso()` (`src/helpers/hoy-iso.ts`), fecha local del navegador, en `VacationRangeModal` y el mock.
+- `SqlConcurrencia.EsDeadlockOTimeoutDeLock` pasa a `Services/Exceptions/` y lo usan `PtoRequestsService` y ahora `ReclamarAsync`, que traduce el deadlock a 409 ("Tu reclamo ya se está procesando…").
+
+**Tests:** `RelojEnInstante` (instante exacto; `RelojFijo` es siempre mediodía UTC, que cae el mismo día en las dos zonas y por eso nunca lo detectó). Nuevos: `FechaLocalTests`, 31-dic 11:30 p. m. hora local todavía reclama lo del año, solicitud a las 7 p. m. que empieza hoy; los dos de servicio fallan con "hoy" en UTC. Frontend: `hoyIso` y pruebas que usaban la fecha UTC. `dotnet test` **154/154**; `npm test` **297/297**, también con `TZ=America/El_Salvador`.
+
+**Dependencies:** ninguna.

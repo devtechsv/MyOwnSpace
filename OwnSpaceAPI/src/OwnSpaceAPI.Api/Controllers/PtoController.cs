@@ -1,9 +1,11 @@
+using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OwnSpaceAPI.Api.Models.Dtos.Pto;
 using OwnSpaceAPI.Api.Models.Dtos.Requests;
 using OwnSpaceAPI.Api.Models.Entities;
+using OwnSpaceAPI.Api.Services.Exceptions;
 using OwnSpaceAPI.Api.Services.Pto;
 
 namespace OwnSpaceAPI.Api.Controllers;
@@ -58,9 +60,21 @@ public class PtoController : ControllerBase
 
     [HttpGet("calendario")]
     [Authorize(Roles = nameof(UserRole.Administrador))]
-    public async Task<ActionResult<IEnumerable<LeaveRequestResponse>>> ListCalendario()
+    public async Task<ActionResult<IEnumerable<LeaveRequestResponse>>> ListCalendario([FromQuery] string? mes)
     {
-        var requests = await _ptoRequestsService.ListarEquipoAsync();
+        // mes: "AAAA-MM" (el mismo valor que un <input type="month">).
+        // Sin mes devuelve todas, como antes — compatible con clientes viejos.
+        DateOnly? inicioMes = null;
+        if (!string.IsNullOrWhiteSpace(mes))
+        {
+            if (!DateOnly.TryParseExact(mes + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+            {
+                throw new BadRequestException("El mes debe tener el formato AAAA-MM.");
+            }
+            inicioMes = parsed;
+        }
+
+        var requests = await _ptoRequestsService.ListarEquipoAsync(inicioMes);
         return Ok(requests.Select(LeaveRequestResponse.FromEntity));
     }
 }

@@ -33,8 +33,10 @@ async function createVacationRequest(
   return adapter.createVacationRequest(employeeId, payload);
 }
 
-async function listCalendario(): Promise<LeaveRequest[]> {
-  return adapter.listCalendario();
+// mes: "AAAA-MM" para traer solo las vacaciones que tocan ese mes;
+// sin mes, todas. Cada fila trae employeeNombre.
+async function listCalendario(mes?: string): Promise<LeaveRequest[]> {
+  return adapter.listCalendario(mes);
 }
 
 const pto = {

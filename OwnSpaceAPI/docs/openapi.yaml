@@ -247,6 +247,7 @@ paths:
         - $ref: '#/components/parameters/RequestsTipoFiltro'
         - $ref: '#/components/parameters/RequestsFechaFiltro'
         - $ref: '#/components/parameters/RequestsNombreFiltro'
+        - $ref: '#/components/parameters/RequestsEmpleadoFiltro'
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
       responses:
@@ -271,6 +272,7 @@ paths:
         - $ref: '#/components/parameters/RequestsTipoFiltro'
         - $ref: '#/components/parameters/RequestsFechaFiltro'
         - $ref: '#/components/parameters/RequestsNombreFiltro'
+        - $ref: '#/components/parameters/RequestsEmpleadoFiltro'
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
       responses:
@@ -411,10 +413,20 @@ paths:
     get:
       tags: [pto]
       summary: >
-        Listado de solo lectura de todas las reservas de PTO (Vacaciones
-        Aprobada) del equipo, para planificación — no requiere ninguna
-        acción de aprobar/denegar.
+        Listado de solo lectura de las vacaciones aprobadas del equipo,
+        para planificación. Cada fila trae employeeNombre (no hace falta
+        pedir GET /users para resolver nombres). Con mes, solo las que
+        tocan ese mes (un rango aparece en todos los meses que cruza);
+        sin mes, todas. Ordenado por fechaInicio.
       security: [{ cookieAuth: [Administrador] }]
+      parameters:
+        - name: mes
+          in: query
+          required: false
+          description: Mes a mostrar, formato AAAA-MM (p. ej. 2026-10). 400 si el formato es inválido.
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
       responses:
         '200':
           description: OK.
@@ -466,6 +478,11 @@ components:
       in: query
       description: Búsqueda parcial sobre el nombre del empleado, sin distinguir mayúsculas.
       schema: { type: string }
+    RequestsEmpleadoFiltro:
+      name: employeeId
+      in: query
+      description: Solo las solicitudes de ese empleado (coincidencia exacta, a diferencia de `nombre`).
+      schema: { type: string, format: uuid }
     Page:
       name: page
       in: query

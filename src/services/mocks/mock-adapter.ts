@@ -32,6 +32,7 @@ import {
   tramoPendiente,
 } from '@/lib/pto-balance-calculator';
 import { isPasswordValid } from '@/lib/password-rules';
+import { hoyIso } from '@/helpers/hoy-iso';
 import { mockPtoClaims, mockRequests, mockUsers } from './mock-data';
 
 // Este adaptador implementa las mismas firmas que tendrán las llamadas
@@ -184,6 +185,9 @@ function filtrarYPaginar(items: LeaveRequest[], params: RequestsListParams): Pag
     filtrados = filtrados.filter(
       (r) => r.fechaInicio.slice(0, 10) <= fecha && fecha <= r.fechaFin.slice(0, 10),
     );
+  }
+  if (params.employeeId) {
+    filtrados = filtrados.filter((r) => r.employeeId === params.employeeId);
   }
   if (params.nombre) {
     const query = params.nombre.trim().toLowerCase();
@@ -349,7 +353,7 @@ export const mockUsersAdapter = {
     if (target.estado === 'Pendiente' || target.estado === 'Activo') {
       target.estado = 'Desactivado';
       // Igual que el backend real: congela el devengo de PTO.
-      target.fechaDesactivacion = new Date().toISOString().slice(0, 10);
+      target.fechaDesactivacion = hoyIso();
     } else {
       // Reactivar: igual que el backend real (PasswordHash null) — si
       // nunca tuvo una contraseña real asignada, vuelve a Pendiente en
@@ -361,10 +365,6 @@ export const mockUsersAdapter = {
     return delay(clone(target));
   },
 };
-
-function hoyIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 // Mismo cálculo que PtoBalanceService del backend.
 function estadoPto(employeeId: string) {
@@ -521,9 +521,18 @@ export const mockPtoAdapter = {
     return delay(clone(nueva));
   },
 
-  async listCalendario(): Promise<LeaveRequest[]> {
+  async listCalendario(mes?: string): Promise<LeaveRequest[]> {
+    // Mismas reglas que PtoRequestsService.ListarEquipoAsync: con el nombre
+    // del empleado, y con mes ("AAAA-MM") solo las que tocan ese mes.
+    const delMes = (r: LeaveRequest) =>
+      !mes || (r.fechaInicio.slice(0, 7) <= mes && r.fechaFin.slice(0, 7) >= mes);
     return delay(
-      clone(requests.filter((r) => r.tipo === 'Vacaciones' && r.estado === 'Aprobada')),
+      clone(
+        requests
+          .filter((r) => r.tipo === 'Vacaciones' && r.estado === 'Aprobada' && delMes(r))
+          .sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio))
+          .map(withEmployeeNombre),
+      ),
     );
   },
 };

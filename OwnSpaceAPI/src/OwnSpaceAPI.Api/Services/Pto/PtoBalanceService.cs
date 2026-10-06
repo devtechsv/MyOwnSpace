@@ -17,7 +17,8 @@ public sealed class PtoBalanceService : IPtoBalanceService
         _clock = clock;
     }
 
-    private DateOnly Hoy => DateOnly.FromDateTime(_clock.GetUtcNow().UtcDateTime);
+    // Hora de El Salvador, no UTC (ver FechaLocal).
+    private DateOnly Hoy => _clock.HoyLocal();
 
     public async Task<PtoResumen> ObtenerResumenAsync(Guid employeeId)
     {
@@ -52,10 +53,12 @@ public sealed class PtoBalanceService : IPtoBalanceService
         // reclamo tiene que ser atómico — un doble click no puede reclamar
         // dos veces las mismas quincenas. El proveedor InMemory (tests) no
         // soporta transacciones, por eso IsRelational().
-        using (var transaction = _db.Database.IsRelational()
-            ? await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable)
-            : null)
+        try
         {
+            using var transaction = _db.Database.IsRelational()
+                ? await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+                : null;
+
             var user = await ObtenerUsuarioAsync(employeeId);
             var ultimoCorte = await _db.PtoClaims
                 .Where(c => c.EmployeeId == employeeId)
@@ -78,6 +81,13 @@ public sealed class PtoBalanceService : IPtoBalanceService
             {
                 await transaction.CommitAsync();
             }
+        }
+        catch (Exception ex) when (SqlConcurrencia.EsDeadlockOTimeoutDeLock(ex))
+        {
+            // Doble clic: dos reclamos a la vez del mismo empleado. Serializable
+            // deja pasar uno y elige al otro como víctima del deadlock; antes
+            // eso salía como 500 aunque el reclamo ya estaba hecho.
+            throw new ConflictException("Tu reclamo ya se está procesando. Recarga la página en un momento.");
         }
 
         return await ObtenerResumenAsync(employeeId);
