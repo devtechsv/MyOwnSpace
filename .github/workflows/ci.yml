@@ -1,0 +1,51 @@
+# Corre las verificaciones del frontend y del backend en cada PR y push a
+# Develop/main. No necesita secretos ni SQL Server: los tests del backend
+# usan EF InMemory y CustomWebApplicationFactory trae su propia config.
+name: CI
+
+on:
+  pull_request:
+    branches: [Develop, main]
+  push:
+    branches: [Develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un push nuevo a la misma rama cancela la corrida anterior, que ya quedó vieja.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          # El build de producción exige la API real (src/services/use-real-api.ts).
+          # La URL solo hace falta para compilar: el build no la llama.
+          NEXT_PUBLIC_USE_REAL_API: 'true'
+          NEXT_PUBLIC_API_URL: https://api.example.com/api/v1
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: OwnSpaceAPI
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: OwnSpaceAPI/global.json
+      - run: dotnet test
