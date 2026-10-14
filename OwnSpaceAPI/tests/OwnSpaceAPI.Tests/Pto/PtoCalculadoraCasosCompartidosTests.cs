@@ -29,7 +29,12 @@ public class PtoCalculadoraCasosCompartidosTests
 
     private sealed record CasoDiasHabiles(string Nombre, DateOnly Desde, DateOnly Hasta, int Esperado);
 
-    private sealed record Archivo(List<CasoEstado> Estado, List<CasoDiasHabiles> DiasHabiles);
+    private sealed record CasoValidacionRango(string Nombre, DateOnly Hoy, DateOnly FechaInicio, DateOnly FechaFin, string? Error);
+
+    private sealed record Archivo(
+        List<CasoEstado> Estado,
+        List<CasoDiasHabiles> DiasHabiles,
+        List<CasoValidacionRango> ValidacionRango);
 
     private static readonly Archivo Casos = JsonSerializer.Deserialize<Archivo>(
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Pto", "pto-calculadora-casos.json")),
@@ -38,6 +43,8 @@ public class PtoCalculadoraCasosCompartidosTests
     public static IEnumerable<object[]> NombresEstado() => Casos.Estado.Select(c => new object[] { c.Nombre });
 
     public static IEnumerable<object[]> NombresDiasHabiles() => Casos.DiasHabiles.Select(c => new object[] { c.Nombre });
+
+    public static IEnumerable<object[]> NombresValidacionRango() => Casos.ValidacionRango.Select(c => new object[] { c.Nombre });
 
     [Theory]
     [MemberData(nameof(NombresEstado))]
@@ -66,5 +73,14 @@ public class PtoCalculadoraCasosCompartidosTests
         var caso = Casos.DiasHabiles.Single(c => c.Nombre == nombre);
 
         Assert.Equal(caso.Esperado, PtoBalanceCalculator.ContarDiasHabiles(caso.Desde, caso.Hasta));
+    }
+
+    [Theory]
+    [MemberData(nameof(NombresValidacionRango))]
+    public void ValidarRango_CoincideConElCasoCompartido(string nombre)
+    {
+        var caso = Casos.ValidacionRango.Single(c => c.Nombre == nombre);
+
+        Assert.Equal(caso.Error, PtoRequestsService.ValidarRango(caso.Hoy, caso.FechaInicio, caso.FechaFin));
     }
 }

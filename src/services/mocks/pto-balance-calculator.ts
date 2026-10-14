@@ -8,7 +8,7 @@
 // Fechas siempre en ISO 8601 (yyyy-mm-dd); la comparación lexicográfica
 // de esas cadenas ya es cronológica, así que se usa directo donde alcanza
 // (mismo criterio que el resto del proyecto, ver mock-adapter.ts).
-import { contarDiasHabiles, esDiaHabil, sumarDias } from '@/lib/dias-habiles';
+import { contarDiasHabiles, esDiaHabil, sumarAnios, sumarDias } from '@/lib/dias-habiles';
 
 export const HORAS_POR_QUINCENA = 5;
 export const DIAS_TRABAJADOS_MINIMOS = 200;
@@ -36,24 +36,8 @@ function toUtcDate(iso: string): Date {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
-function pad(n: number): string {
-  return n.toString().padStart(2, '0');
-}
-
-function toIso(year: number, monthZeroBased: number, day: number): string {
-  return `${year}-${pad(monthZeroBased + 1)}-${pad(day)}`;
-}
-
 function ultimoDiaDelMes(year: number, monthZeroBased: number): number {
   return new Date(Date.UTC(year, monthZeroBased + 1, 0)).getUTCDate();
-}
-
-// Igual que DateOnly.AddYears de .NET: un 29-feb cae en 28-feb si el año
-// destino no es bisiesto.
-function sumarAnios(iso: string, anios: number): string {
-  const [year, month, day] = iso.split('-').map(Number);
-  const destino = year + anios;
-  return toIso(destino, month - 1, Math.min(day, ultimoDiaDelMes(destino, month - 1)));
 }
 
 function max(a: string, b: string): string {

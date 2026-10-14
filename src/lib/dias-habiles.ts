@@ -22,6 +22,15 @@ export function sumarDias(iso: string, dias: number): string {
   return `${fecha.getUTCFullYear()}-${pad(fecha.getUTCMonth() + 1)}-${pad(fecha.getUTCDate())}`;
 }
 
+// Igual que DateOnly.AddYears de .NET: un 29-feb cae en 28-feb si el año
+// destino no es bisiesto.
+export function sumarAnios(iso: string, anios: number): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  const destino = year + anios;
+  const ultimoDiaDelMes = new Date(Date.UTC(destino, month, 0)).getUTCDate();
+  return `${destino}-${pad(month)}-${pad(Math.min(day, ultimoDiaDelMes))}`;
+}
+
 export function esDiaHabil(iso: string): boolean {
   const diaSemana = toUtcDate(iso).getUTCDay();
   return diaSemana !== 0 && diaSemana !== 6;

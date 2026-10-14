@@ -23,6 +23,7 @@ import {
   PtoBalance,
 } from '@/contracts/interfaces/pto';
 import { contarDiasHabiles, esDiaHabil, HORAS_POR_DIA } from '@/lib/dias-habiles';
+import { validarRangoVacaciones } from '@/lib/vacaciones-rango';
 import {
   calcularEstadoPto,
   DIAS_TRABAJADOS_MINIMOS,
@@ -484,14 +485,9 @@ export const mockPtoAdapter = {
   ): Promise<LeaveRequest> {
     // Mismas reglas que el backend real (PtoRequestsService.SolicitarRangoAsync).
     const { fechaInicio, fechaFin } = payload;
-    if (fechaFin < fechaInicio) {
-      throw new Error('La fecha de fin no puede ser anterior a la fecha de inicio.');
-    }
-    if (fechaInicio < hoyIso()) {
-      throw new Error('No puedes solicitar vacaciones en fechas pasadas.');
-    }
-    if (!esDiaHabil(fechaInicio)) {
-      throw new Error('Las vacaciones no pueden iniciar en sábado ni domingo.');
+    const errorDeRango = validarRangoVacaciones(hoyIso(), fechaInicio, fechaFin);
+    if (errorDeRango) {
+      throw new Error(errorDeRango);
     }
     if (hayVacacionesEn(employeeId, fechaInicio, fechaFin)) {
       throw new Error('Ya tienes vacaciones solicitadas o reservadas en esas fechas.');
