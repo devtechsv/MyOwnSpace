@@ -12,5 +12,7 @@ public interface IAuditLogService
     // describe (se guardan las dos, o ninguna).
     Task RegistrarAsync(Guid actorId, AuditAction accion, AuditEntityType entidadTipo, Guid entidadId, string? detalle = null);
 
-    Task<PagedResult<AuditLog>> ListarAsync(int page, int pageSize);
+    // desde/hasta son días en hora de El Salvador, ambos incluidos.
+    Task<PagedResult<AuditLogConEntidad>> ListarAsync(
+        AuditAction? accion, DateOnly? desde, DateOnly? hasta, int page, int pageSize);
 }
