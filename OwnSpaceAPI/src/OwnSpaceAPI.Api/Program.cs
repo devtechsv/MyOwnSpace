@@ -179,36 +179,89 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+// Un cupo propio por endpoint (antes compartían uno solo de 10/min por IP).
+// Configurables para ajustarlos si crece el equipo, sin recompilar.
+var loginPorMinuto = LeerLimitePorMinuto(builder.Configuration, "RateLimit:LoginPerMinute", 30);
+var olvidePorMinuto = LeerLimitePorMinuto(builder.Configuration, "RateLimit:ForgotPasswordPerMinute", 10);
+var cambioPorMinuto = LeerLimitePorMinuto(builder.Configuration, "RateLimit:ChangePasswordPerMinute", 5);
+
 builder.Services.AddRateLimiter(options =>
 {
   options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-  options.AddPolicy("auth", httpContext => RateLimitPartition.GetFixedWindowLimiter(
-      partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-      factory: _ => new FixedWindowRateLimiterOptions
-      {
-        PermitLimit = 10,
-        Window = TimeSpan.FromMinutes(1),
-        QueueLimit = 0,
-      }));
+  options.AddPolicy(RateLimitPolicies.Login, httpContext => PorMinuto(PorIp(httpContext), loginPorMinuto));
+  // Tiene además el tope de 3 temporales por hora por usuario (PasswordResetService).
+  options.AddPolicy(RateLimitPolicies.ForgotPassword, httpContext => PorMinuto(PorIp(httpContext), olvidePorMinuto));
+  // Requiere sesión: se agrupa por usuario, así los compañeros de oficina
+  // (misma IP) no se descuentan cupo entre sí. Necesita que el rate limiter
+  // corra después de UseAuthentication (ver más abajo).
+  options.AddPolicy(RateLimitPolicies.ChangePassword, httpContext => PorMinuto(
+      httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? PorIp(httpContext), cambioPorMinuto));
 });
+
+static string PorIp(HttpContext httpContext) =>
+    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+static RateLimitPartition<string> PorMinuto(string clave, int limite) =>
+    RateLimitPartition.GetFixedWindowLimiter(clave, _ => new FixedWindowRateLimiterOptions
+    {
+      PermitLimit = limite,
+      Window = TimeSpan.FromMinutes(1),
+      QueueLimit = 0,
+    });
+
+static int LeerLimitePorMinuto(IConfiguration configuration, string clave, int porDefecto)
+{
+  var valor = configuration[clave];
+  if (string.IsNullOrWhiteSpace(valor))
+  {
+    return porDefecto;
+  }
+  if (!int.TryParse(valor, out var limite) || limite < 1)
+  {
+    throw new InvalidOperationException($"{clave} debe ser un número entero mayor a 0. Valor actual: \"{valor}\".");
+  }
+  return limite;
+}
+
+// Proxies de confianza para X-Forwarded-For, además del loopback que
+// ForwardedHeaders confía por defecto. Hacen falta si el proxy no corre en
+// la misma máquina que la API: sin esto la API ve la IP del proxy en todas
+// las requests y los límites de arriba quedan en un único cupo para todos.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+  ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+};
+foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+{
+  if (!System.Net.IPAddress.TryParse(proxy, out var direccion))
+  {
+    throw new InvalidOperationException($"ForwardedHeaders:KnownProxies debe tener direcciones IP (p. ej. \"10.0.0.5\"). Valor inválido: \"{proxy}\".");
+  }
+  forwardedHeadersOptions.KnownProxies.Add(direccion);
+}
+foreach (var red in builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
+{
+  if (!Microsoft.AspNetCore.HttpOverrides.IPNetwork.TryParse(red, out var redValida))
+  {
+    throw new InvalidOperationException($"ForwardedHeaders:KnownNetworks debe tener redes en formato CIDR (p. ej. \"10.0.0.0/24\"). Valor inválido: \"{red}\".");
+  }
+  forwardedHeadersOptions.KnownNetworks.Add(redValida);
+}
 
 var app = builder.Build();
 
 // La topología de producción pone nginx delante de Kestrel como reverse
 // proxy — sin esto, Connection.RemoteIpAddress ve siempre la IP del
-// proxy, no la del cliente real, lo que colapsa el límite de la policy
-// "auth" (particionada por IP) en un único bucket compartido por todos
-// los usuarios: 10 intentos de cualquiera bastan para bloquear el login
-// de todo el mundo. Va primero en el pipeline porque HSTS, el rate
+// proxy, no la del cliente real, lo que colapsa los límites de intentos
+// particionados por IP (login y olvidé mi contraseña) en un único bucket
+// compartido por todos los usuarios: los intentos de cualquiera bastan
+// para bloquear el login de todo el mundo. Va primero en el pipeline porque HSTS, el rate
 // limiter y todo lo demás necesitan ver ya la IP/esquema corregidos.
 // Los valores por defecto de KnownNetworks/KnownProxies (loopback)
 // cubren nginx corriendo en la misma máquina/contenedor que la API —
 // si termina desplegado en un host o red distinta, hay que agregar esa
-// IP/red aquí (o por configuración) para que se lo siga confiando.
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-  ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
-});
+// IP/red en ForwardedHeaders:KnownProxies o KnownNetworks (ver arriba).
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -252,8 +305,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseRateLimiter();
 app.UseAuthentication();
+// Después de UseAuthentication: la política de cambio de contraseña agrupa
+// por el usuario de la sesión, que recién aquí está disponible.
+app.UseRateLimiter();
 
 // Después de UseAuthentication (context.User ya refleja los claims del
 // JWT) y antes de UseAuthorization/MapControllers: mientras el usuario
