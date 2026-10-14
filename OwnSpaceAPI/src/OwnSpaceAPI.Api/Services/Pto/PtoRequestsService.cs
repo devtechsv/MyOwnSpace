@@ -121,25 +121,37 @@ public sealed class PtoRequestsService : IPtoRequestsService
         return request;
     }
 
-    public async Task<LeaveRequest> SolicitarRangoAsync(Guid employeeId, DateOnly fechaInicio, DateOnly fechaFin, string? motivo)
+    // Validaciones de forma del rango, sin tocar la base. Pública y pura para
+    // que corra los mismos casos que su copia del frontend
+    // (src/lib/vacaciones-rango.ts, vía test-data/pto-calculadora-casos.json).
+    public static string? ValidarRango(DateOnly hoy, DateOnly fechaInicio, DateOnly fechaFin)
     {
         if (fechaFin < fechaInicio)
         {
-            throw new BadRequestException("La fecha de fin no puede ser anterior a la fecha de inicio.");
+            return "La fecha de fin no puede ser anterior a la fecha de inicio.";
         }
-        if (fechaInicio < Hoy)
+        if (fechaInicio < hoy)
         {
-            throw new BadRequestException("No puedes solicitar vacaciones en fechas pasadas.");
+            return "No puedes solicitar vacaciones en fechas pasadas.";
         }
         // Art. 178: las vacaciones no pueden iniciarse en día de descanso.
         if (!PtoBalanceCalculator.EsDiaHabil(fechaInicio))
         {
-            throw new BadRequestException("Las vacaciones no pueden iniciar en sábado ni domingo.");
+            return "Las vacaciones no pueden iniciar en sábado ni domingo.";
         }
         // Tope de cordura: evita recorrer rangos absurdos día por día.
         if (fechaFin > fechaInicio.AddYears(1))
         {
-            throw new BadRequestException("El rango de vacaciones no puede superar un año.");
+            return "El rango de vacaciones no puede superar un año.";
+        }
+        return null;
+    }
+
+    public async Task<LeaveRequest> SolicitarRangoAsync(Guid employeeId, DateOnly fechaInicio, DateOnly fechaFin, string? motivo)
+    {
+        if (ValidarRango(Hoy, fechaInicio, fechaFin) is { } error)
+        {
+            throw new BadRequestException(error);
         }
 
         var horas = PtoBalanceCalculator.ContarDiasHabiles(fechaInicio, fechaFin) * PtoBalanceCalculator.HorasPorDia;

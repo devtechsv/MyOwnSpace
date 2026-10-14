@@ -417,13 +417,17 @@ describe('mockPtoAdapter', () => {
     expect((await mockPtoAdapter.getBalance('u4')).horasDisponibles).toBe(88);
   });
 
-  it('createVacationRequest rechaza iniciar en fin de semana, fechas pasadas y saldo insuficiente', async () => {
+  it('createVacationRequest rechaza iniciar en fin de semana, fechas pasadas, más de un año y saldo insuficiente', async () => {
     await expect(
       mockPtoAdapter.createVacationRequest('u4', { fechaInicio: '2026-10-10', fechaFin: '2026-10-14' }),
     ).rejects.toThrow('Las vacaciones no pueden iniciar en sábado ni domingo.');
     await expect(
       mockPtoAdapter.createVacationRequest('u4', { fechaInicio: '2026-10-01', fechaFin: '2026-10-02' }),
     ).rejects.toThrow('No puedes solicitar vacaciones en fechas pasadas.');
+    // Regresión: el modo simulado aceptaba rangos que la API real rechaza.
+    await expect(
+      mockPtoAdapter.createVacationRequest('u4', { fechaInicio: '2026-10-12', fechaFin: '2027-10-13' }),
+    ).rejects.toThrow('El rango de vacaciones no puede superar un año.');
     await expect(
       mockPtoAdapter.createVacationRequest('u4', { fechaInicio: '2026-10-12', fechaFin: '2026-11-13' }),
     ).rejects.toThrow('No tienes horas suficientes: necesitas 200h y tienes 120h disponibles.');

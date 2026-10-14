@@ -5,7 +5,8 @@ import { useModalAlly } from '@/hooks/useModalAlly';
 import { useSession } from '@/hooks/useSession';
 import { errorMessage } from '@/helpers/error-message';
 import { hoyIso } from '@/helpers/hoy-iso';
-import { contarDiasHabiles, esDiaHabil, HORAS_POR_DIA } from '@/lib/dias-habiles';
+import { contarDiasHabiles, HORAS_POR_DIA, sumarAnios } from '@/lib/dias-habiles';
+import { validarRangoVacaciones } from '@/lib/vacaciones-rango';
 import API from '@/services/api-services';
 
 interface Props {
@@ -31,18 +32,13 @@ export function VacationRangeModal({ isOpen, horasDisponibles, onClose, onCreate
 
   const hoy = hoyIso();
   const completo = Boolean(fechaInicio && fechaFin);
-  const dias = completo && fechaFin >= fechaInicio ? contarDiasHabiles(fechaInicio, fechaFin) : 0;
-  const horas = dias * HORAS_POR_DIA;
 
-  // Mismas reglas que el backend: el aviso aparece antes de enviar.
-  let validacion: string | null = null;
-  if (fechaInicio && fechaInicio < hoy) {
-    validacion = 'No puedes solicitar vacaciones en fechas pasadas.';
-  } else if (fechaInicio && !esDiaHabil(fechaInicio)) {
-    validacion = 'Las vacaciones no pueden iniciar en sábado ni domingo.';
-  } else if (completo && fechaFin < fechaInicio) {
-    validacion = 'La fecha de fin no puede ser anterior a la fecha de inicio.';
-  } else if (completo && horas > horasDisponibles) {
+  // Mismas reglas que el backend: el aviso aparece antes de enviar. Los
+  // días se cuentan solo con un rango válido (de un año como máximo).
+  let validacion = fechaInicio ? validarRangoVacaciones(hoy, fechaInicio, fechaFin || undefined) : null;
+  const dias = completo && !validacion ? contarDiasHabiles(fechaInicio, fechaFin) : 0;
+  const horas = dias * HORAS_POR_DIA;
+  if (!validacion && completo && horas > horasDisponibles) {
     validacion = `No tienes horas suficientes: necesitas ${horas}h y tienes ${horasDisponibles}h disponibles.`;
   }
 
@@ -124,6 +120,7 @@ export function VacationRangeModal({ isOpen, horasDisponibles, onClose, onCreate
               name='fechaFin'
               type='date'
               min={fechaInicio || hoy}
+              max={fechaInicio ? sumarAnios(fechaInicio, 1) : undefined}
               value={fechaFin}
               onChange={(e) => setFechaFin(e.target.value)}
             />

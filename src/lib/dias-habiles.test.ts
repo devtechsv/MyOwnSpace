@@ -1,4 +1,4 @@
-import { contarDiasHabiles, esDiaHabil, sumarDias } from './dias-habiles';
+import { contarDiasHabiles, esDiaHabil, sumarAnios, sumarDias } from './dias-habiles';
 
 describe('días hábiles', () => {
   it('solo cuenta de lunes a viernes', () => {
@@ -18,5 +18,11 @@ describe('días hábiles', () => {
   it('sumarDias cruza meses y años', () => {
     expect(sumarDias('2026-12-31', 1)).toBe('2027-01-01');
     expect(sumarDias('2026-03-01', -1)).toBe('2026-02-28');
+  });
+
+  it('sumarAnios lleva un 29-feb al 28-feb si el año destino no es bisiesto', () => {
+    expect(sumarAnios('2026-10-12', 1)).toBe('2027-10-12');
+    expect(sumarAnios('2028-02-29', 1)).toBe('2029-02-28');
+    expect(sumarAnios('2028-02-29', 4)).toBe('2032-02-29');
   });
 });

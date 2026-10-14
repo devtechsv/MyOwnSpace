@@ -170,5 +170,18 @@
     { "nombre": "Solo un sábado", "desde": "2026-10-10", "hasta": "2026-10-10", "esperado": 0 },
     { "nombre": "Rango invertido", "desde": "2026-10-09", "hasta": "2026-10-05", "esperado": 0 },
     { "nombre": "Un mes completo (octubre 2026)", "desde": "2026-10-01", "hasta": "2026-10-31", "esperado": 22 }
+  ],
+  "validacionRango": [
+    { "nombre": "Rango válido de una semana", "hoy": "2026-10-05", "fechaInicio": "2026-10-12", "fechaFin": "2026-10-16", "error": null },
+    { "nombre": "Empieza y termina hoy", "hoy": "2026-10-05", "fechaInicio": "2026-10-05", "fechaFin": "2026-10-05", "error": null },
+    { "nombre": "Fin antes del inicio", "hoy": "2026-10-05", "fechaInicio": "2026-10-16", "fechaFin": "2026-10-12", "error": "La fecha de fin no puede ser anterior a la fecha de inicio." },
+    { "nombre": "Fin antes del inicio gana a fecha pasada", "hoy": "2026-10-05", "fechaInicio": "2026-10-02", "fechaFin": "2026-10-01", "error": "La fecha de fin no puede ser anterior a la fecha de inicio." },
+    { "nombre": "Fechas pasadas", "hoy": "2026-10-05", "fechaInicio": "2026-10-01", "fechaFin": "2026-10-02", "error": "No puedes solicitar vacaciones en fechas pasadas." },
+    { "nombre": "Inicia en sábado", "hoy": "2026-10-05", "fechaInicio": "2026-10-10", "fechaFin": "2026-10-14", "error": "Las vacaciones no pueden iniciar en sábado ni domingo." },
+    { "nombre": "Inicia en domingo", "hoy": "2026-10-05", "fechaInicio": "2026-10-11", "fechaFin": "2026-10-14", "error": "Las vacaciones no pueden iniciar en sábado ni domingo." },
+    { "nombre": "Exactamente un año", "hoy": "2026-10-05", "fechaInicio": "2026-10-12", "fechaFin": "2027-10-12", "error": null },
+    { "nombre": "Un año y un día", "hoy": "2026-10-05", "fechaInicio": "2026-10-12", "fechaFin": "2027-10-13", "error": "El rango de vacaciones no puede superar un año." },
+    { "nombre": "Desde un 29-feb, un año termina el 28-feb", "hoy": "2028-02-01", "fechaInicio": "2028-02-29", "fechaFin": "2029-02-28", "error": null },
+    { "nombre": "Desde un 29-feb, el 1-mar ya supera un año", "hoy": "2028-02-01", "fechaInicio": "2028-02-29", "fechaFin": "2029-03-01", "error": "El rango de vacaciones no puede superar un año." }
   ]
 }
