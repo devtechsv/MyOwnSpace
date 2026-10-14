@@ -135,7 +135,14 @@ public sealed class UsersService : IUsersService
 
             if (nombre is not null)
             {
-                user.Nombre = nombre;
+                // Al crear, [Required] ya rechaza un nombre en blanco; al editar,
+                // todos los campos son opcionales y no hay quien lo frene.
+                var nombreLimpio = nombre.Trim();
+                if (nombreLimpio.Length == 0)
+                {
+                    throw new BadRequestException("El nombre no puede quedar vacío.");
+                }
+                user.Nombre = nombreLimpio;
             }
 
             if (rol is not null && rol.Value != user.Rol)

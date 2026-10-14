@@ -57,6 +57,33 @@ describe('EditUserModal', () => {
     expect(screen.getByText('Ingresa el correo')).toBeInTheDocument();
   });
 
+  it('un nombre con solo espacios cuenta como vacío', async () => {
+    const props = renderModal();
+
+    fireEvent.change(screen.getByLabelText('Nombre completo'), {
+      target: { value: '   ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }));
+
+    expect(
+      await screen.findByText('Ingresa el nombre completo'),
+    ).toBeInTheDocument();
+    expect(props.onUpdated).not.toHaveBeenCalled();
+  });
+
+  it('guarda el nombre sin espacios en los extremos', async () => {
+    const props = renderModal();
+
+    fireEvent.change(screen.getByLabelText('Nombre completo'), {
+      target: { value: '  Julio Pérez Mena ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }));
+
+    await waitFor(() => expect(props.onUpdated).toHaveBeenCalled());
+    const list = await mockUsersAdapter.list(1, 20);
+    expect(list.items.find((u) => u.id === 'u1')?.nombre).toBe('Julio Pérez Mena');
+  });
+
   it('con un correo perteneciente a otro usuario, muestra el error en el campo Correo', async () => {
     const props = renderModal();
 

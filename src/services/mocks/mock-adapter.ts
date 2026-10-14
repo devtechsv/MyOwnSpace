@@ -323,6 +323,15 @@ export const mockUsersAdapter = {
 
   async update(id: string, payload: UpdateUserPayload): Promise<User> {
     const target = findUserOrThrow(id);
+    // Igual que UsersService.UpdateAsync: un nombre en blanco se rechaza
+    // y uno válido se guarda sin espacios en los extremos.
+    if (payload.nombre !== undefined) {
+      const nombre = payload.nombre.trim();
+      if (!nombre) {
+        throw new Error('El nombre no puede quedar vacío.');
+      }
+      payload = { ...payload, nombre };
+    }
     if (payload.correo){
       const yaExiste = users.some(
         (u) =>

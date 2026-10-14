@@ -145,6 +145,38 @@ public class UsersServiceTests
         Assert.Equal("carlos.rivas@devtch.com", actualizado.Correo);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task UpdateAsync_ConNombreEnBlanco_TiraBadRequestYNoLoCambia(string nombre)
+    {
+        await using var db = CreateContext();
+        var user = CrearUsuario("Carlos Rivas", "carlos.rivas@devtch.com");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db), TimeProvider.System);
+
+        var ex = await Assert.ThrowsAsync<BadRequestException>(
+            () => service.UpdateAsync(ActorId, user.Id, nombre, null, null));
+        Assert.Equal("El nombre no puede quedar vacío.", ex.Message);
+        Assert.Equal("Carlos Rivas", (await db.Users.FindAsync(user.Id))!.Nombre);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_GuardaElNombreSinEspaciosEnLosExtremos()
+    {
+        await using var db = CreateContext();
+        var user = CrearUsuario("Carlos Rivas", "carlos.rivas@devtch.com");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new UsersService(db, new FakePasswordResetService(), new AuditLogService(db), TimeProvider.System);
+        var actualizado = await service.UpdateAsync(ActorId, user.Id, "  Carlos Rivas Mena ", null, null);
+
+        Assert.Equal("Carlos Rivas Mena", actualizado.Nombre);
+    }
+
     [Fact]
     public async Task UpdateAsync_ConCorreoDeOtroUsuario_TiraConflict()
     {
