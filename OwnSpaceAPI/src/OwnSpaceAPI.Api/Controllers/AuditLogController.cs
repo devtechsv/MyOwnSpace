@@ -21,9 +21,10 @@ public class AuditLogController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<PagedResult<AuditLogResponse>>> List(
+        [FromQuery] AuditAction? accion, [FromQuery] DateOnly? desde, [FromQuery] DateOnly? hasta,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var result = await _auditLogService.ListarAsync(page, pageSize);
+        var result = await _auditLogService.ListarAsync(accion, desde, hasta, page, pageSize);
         var mapped = new PagedResult<AuditLogResponse>(
             result.Items.Select(AuditLogResponse.FromEntity).ToList(), result.TotalCount, result.Page, result.PageSize);
         return Ok(mapped);

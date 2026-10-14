@@ -16,6 +16,7 @@ tags:
   - name: users
   - name: requests
   - name: pto
+  - name: audit
   - name: health
 
 paths:
@@ -534,6 +535,45 @@ paths:
                 items:
                   $ref: '#/components/schemas/LeaveRequest'
 
+  /audit-logs:
+    get:
+      tags: [audit]
+      summary: >
+        Bitácora de acciones de administradores (pantalla Auditoría), de la
+        más nueva a la más vieja. Solo lectura: no hay forma de editar ni
+        borrar entradas. Cada entrada se guarda en el mismo commit que la
+        acción que describe.
+      security: [{ cookieAuth: [Administrador] }]
+      parameters:
+        - name: accion
+          in: query
+          schema: { $ref: '#/components/schemas/AuditAction' }
+        - name: desde
+          in: query
+          description: Día inicial, incluido, en hora de El Salvador.
+          schema: { type: string, format: date }
+        - name: hasta
+          in: query
+          description: Día final, incluido, en hora de El Salvador.
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Página de la bitácora.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedAuditLogs'
+        '400':
+          description: "`hasta` es anterior a `desde`, o una fecha o acción no es válida."
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Rol insuficiente.
+
 components:
   securitySchemes:
     cookieAuth:
@@ -606,6 +646,49 @@ components:
     RequestStatus:
       type: string
       enum: [Pendiente, Aprobada, Denegada]
+
+    AuditAction:
+      type: string
+      enum: [UsuarioCreado, UsuarioEditado, ContrasenaReseteada, EstadoUsuarioCambiado, SolicitudAprobada, SolicitudDenegada]
+
+    AuditLog:
+      type: object
+      required: [id, actorId, actorNombre, accion, entidadTipo, entidadId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        actorId: { type: string, format: uuid }
+        actorNombre:
+          type: string
+          description: Nombre del administrador al momento de la acción.
+        accion: { $ref: '#/components/schemas/AuditAction' }
+        entidadTipo: { type: string, enum: [Usuario, Solicitud] }
+        entidadId: { type: string, format: uuid }
+        entidadNombre:
+          type: string
+          nullable: true
+          description: >
+            Nombre actual del usuario afectado, o del empleado dueño de la
+            solicitud. Null si ya no existe.
+        detalle:
+          type: string
+          nullable: true
+          description: >
+            Según la acción: correo y rol (creado), nombre, correo y rol
+            (editado), nuevo estado, o motivo del rechazo.
+        createdAt: { type: string, format: date-time, description: En UTC. }
+
+    PagedAuditLogs:
+      type: object
+      required: [items, totalCount, page, pageSize]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AuditLog' }
+        totalCount:
+          type: integer
+          description: Total de entradas que coinciden con los filtros.
+        page: { type: integer }
+        pageSize: { type: integer }
 
     PagedLeaveRequests:
       type: object

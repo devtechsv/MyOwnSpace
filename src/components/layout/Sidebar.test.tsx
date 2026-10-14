@@ -60,6 +60,7 @@ describe('Sidebar', () => {
     );
     expect(screen.queryByText('Solicitudes')).not.toBeInTheDocument();
     expect(screen.queryByText('Usuarios')).not.toBeInTheDocument();
+    expect(screen.queryByText('Auditoría')).not.toBeInTheDocument();
   });
 
   it('Administrador ve "Solicitudes"/"Usuarios", no navegación de empleado', () => {
@@ -72,6 +73,10 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /usuarios/i })).toHaveAttribute(
       'href',
       '/admin/users',
+    );
+    expect(screen.getByRole('link', { name: /auditoría/i })).toHaveAttribute(
+      'href',
+      '/admin/audit',
     );
     expect(
       screen.queryByRole('link', { name: /mi pto/i }),

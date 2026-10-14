@@ -13,6 +13,11 @@ public static class FechaLocal
     public static DateOnly HoyLocal(this TimeProvider clock) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), Zona).DateTime);
 
+    // Medianoche de esa fecha en El Salvador, expresada en UTC (lo que se
+    // guarda en las columnas CreatedAt). Para filtrar por "días" locales.
+    public static DateTime InicioDelDiaUtc(DateOnly fecha) =>
+        TimeZoneInfo.ConvertTimeToUtc(fecha.ToDateTime(TimeOnly.MinValue), Zona);
+
     private static TimeZoneInfo ResolverZona()
     {
         // ID IANA (Linux/contenedores, y Windows con ICU); si no, el ID de
