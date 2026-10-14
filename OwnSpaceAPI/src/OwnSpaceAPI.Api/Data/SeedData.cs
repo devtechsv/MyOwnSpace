@@ -21,7 +21,8 @@ public static class SeedData
         AppDbContext context,
         IPasswordHashingService hasher,
         IConfiguration configuration,
-        ILogger logger)
+        ILogger logger,
+        TimeProvider clock)
     {
         if (await context.Users.AnyAsync(u => u.Rol == UserRole.Administrador))
         {
@@ -62,7 +63,8 @@ public static class SeedData
             // vence a las 48h si nadie la usa.
             MustChangePassword = true,
             TempPasswordExpiresAt = now.AddHours(48),
-            FechaIngreso = DateOnly.FromDateTime(now),
+            // Fecha de El Salvador, no la de UTC (ver FechaLocal).
+            FechaIngreso = clock.HoyLocal(),
             CreatedAt = now,
             UpdatedAt = now,
         };
