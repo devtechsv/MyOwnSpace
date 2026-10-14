@@ -117,6 +117,7 @@ Fuera de desarrollo no se usa `appsettings.Development.json`: cada valor va como
 Otras consideraciones:
 
 - **Zona horaria:** las fechas de negocio ("hoy", vencimiento del PTO) se calculan en hora de El Salvador. Si el servidor no tiene la base de zonas horarias (p. ej. un contenedor Linux mínimo sin `tzdata`), se usa UTC−6 fijo, que da el mismo resultado porque El Salvador no tiene horario de verano.
+- **Monitoreo:** `GET /health` (en la raíz, fuera de `/api/v1`) responde `200 Healthy` si la API llega a la base de datos y `503 Unhealthy` si no. No pide sesión, así que sirve para el chequeo de un balanceador o un servicio de monitoreo. Como el resto de la API, redirige de HTTP a HTTPS: el chequeo tiene que usar `https://`.
 - **Correos:** se envían en segundo plano desde una cola en memoria. Si la API se reinicia justo después de una acción que envía correo (p. ej. "Olvidé mi contraseña"), ese correo puede perderse; basta con repetir la acción.
 
 ### Migraciones con efecto a tener en cuenta
