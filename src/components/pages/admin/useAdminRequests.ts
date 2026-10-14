@@ -173,8 +173,9 @@ export function useAdminRequests() {
       try {
         await API.requests.deny(id, session.userId, motivo);
         await load();
-      } catch {
-        setError('No pudimos denegar la solicitud. Intenta de nuevo.');
+      } catch (err) {
+        // P. ej. otro admin ya la revisó: reintentar no serviría.
+        setError(errorMessage(err, 'No pudimos denegar la solicitud. Intenta de nuevo.'));
       } finally {
         setActioningId(null);
       }

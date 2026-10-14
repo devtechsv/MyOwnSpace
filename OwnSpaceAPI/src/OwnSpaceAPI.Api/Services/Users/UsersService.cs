@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using OwnSpaceAPI.Api.Data;
 using OwnSpaceAPI.Api.Models.Dtos.Common;
@@ -112,51 +113,55 @@ public sealed class UsersService : IUsersService
         return user;
     }
 
-    public async Task<User> UpdateAsync(Guid actorId, Guid id, string? nombre, string? correo, UserRole? rol)
-    {
-        var user = await _db.Users.FindAsync(id)
-            ?? throw new NotFoundException($"Usuario {id} no encontrado.");
-
-        if (correo is not null)
+    public Task<User> UpdateAsync(Guid actorId, Guid id, string? nombre, string? correo, UserRole? rol) =>
+        // Serializable por el cambio de rol: ver EnSerializableAsync.
+        EnSerializableAsync(async () =>
         {
-            var correoNormalizado = correo.Trim().ToLowerInvariant();
-            var yaExiste = await _db.Users.AnyAsync(u => u.Id != id && u.Correo == correoNormalizado);
-            if (yaExiste)
+            var user = await _db.Users.FindAsync(id)
+                ?? throw new NotFoundException($"Usuario {id} no encontrado.");
+
+            if (correo is not null)
             {
+                var correoNormalizado = correo.Trim().ToLowerInvariant();
+                var yaExiste = await _db.Users.AnyAsync(u => u.Id != id && u.Correo == correoNormalizado);
+                if (yaExiste)
+                {
+                    throw new ConflictException("Ya existe un usuario con ese correo.");
+                }
+                user.Correo = correoNormalizado;
+            }
+
+            if (nombre is not null)
+            {
+                user.Nombre = nombre;
+            }
+
+            if (rol is not null && rol.Value != user.Rol)
+            {
+                await EnsureNotLastActiveAdminAsync(user);
+                user.Rol = rol.Value;
+                user.SecurityStamp = Guid.NewGuid().ToString("N");
+            }
+
+            user.UpdatedAt = DateTime.UtcNow;
+            await _auditLog.RegistrarAsync(
+                actorId, AuditAction.UsuarioEditado, AuditEntityType.Usuario, user.Id,
+                $"Nombre: {user.Nombre}, Correo: {user.Correo}, Rol: {user.Rol}");
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (!SqlConcurrencia.EsDeadlockOTimeoutDeLock(ex))
+            {
+                // Mismo caso que en CreateAsync: dos ediciones concurrentes
+                // al mismo correo nuevo pueden pasar la verificación las dos.
+                // El filtro deja pasar un deadlock de la transacción: no es
+                // un correo duplicado y lo traduce EnSerializableAsync.
                 throw new ConflictException("Ya existe un usuario con ese correo.");
             }
-            user.Correo = correoNormalizado;
-        }
 
-        if (nombre is not null)
-        {
-            user.Nombre = nombre;
-        }
-
-        if (rol is not null && rol.Value != user.Rol)
-        {
-            await EnsureNotLastActiveAdminAsync(user);
-            user.Rol = rol.Value;
-            user.SecurityStamp = Guid.NewGuid().ToString("N");
-        }
-
-        user.UpdatedAt = DateTime.UtcNow;
-        await _auditLog.RegistrarAsync(
-            actorId, AuditAction.UsuarioEditado, AuditEntityType.Usuario, user.Id,
-            $"Nombre: {user.Nombre}, Correo: {user.Correo}, Rol: {user.Rol}");
-        try
-        {
-            await _db.SaveChangesAsync();
-        }
-        catch (DbUpdateException)
-        {
-            // Mismo caso que en CreateAsync: dos ediciones concurrentes
-            // al mismo correo nuevo pueden pasar la verificación las dos.
-            throw new ConflictException("Ya existe un usuario con ese correo.");
-        }
-
-        return user;
-    }
+            return user;
+        });
 
     public async Task ResetPasswordAsync(Guid actorId, Guid id)
     {
@@ -184,48 +189,79 @@ public sealed class UsersService : IUsersService
         await _passwordResetService.IssueTemporaryPasswordAsync(user.Correo);
     }
 
-    public async Task<User> ToggleStatusAsync(Guid actorId, Guid id)
-    {
-        var user = await _db.Users.FindAsync(id)
-            ?? throw new NotFoundException($"Usuario {id} no encontrado.");
-
-        // El helper es no-op salvo que el usuario sea un Administrador
-        // Activo (nunca puede dejar sin admins) — llamarlo también para
-        // un Pendiente es seguro, ya que nunca es Activo.
-        if (user.Estado == UserStatus.Pendiente || user.Estado == UserStatus.Activo)
+    public Task<User> ToggleStatusAsync(Guid actorId, Guid id) =>
+        // Serializable: ver EnSerializableAsync.
+        EnSerializableAsync(async () =>
         {
-            // Desactivarse a sí mismo cortaría la sesión en el acto. La UI
-            // ya lo bloquea; esto cubre las llamadas directas al API.
-            if (actorId == id)
+            var user = await _db.Users.FindAsync(id)
+                ?? throw new NotFoundException($"Usuario {id} no encontrado.");
+
+            // El helper es no-op salvo que el usuario sea un Administrador
+            // Activo (nunca puede dejar sin admins) — llamarlo también para
+            // un Pendiente es seguro, ya que nunca es Activo.
+            if (user.Estado == UserStatus.Pendiente || user.Estado == UserStatus.Activo)
             {
-                throw new BadRequestException("No puedes desactivar tu propia cuenta.");
+                // Desactivarse a sí mismo cortaría la sesión en el acto. La UI
+                // ya lo bloquea; esto cubre las llamadas directas al API.
+                if (actorId == id)
+                {
+                    throw new BadRequestException("No puedes desactivar tu propia cuenta.");
+                }
+
+                await EnsureNotLastActiveAdminAsync(user);
+
+                user.Estado = UserStatus.Desactivado;
+                user.FechaDesactivacion = TimeProvider.System.HoyLocal();
+            }
+            else
+            {
+                // Reactivar: si nunca tuvo una contraseña real asignada
+                // (llegó a Desactivado directo desde Pendiente — nunca pasó
+                // por CreateAsync/IssueTemporaryPasswordAsync), vuelve a
+                // Pendiente en vez de Activo, porque no tiene con qué
+                // loguearse todavía. Un admin tendría que "Resetear
+                // contraseña" aparte para mandarle una temporal.
+                user.Estado = user.PasswordHash is null ? UserStatus.Pendiente : UserStatus.Activo;
+                user.FechaDesactivacion = null;
             }
 
-            await EnsureNotLastActiveAdminAsync(user);
+            user.SecurityStamp = Guid.NewGuid().ToString("N");
+            user.UpdatedAt = DateTime.UtcNow;
+            await _auditLog.RegistrarAsync(
+                actorId, AuditAction.EstadoUsuarioCambiado, AuditEntityType.Usuario, user.Id,
+                $"Nuevo estado: {user.Estado}");
+            await _db.SaveChangesAsync();
 
-            user.Estado = UserStatus.Desactivado;
-            user.FechaDesactivacion = TimeProvider.System.HoyLocal();
-        }
-        else
+            return user;
+        });
+
+    // Desactivar o degradar a un admin cuenta "otros admins activos" y
+    // después guarda. Sin transacción, dos admins que se desactivan entre sí
+    // a la vez ven cada uno "queda 1 otro" y los dos quedan desactivados: el
+    // sistema sin ningún admin, y SeedData no lo arregla porque los dos
+    // siguen existiendo. Serializable hace que SQL Server elija a uno como
+    // víctima del deadlock; ese recibe un 409 y el otro termina. Mismo
+    // criterio que PtoRequestsService. InMemory (tests) no tiene
+    // transacciones, por eso IsRelational().
+    private async Task<T> EnSerializableAsync<T>(Func<Task<T>> operacion)
+    {
+        try
         {
-            // Reactivar: si nunca tuvo una contraseña real asignada
-            // (llegó a Desactivado directo desde Pendiente — nunca pasó
-            // por CreateAsync/IssueTemporaryPasswordAsync), vuelve a
-            // Pendiente en vez de Activo, porque no tiene con qué
-            // loguearse todavía. Un admin tendría que "Resetear
-            // contraseña" aparte para mandarle una temporal.
-            user.Estado = user.PasswordHash is null ? UserStatus.Pendiente : UserStatus.Activo;
-            user.FechaDesactivacion = null;
+            await using var transaction = _db.Database.IsRelational()
+                ? await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+                : null;
+
+            var resultado = await operacion();
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync();
+            }
+            return resultado;
         }
-
-        user.SecurityStamp = Guid.NewGuid().ToString("N");
-        user.UpdatedAt = DateTime.UtcNow;
-        await _auditLog.RegistrarAsync(
-            actorId, AuditAction.EstadoUsuarioCambiado, AuditEntityType.Usuario, user.Id,
-            $"Nuevo estado: {user.Estado}");
-        await _db.SaveChangesAsync();
-
-        return user;
+        catch (Exception ex) when (SqlConcurrencia.EsDeadlockOTimeoutDeLock(ex))
+        {
+            throw new ConflictException("Otro administrador estaba cambiando usuarios al mismo tiempo. Recarga la página e inténtalo de nuevo.");
+        }
     }
 
     private async Task EnsureNotLastActiveAdminAsync(User user)

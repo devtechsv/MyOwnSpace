@@ -60,7 +60,12 @@ public class AppDbContext : DbContext
           v => v == "Permiso personal" ? RequestType.PermisoPersonal : Enum.Parse<RequestType>(v))
         .HasMaxLength(30);
 
-      entity.Property(r => r.Estado).HasConversion<string>().HasMaxLength(20);
+      // Token de concurrencia: todo UPDATE lleva "AND Estado = <el leído>".
+      // Si dos admins aprueban/deniegan la misma solicitud a la vez, el
+      // segundo no afecta filas y EF tira DbUpdateConcurrencyException
+      // (RequestsService.ReviewAsync la traduce a 409) en vez de pisar al
+      // primero. No cambia el esquema: solo cómo EF arma el UPDATE.
+      entity.Property(r => r.Estado).HasConversion<string>().HasMaxLength(20).IsConcurrencyToken();
 
       // Sin estos, ListMineAsync/ListPendingAsync/ListAllAsync (filtran
       // por EmployeeId/Estado y siempre ordenan por CreatedAt) hacen

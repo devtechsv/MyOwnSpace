@@ -220,7 +220,18 @@ public sealed class RequestsService : IRequestsService
         await _auditLog.RegistrarAsync(
             reviewerId, accionAuditoria, AuditEntityType.Solicitud, request.Id, motivoRechazo);
 
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Otro admin la revisó entre la lectura de arriba y este guardado
+            // (Estado es token de concurrencia, ver AppDbContext). El cambio
+            // de estado y la auditoría van en el mismo SaveChanges, así que
+            // no queda nada a medias, y el correo no llega a enviarse.
+            throw new ConflictException("La solicitud ya no está Pendiente.");
+        }
 
         var accionTexto = nuevoEstado == RequestStatus.Aprobada ? "aprobada" : "denegada";
         var cuerpo = nuevoEstado == RequestStatus.Denegada
