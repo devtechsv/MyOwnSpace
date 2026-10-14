@@ -179,6 +179,9 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database");
+
 // Un cupo propio por endpoint (antes compartían uno solo de 10/min por IP).
 // Configurables para ajustarlos si crece el equipo, sin recompilar.
 var loginPorMinuto = LeerLimitePorMinuto(builder.Configuration, "RateLimit:LoginPerMinute", 30);
@@ -348,6 +351,11 @@ app.Use(async (context, next) =>
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Para el monitoreo o el balanceador: 200 "Healthy" si la API llega a la
+// base, 503 "Unhealthy" si no. Sin autenticación y sin detalles en la
+// respuesta (solo el estado), para no exponer nada de la infraestructura.
+app.MapHealthChecks("/health");
 
 app.Run();
 

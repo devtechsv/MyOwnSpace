@@ -16,8 +16,33 @@ tags:
   - name: users
   - name: requests
   - name: pto
+  - name: health
 
 paths:
+  /health:
+    # Fuera de /api/v1: va en la raíz de la API.
+    servers:
+      - url: https://localhost:7000
+    get:
+      tags: [health]
+      summary: >
+        Para el monitoreo o el balanceador. Comprueba que la API se pueda
+        conectar a la base de datos. Sin autenticación ni límite de
+        intentos. La respuesta solo trae el estado, nunca el motivo de una
+        falla. No se guarda en caché.
+      security: []
+      responses:
+        '200':
+          description: La API está arriba y llega a la base.
+          content:
+            text/plain:
+              schema: { type: string, example: Healthy }
+        '503':
+          description: La API está arriba pero no llega a la base.
+          content:
+            text/plain:
+              schema: { type: string, example: Unhealthy }
+
   /auth/login:
     post:
       tags: [auth]
