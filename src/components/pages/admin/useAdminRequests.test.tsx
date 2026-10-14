@@ -4,6 +4,7 @@ import { useAdminRequests } from './useAdminRequests';
 import { SessionContext } from '@/hooks/useSession';
 import { resetMockState } from '@/services/mocks/mock-adapter';
 import API from '@/services/api-services';
+import { errorDelApi } from '@/test-utils/api-error';
 
 const session = {
   userId: 'u1',
@@ -30,6 +31,18 @@ afterEach(() => {
 });
 
 describe('useAdminRequests', () => {
+  it('deny muestra el motivo real del servidor si otro admin ya la revisó', async () => {
+    jest.spyOn(API.requests, 'deny').mockRejectedValue(errorDelApi(409, 'La solicitud ya no está Pendiente.'));
+    const { result } = renderHook(() => useAdminRequests(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.deny('r3', 'Sin cobertura');
+    });
+
+    expect(result.current.error).toBe('La solicitud ya no está Pendiente.');
+  });
+
   it('carga las solicitudes pendientes con el nombre real del empleado', async () => {
     const { result } = renderHook(() => useAdminRequests(), { wrapper });
 

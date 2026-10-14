@@ -3,6 +3,7 @@ import { Button } from './Button';
 import API from '@/services/api-services';
 import { User } from '@/contracts/interfaces/user';
 import { useModalAlly } from '@/hooks/useModalAlly';
+import { errorMessage } from '@/helpers/error-message';
 
 interface Props {
   user: User;
@@ -49,8 +50,10 @@ export function ToggleStatusConfirmModal({ user, onClose, onSuccess, isSelf = fa
       await API.users.toggleStatus(user.id);
       onSuccess?.();
       onClose();
-    } catch {
-      setError('No pudimos actualizar el estado. Intenta de nuevo.');
+    } catch (err) {
+      // P. ej. "último administrador activo" u otro admin cambiando usuarios
+      // al mismo tiempo: el motivo del servidor dice qué hacer.
+      setError(errorMessage(err, 'No pudimos actualizar el estado. Intenta de nuevo.'));
       setIsSubmitting(false);
     }
   };

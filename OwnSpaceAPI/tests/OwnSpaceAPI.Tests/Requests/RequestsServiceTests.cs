@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using OwnSpaceAPI.Api.Data;
 using OwnSpaceAPI.Api.Models.Entities;
 using OwnSpaceAPI.Api.Services;
@@ -15,9 +16,11 @@ public class RequestsServiceTests
   {
     public string? UltimoDestinatario { get; private set; }
     public string? UltimoCuerpo { get; private set; }
+    public int Enviados { get; private set; }
 
     public Task SendAsync(string destinatario, string asunto, string cuerpo)
     {
+      Enviados++;
       UltimoDestinatario = destinatario;
       UltimoCuerpo = cuerpo;
       return Task.CompletedTask;
@@ -29,10 +32,37 @@ public class RequestsServiceTests
   private static RequestsService CrearServicio(AppDbContext db, IEmailSender? emailSender = null) =>
       new(db, emailSender ?? new FakeEmailSender(), new AuditLogService(db), new PtoBalanceService(db, new RelojFijo(Hoy)));
 
-  private static AppDbContext CreateContext() =>
-      new(new DbContextOptionsBuilder<AppDbContext>()
-          .UseInMemoryDatabase(Guid.NewGuid().ToString())
-          .Options);
+  private static AppDbContext CreateContext() => CreateContext(Guid.NewGuid().ToString());
+
+  // Mismo nombre = misma base InMemory compartida entre contextos, como dos
+  // requests HTTP distintos contra la misma base real.
+  private static AppDbContext CreateContext(string dbName, IInterceptor? interceptor = null)
+  {
+    var options = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(dbName);
+    if (interceptor is not null)
+    {
+      options.AddInterceptors(interceptor);
+    }
+    return new AppDbContext(options.Options);
+  }
+
+  // Ejecuta una acción una sola vez, justo antes del primer SaveChanges del
+  // contexto: simula a otro admin que guarda entre la lectura y el guardado.
+  private sealed class AntesDelPrimerGuardado(Func<Task> accion) : SaveChangesInterceptor
+  {
+    private bool _ejecutada;
+
+    public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+    {
+      if (!_ejecutada)
+      {
+        _ejecutada = true;
+        await accion();
+      }
+      return result;
+    }
+  }
 
   private static User CrearUsuario(string nombre, string correo, UserRole rol = UserRole.Empleado) => new()
   {
@@ -478,6 +508,51 @@ public class RequestsServiceTests
     var service = CrearServicio(db);
 
     await Assert.ThrowsAsync<ConflictException>(() => service.ApproveAsync(solicitud.Id, admin.Id));
+  }
+
+  [Fact]
+  public async Task DenyAsync_SiOtroAdminLaApruebaMientrasTanto_TiraConflictSinPisarlaNiDuplicarCorreo()
+  {
+    // Regresión: dos admins revisando la misma solicitud a la vez. Antes, el
+    // segundo pisaba al primero y el empleado recibía "aprobada" y
+    // "denegada".
+    var dbName = Guid.NewGuid().ToString();
+    var ana = CrearUsuario("Ana Martínez", "ana.martinez@devtch.com");
+    var julio = CrearUsuario("Julio Pérez", "julio.perez@devtch.com", UserRole.Administrador);
+    var laura = CrearUsuario("Laura Sánchez", "laura.sanchez@devtch.com", UserRole.Administrador);
+    var solicitud = NuevaSolicitud(ana.Id);
+    await using (var seed = CreateContext(dbName))
+    {
+      seed.Users.AddRange(ana, julio, laura);
+      seed.LeaveRequests.Add(solicitud);
+      await seed.SaveChangesAsync();
+    }
+
+    var correosJulio = new FakeEmailSender();
+    var correosLaura = new FakeEmailSender();
+    // Laura ya leyó la solicitud como Pendiente; Julio la aprueba justo
+    // antes de que ella guarde la denegación.
+    var julioApruebaAntes = new AntesDelPrimerGuardado(async () =>
+    {
+      await using var dbJulio = CreateContext(dbName);
+      await CrearServicio(dbJulio, correosJulio).ApproveAsync(solicitud.Id, julio.Id);
+    });
+    await using var dbLaura = CreateContext(dbName, julioApruebaAntes);
+
+    var error = await Assert.ThrowsAsync<ConflictException>(
+        () => CrearServicio(dbLaura, correosLaura).DenyAsync(solicitud.Id, laura.Id, "Sin cobertura"));
+
+    Assert.Equal("La solicitud ya no está Pendiente.", error.Message);
+    await using var verificacion = CreateContext(dbName);
+    var final = await verificacion.LeaveRequests.SingleAsync(r => r.Id == solicitud.Id);
+    Assert.Equal(RequestStatus.Aprobada, final.Estado);
+    Assert.Equal(julio.Id, final.ReviewedBy);
+    Assert.Null(final.MotivoRechazo);
+    Assert.Equal(1, correosJulio.Enviados);
+    Assert.Equal(0, correosLaura.Enviados);
+    // La auditoría no se verifica aquí: InMemory no es transaccional y deja
+    // insertado el registro de Laura aunque su UPDATE falle. En SQL Server
+    // todo el SaveChanges es una transacción y ese registro se descarta.
   }
 
   [Fact]

@@ -2,6 +2,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ToggleStatusConfirmModal } from './ToggleStatusConfirmModal';
 import { resetMockState, mockUsersAdapter } from '@/services/mocks/mock-adapter';
 import { User } from '@/contracts/interfaces/user';
+import API from '@/services/api-services';
+import { errorDelApi } from '@/test-utils/api-error';
 
 const activo: User = {
   id: 'u1',
@@ -25,6 +27,10 @@ function renderModal(
 
 beforeEach(() => {
   resetMockState();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 describe('ToggleStatusConfirmModal', () => {
@@ -57,6 +63,20 @@ describe('ToggleStatusConfirmModal', () => {
     const usuarios = await mockUsersAdapter.list(1, 20);
     const actualizado = usuarios.items.find((u) => u.id === 'u1');
     expect(actualizado?.estado).toBe('Desactivado');
+  });
+
+  it('muestra el motivo real del servidor, p. ej. otro admin cambiando usuarios a la vez', async () => {
+    jest
+      .spyOn(API.users, 'toggleStatus')
+      .mockRejectedValue(errorDelApi(409, 'Otro administrador estaba cambiando usuarios al mismo tiempo. Recarga la página e inténtalo de nuevo.'));
+    const props = renderModal(activo);
+
+    fireEvent.click(screen.getByRole('button', { name: /sí, desactivar/i }));
+
+    expect(
+      await screen.findByText('Otro administrador estaba cambiando usuarios al mismo tiempo. Recarga la página e inténtalo de nuevo.'),
+    ).toBeInTheDocument();
+    expect(props.onClose).not.toHaveBeenCalled();
   });
 
   it('"Cancelar" cierra sin cambiar el estado', () => {
