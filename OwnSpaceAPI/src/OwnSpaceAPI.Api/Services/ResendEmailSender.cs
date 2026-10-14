@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 
@@ -46,12 +47,31 @@ public sealed class ResendEmailSender : IEmailSender
             // "olvidé mi contraseña"). Corre en segundo plano vía
             // EmailDispatcher. Nunca loguea el cuerpo (puede tener una
             // contraseña temporal) — mismo criterio que LoggingEmailSender.
-            var detalle = await response.Content.ReadAsStringAsync();
+            // Tampoco el cuerpo del error: su "message" puede traer el correo
+            // verificado de la cuenta de Resend (p. ej. en modo sandbox). Solo
+            // el "name", que es el tipo de error (validation_error, etc.).
             _logger.LogError(
-                "Resend rechazó el envío a {Destinatario} ({Status}): {Detalle}",
+                "Resend rechazó el envío a {Destinatario} ({Status}, {TipoDeError}).",
                 destinatario,
                 (int)response.StatusCode,
-                detalle);
+                await LeerTipoDeErrorAsync(response));
+        }
+    }
+
+    private static async Task<string> LeerTipoDeErrorAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return json.RootElement.ValueKind == JsonValueKind.Object
+                && json.RootElement.TryGetProperty("name", out var name)
+                && name.ValueKind == JsonValueKind.String
+                ? name.GetString()!
+                : "sin tipo de error";
+        }
+        catch (JsonException)
+        {
+            return "sin tipo de error";
         }
     }
 }

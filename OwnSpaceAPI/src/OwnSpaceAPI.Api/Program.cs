@@ -301,7 +301,8 @@ if (app.Environment.IsDevelopment())
   var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
   var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHashingService>();
   var seedLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("SeedData");
-  await SeedData.SeedAdminAsync(db, passwordHasher, app.Configuration, seedLogger);
+  var clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
+  await SeedData.SeedAdminAsync(db, passwordHasher, app.Configuration, seedLogger, clock);
 }
 
 app.UseHttpsRedirection();

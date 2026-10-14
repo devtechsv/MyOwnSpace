@@ -16,12 +16,14 @@ public sealed class UsersService : IUsersService
     private readonly AppDbContext _db;
     private readonly IPasswordResetService _passwordResetService;
     private readonly IAuditLogService _auditLog;
+    private readonly TimeProvider _clock;
 
-    public UsersService(AppDbContext db, IPasswordResetService passwordResetService, IAuditLogService auditLog)
+    public UsersService(AppDbContext db, IPasswordResetService passwordResetService, IAuditLogService auditLog, TimeProvider clock)
     {
         _db = db;
         _passwordResetService = passwordResetService;
         _auditLog = auditLog;
+        _clock = clock;
     }
 
     public async Task<PagedResult<User>> ListAsync(int page, int pageSize)
@@ -211,7 +213,8 @@ public sealed class UsersService : IUsersService
                 await EnsureNotLastActiveAdminAsync(user);
 
                 user.Estado = UserStatus.Desactivado;
-                user.FechaDesactivacion = TimeProvider.System.HoyLocal();
+                // Hora de El Salvador, no UTC (ver FechaLocal).
+                user.FechaDesactivacion = _clock.HoyLocal();
             }
             else
             {
