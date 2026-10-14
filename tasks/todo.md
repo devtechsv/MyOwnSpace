@@ -749,9 +749,11 @@ Rama `chore/nextjs-16-migration`, creada desde `feature/frontend-fases-0-3` (no 
 
 Los usuarios de `SeedData.cs` (backend) nunca tuvieron `PasswordHash` asignado — se sembraron pensados para completarse vía el flujo real de invitación por correo (`/forgot-password` → `PasswordResetToken` → `/set-password`), que a su vez depende de un `IEmailSender` real (pendiente: integración con Resend). Mientras tanto, para poder probar en navegador sin tener que revisar la consola del backend cada vez, se agregó `SeedData.EnsureDevPasswordsAsync` (llamado desde `Program.cs`, solo en `Development`, después de `SeedData.SeedAsync`): fuerza un hash conocido para dos cuentas específicas en cada arranque, usando el mismo `IPasswordHashingService`/`PasswordHasher<User>` que usa el login real.
 
-**Cuentas de dev (se sobreescriben en cada `dotnet run`, no depender de la contraseña que haya quedado de una prueba manual anterior):**
-- Admin: `julio.perez@devtch.com` / `Admin123!`
-- Empleado: `ana.martinez@devtch.com` / `Empleado123!`
+**Cuentas de dev (se sobreescribían en cada `dotnet run`):**
+- Admin: `julio.perez@devtch.com`
+- Empleado: `ana.martinez@devtch.com`
+
+Las contraseñas no se guardan en el repositorio. `EnsureDevPasswordsAsync` se eliminó después (commit `5dd4f69`), así que este mecanismo ya no existe.
 
 Diseñado para eliminarse sin fricción una vez que el flujo de invitación por correo esté funcionando de verdad (Resend) — es un parche de conveniencia para desarrollo local, no parte del diseño final de altas de usuario.
 
