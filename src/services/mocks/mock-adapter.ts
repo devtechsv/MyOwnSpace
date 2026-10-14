@@ -32,6 +32,9 @@ import {
 } from './pto-balance-calculator';
 import { isPasswordValid } from '@/lib/password-rules';
 import { hoyIso } from '@/helpers/hoy-iso';
+import { AuditAction, AuditEntityType, AuditLog, AuditLogsListParams } from '@/contracts/interfaces/audit';
+import { getCookie } from 'cookies-next';
+import { decodeSession, SESSION_COOKIE } from '@/services/auth/session-cookie';
 import { mockPtoClaims, mockRequests, mockUsers } from './mock-data';
 
 // Este adaptador implementa las mismas firmas que tendrán las llamadas
@@ -55,12 +58,53 @@ function clone<T>(value: T): T {
 let users: User[] = clone(mockUsers);
 let requests: LeaveRequest[] = clone(mockRequests);
 let ptoClaims: (TramoReclamado & { employeeId: string })[] = clone(mockPtoClaims);
+// Empieza vacía, como una base nueva: se llena con las acciones que se
+// hagan en modo mock. La más nueva primero.
+let auditLogs: AuditLog[] = [];
 
 // Solo para tests: vuelve el estado en memoria a los fixtures originales.
 export function resetMockState(): void {
   users = clone(mockUsers);
   requests = clone(mockRequests);
   ptoClaims = clone(mockPtoClaims);
+  auditLogs = [];
+}
+
+// El backend saca al administrador del JWT; en modo mock la sesión viaja
+// en la cookie (ver session-cookie.ts), legible desde el navegador.
+function actorDeLaSesion(): string | undefined {
+  const raw = getCookie(SESSION_COOKIE);
+  return typeof raw === 'string' ? decodeSession(raw)?.userId : undefined;
+}
+
+// Igual que AuditLogService.RegistrarAsync: guarda el nombre del actor de
+// ese momento. Se llama solo cuando la acción ya se aplicó.
+function registrarAuditoria(
+  actorId: string | undefined,
+  accion: AuditAction,
+  entidadTipo: AuditEntityType,
+  entidadId: string,
+  detalle?: string,
+): void {
+  auditLogs = [
+    {
+      id: `a${auditLogs.length + 1}`,
+      actorId: actorId ?? '',
+      actorNombre: users.find((u) => u.id === actorId)?.nombre ?? '(usuario eliminado)',
+      accion,
+      entidadTipo,
+      entidadId,
+      detalle: detalle ?? null,
+      createdAt: new Date().toISOString(),
+    },
+    ...auditLogs,
+  ];
+}
+
+// El Salvador es UTC−6 todo el año (sin horario de verano): el día local
+// de un instante UTC es el de 6 horas antes.
+function diaEnElSalvador(isoUtc: string): string {
+  return new Date(Date.parse(isoUtc) - 6 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 function nextId(prefix: string, existing: { id: string }[]): string {
@@ -122,6 +166,13 @@ async function setRequestEstado(
   if (motivoRechazo !== undefined) {
     target.motivoRechazo = motivoRechazo;
   }
+  registrarAuditoria(
+    reviewerId,
+    estado === 'Aprobada' ? 'SolicitudAprobada' : 'SolicitudDenegada',
+    'Solicitud',
+    target.id,
+    motivoRechazo,
+  );
   return delay(clone(target));
 }
 
@@ -318,6 +369,10 @@ export const mockUsersAdapter = {
       fechaIngreso: payload.fechaIngreso,
     };
     users = [...users, nuevo];
+    registrarAuditoria(
+      actorDeLaSesion(), 'UsuarioCreado', 'Usuario', nuevo.id,
+      `Correo: ${nuevo.correo}, Rol: ${nuevo.rol}`,
+    );
     return delay(clone(nuevo));
   },
 
@@ -342,6 +397,10 @@ export const mockUsersAdapter = {
       }
     }
     Object.assign(target, payload);
+    registrarAuditoria(
+      actorDeLaSesion(), 'UsuarioEditado', 'Usuario', target.id,
+      `Nombre: ${target.nombre}, Correo: ${target.correo}, Rol: ${target.rol}`,
+    );
     return delay(clone(target));
   },
 
@@ -352,6 +411,7 @@ export const mockUsersAdapter = {
     target.estado = 'Activo';
     target.mustChangePassword = true;
     target.contrasenaAsignada = true;
+    registrarAuditoria(actorDeLaSesion(), 'ContrasenaReseteada', 'Usuario', target.id);
     return delay(undefined);
   },
 
@@ -370,6 +430,10 @@ export const mockUsersAdapter = {
       target.fechaDesactivacion = undefined;
     }
 
+    registrarAuditoria(
+      actorDeLaSesion(), 'EstadoUsuarioCambiado', 'Usuario', target.id,
+      `Nuevo estado: ${target.estado}`,
+    );
     return delay(clone(target));
   },
 };
@@ -540,3 +604,30 @@ export const mockPtoAdapter = {
   },
 };
 
+// Mismas reglas que AuditLogService.ListarAsync del backend.
+export const mockAuditAdapter = {
+  async list(params: AuditLogsListParams): Promise<PagedResult<AuditLog>> {
+    if (params.desde && params.hasta && params.hasta < params.desde) {
+      throw new Error('La fecha final no puede ser anterior a la inicial.');
+    }
+    const filtrados = auditLogs.filter((a) => {
+      const dia = diaEnElSalvador(a.createdAt);
+      return (
+        (!params.accion || a.accion === params.accion) &&
+        (!params.desde || dia >= params.desde) &&
+        (!params.hasta || dia <= params.hasta)
+      );
+    });
+    const page = Math.max(1, params.page);
+    const pageSize = Math.min(100, Math.max(1, params.pageSize));
+    const start = (page - 1) * pageSize;
+    const items = filtrados.slice(start, start + pageSize).map((a) => ({
+      ...a,
+      entidadNombre:
+        a.entidadTipo === 'Usuario'
+          ? (users.find((u) => u.id === a.entidadId)?.nombre ?? null)
+          : (withEmployeeNombre(findRequestOrThrow(a.entidadId)).employeeNombre ?? null),
+    }));
+    return delay(clone({ items, totalCount: filtrados.length, page, pageSize }));
+  },
+};
