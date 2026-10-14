@@ -279,6 +279,21 @@ describe('mockUsersAdapter', () => {
     expect(updated.correo).toBe('ana.martinez@devtch.com');
   });
 
+  it('update rechaza un nombre en blanco sin tocar el usuario', async () => {
+    await expect(mockUsersAdapter.update('u3', { nombre: '   ' })).rejects.toThrow(
+      'El nombre no puede quedar vacío.',
+    );
+
+    const list = await mockUsersAdapter.list(1, 20);
+    expect(list.items.find((u) => u.id === 'u3')?.nombre).toBe('Ana Martínez');
+  });
+
+  it('update guarda el nombre sin espacios en los extremos', async () => {
+    const updated = await mockUsersAdapter.update('u3', { nombre: '  Ana M. Martínez ' });
+
+    expect(updated.nombre).toBe('Ana M. Martínez');
+  });
+
   it('resetPassword emite una temporal: queda Activo y con mustChangePassword', async () => {
     await mockUsersAdapter.resetPassword('u1');
 

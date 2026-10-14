@@ -179,6 +179,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+        '400':
+          description: El nombre viene vacío o con solo espacios (se puede omitir para no cambiarlo).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: Usuario no encontrado, o rol insuficiente.
         '409':

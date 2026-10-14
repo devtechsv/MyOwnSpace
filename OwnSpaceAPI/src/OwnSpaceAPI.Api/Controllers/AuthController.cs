@@ -122,7 +122,13 @@ public class AuthController : ControllerBase
       SameSite = SameSiteMode.Lax,
       Path = "/",
       Domain = _cookieDomain,
-      Expires = DateTimeOffset.UtcNow.AddHours(2),
+      // La cookie dura mucho más que el token (2 h, JwtTokenService). Si
+      // vencieran juntos, el navegador la borraría a las 2 h y el frontend
+      // no podría distinguir "sesión vencida por inactividad" de "nunca
+      // inició sesión": el login no mostraría el aviso. Un token vencido
+      // no sirve para nada (se valida su vencimiento sin margen) y el
+      // logout la borra igual. Misma regla que el mock (session-cookie.ts).
+      Expires = DateTimeOffset.UtcNow.AddDays(30),
     });
   }
 

@@ -9,7 +9,7 @@ import { User } from '@/contracts/interfaces/user';
 const ROLES = ['Empleado', 'Administrador'] as const;
 
 const schema = z.object({
-  nombre: z.string().min(1, 'Ingresa el nombre completo'),
+  nombre: z.string().trim().min(1, 'Ingresa el nombre completo'),
   correo: z.string().min(1, 'Ingresa el correo').email('Correo inválido'),
   rol: z.enum(ROLES),
 });
