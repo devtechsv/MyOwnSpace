@@ -1,5 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import API from '@/services/api-services';
+import { errorDelApi } from '@/test-utils/api-error';
+
+// Los tests del 429 reemplazan métodos de API: si uno falla a mitad, el
+// mock no debe contaminar al siguiente.
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 function fillValidForm() {
   fireEvent.change(screen.getByLabelText('Contraseña actual'), {
@@ -62,6 +70,20 @@ describe('ChangePasswordModal (forced=true, tras una contraseña temporal)', () 
 
     fireEvent.keyDown(document, { key: 'Escape' });
 
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('con el límite de intentos alcanzado (429), lo dice en vez de culpar a la contraseña actual', async () => {
+    jest.spyOn(API.auth, 'changePassword').mockRejectedValue(errorDelApi(429));
+    const onClose = jest.fn();
+    render(<ChangePasswordModal isOpen forced onClose={onClose} />);
+
+    fillValidForm();
+    fireEvent.click(screen.getByRole('button', { name: /guardar/i }));
+
+    expect(
+      await screen.findByText('Hubo demasiados intentos seguidos desde tu red. Espera un minuto e inténtalo de nuevo.'),
+    ).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 

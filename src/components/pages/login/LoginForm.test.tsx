@@ -155,6 +155,18 @@ describe('LoginForm', () => {
     expect(screen.queryByText('Correo o contraseña incorrectos.')).not.toBeInTheDocument();
   });
 
+  it('con el límite de intentos alcanzado (429), lo dice en vez de "credenciales incorrectas"', async () => {
+    jest.spyOn(API.auth, 'login').mockRejectedValue(errorDelApi(429));
+    render(<LoginForm />);
+
+    fillAndSubmit('ana.martinez@devtch.com', 'correcta');
+
+    expect(
+      await screen.findByText('Hubo demasiados intentos seguidos desde tu red. Espera un minuto e inténtalo de nuevo.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Correo o contraseña incorrectos.')).not.toBeInTheDocument();
+  });
+
   it('un 401 del API real sigue mostrando el mensaje genérico de credenciales', async () => {
     jest.spyOn(API.auth, 'login').mockRejectedValue(errorDelApi(401));
     render(<LoginForm />);

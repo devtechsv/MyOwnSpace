@@ -6,6 +6,7 @@ import { z } from 'zod';
 import API from '@/services/api-services';
 import { getHomeRoute } from '@/helpers/get-home-route';
 import { esServidorNoDisponible } from '@/helpers/servidor-no-disponible';
+import { esDemasiadosIntentos, MENSAJE_DEMASIADOS_INTENTOS } from '@/helpers/demasiados-intentos';
 
 export const MENSAJE_SERVIDOR_NO_DISPONIBLE =
   'No pudimos conectar con el servidor. Intenta de nuevo en unos minutos.';
@@ -46,11 +47,15 @@ const useLoginForm = () => {
 
       await router.push(getHomeRoute(session.rol));
     } catch (err) {
-      // Con la API caída no hay que culpar a las credenciales. Si el
-      // servidor sí respondió, mensaje genérico: nunca se confirma si el
-      // correo existe o no.
+      // Con la API caída o el límite de intentos alcanzado no hay que
+      // culpar a las credenciales. Si el servidor sí respondió, mensaje
+      // genérico: nunca se confirma si el correo existe o no.
       setServerError(
-        esServidorNoDisponible(err) ? MENSAJE_SERVIDOR_NO_DISPONIBLE : 'Correo o contraseña incorrectos.',
+        esServidorNoDisponible(err)
+          ? MENSAJE_SERVIDOR_NO_DISPONIBLE
+          : esDemasiadosIntentos(err)
+            ? MENSAJE_DEMASIADOS_INTENTOS
+            : 'Correo o contraseña incorrectos.',
       );
       // No dejar la contraseña tipeada viva en el input tras un fallo.
       resetField('password');
