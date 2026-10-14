@@ -66,9 +66,12 @@ paths:
     get:
       tags: [auth]
       summary: >
-        Valida la cookie actual y, si es válida, renueva su expiración
-        (+2h desde ahora — expiración deslizante por inactividad, no fija).
-        Equivale a refresh-session.ts del frontend.
+        Valida la cookie actual y, si es válida, emite un token nuevo que
+        vence en 2 h desde ahora (expiración deslizante por inactividad, no
+        fija). Equivale a refresh-session.ts del frontend. La cookie dura
+        30 días, más que el token, para que un token vencido siga llegando
+        y responda 401 (el frontend lo muestra como "sesión vencida") en
+        vez de verse como "nunca inició sesión".
       responses:
         '200':
           description: Sesión válida (renovada).
@@ -118,6 +121,58 @@ paths:
             Demasiados intentos desde la misma IP. Por defecto 10 por minuto
             (`RateLimit:ForgotPasswordPerMinute`), con un cupo propio,
             independiente del login. Sin cuerpo. No revela nada de la cuenta.
+
+  /auth/change-password:
+    post:
+      tags: [auth]
+      summary: >
+        Cambia la contraseña del usuario de la sesión, que tiene que
+        indicar la actual. Es el único endpoint (junto a /auth/logout y
+        /auth/session) que acepta una sesión con mustChangePassword=true.
+        Al cambiarla se regenera el securityStamp: se cierran las demás
+        sesiones del usuario, se descarta cualquier temporal pendiente y
+        mustChangePassword queda en false. Esta sesión sigue abierta,
+        porque se reemite su cookie con un token nuevo.
+      security: [{ cookieAuth: [Empleado, Administrador] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Contraseña cambiada. Trae la cookie con el token nuevo.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: accessToken=<jwt>; HttpOnly; Secure; SameSite=Lax; Path=/
+        '400':
+          description: >
+            La contraseña nueva no cumple los requisitos mínimos (al menos
+            10 caracteres, una mayúscula, una minúscula, un número y un
+            carácter especial; no puede ser genérica ni igual a la actual;
+            ver PasswordRules.cs), o falta algún campo.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: >
+            Sin sesión válida, o la contraseña actual es incorrecta ("La
+            contraseña actual es incorrecta.").
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: >
+            Demasiados intentos del mismo usuario. Por defecto 5 por minuto
+            (`RateLimit:ChangePasswordPerMinute`), contados por usuario y no
+            por IP: compañeros detrás de la misma IP no se descuentan entre
+            sí. Cuentan también los intentos con la contraseña actual
+            incorrecta. Sin cuerpo.
 
   /users:
     get:
@@ -618,6 +673,13 @@ components:
       required: [correo]
       properties:
         correo: { type: string, format: email }
+
+    ChangePasswordRequest:
+      type: object
+      required: [passwordActual, passwordNueva]
+      properties:
+        passwordActual: { type: string, format: password, maxLength: 200 }
+        passwordNueva: { type: string, format: password, maxLength: 200 }
 
 
     CreateUserRequest:
