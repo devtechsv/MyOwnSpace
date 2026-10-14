@@ -6,6 +6,7 @@ import { Button } from './Button';
 import { TextInput } from './form/TextInput';
 import API from '@/services/api-services';
 import { useModalAlly } from '@/hooks/useModalAlly';
+import { esDemasiadosIntentos, MENSAJE_DEMASIADOS_INTENTOS } from '@/helpers/demasiados-intentos';
 
 interface Props {
   isOpen: boolean;
@@ -59,8 +60,12 @@ export function ChangePasswordModal({ isOpen, onClose, forced = false }: Props) 
         passwordNueva: data.passwordNueva,
       });
       handleClose();
-    } catch {
-      setServerError('No pudimos cambiar tu contraseña. Revise su contraseña actual e intente de nuevo.');
+    } catch (err) {
+      setServerError(
+        esDemasiadosIntentos(err)
+          ? MENSAJE_DEMASIADOS_INTENTOS
+          : 'No pudimos cambiar tu contraseña. Revisa tu contraseña actual e inténtalo de nuevo.',
+      );
       setIsSubmitting(false);
     }
   });

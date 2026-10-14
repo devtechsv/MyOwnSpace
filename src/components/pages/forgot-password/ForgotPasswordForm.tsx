@@ -6,7 +6,7 @@ import { TextInput } from '@/components/common/form/TextInput';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 const ForgotPasswordForm = () => {
-  const { register, handleSubmit, onSubmit, errors, isSubmitting } =
+  const { register, handleSubmit, onSubmit, errors, serverError, isSubmitting } =
     useForgotPasswordForm();
 
   return (
@@ -49,6 +49,15 @@ const ForgotPasswordForm = () => {
           Ingresa tu correo y te enviaremos las instrucciones para
           restablecerla.
         </p>
+
+        {serverError && (
+          <div
+            role='alert'
+            className='mb-5 rounded-[10px] bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600 dark:text-red-400'
+          >
+            {serverError}
+          </div>
+        )}
 
         <form
           onSubmit={handleSubmit(onSubmit)}

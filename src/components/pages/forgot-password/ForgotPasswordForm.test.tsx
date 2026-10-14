@@ -1,6 +1,14 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ForgotPasswordForm from './ForgotPasswordForm';
 import { resetMockState } from '@/services/mocks/mock-adapter';
+import API from '@/services/api-services';
+import { errorDelApi } from '@/test-utils/api-error';
+
+// Los tests del 429 reemplazan métodos de API: si uno falla a mitad, el
+// mock no debe contaminar al siguiente.
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 const pushMock = jest.fn();
 
@@ -69,6 +77,41 @@ describe('ForgotPasswordForm', () => {
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith(
         '/forgot-password/sent?correo=no-existe%40devtch.com',
+      ),
+    );
+  });
+
+  it('con el límite de intentos alcanzado (429), avisa y no navega a la confirmación', async () => {
+    jest.spyOn(API.auth, 'forgotPassword').mockRejectedValue(errorDelApi(429));
+    render(<ForgotPasswordForm />);
+
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), {
+      target: { value: 'ana.martinez@devtch.com' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: /enviar instrucciones/i }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Hubo demasiados intentos seguidos desde tu red. Espera un minuto e inténtalo de nuevo.',
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it('con otro error del API, navega igual a la confirmación (no revela nada)', async () => {
+    jest.spyOn(API.auth, 'forgotPassword').mockRejectedValue(errorDelApi(500));
+    render(<ForgotPasswordForm />);
+
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), {
+      target: { value: 'ana.martinez@devtch.com' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: /enviar instrucciones/i }),
+    );
+
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith(
+        '/forgot-password/sent?correo=ana.martinez%40devtch.com',
       ),
     );
   });
