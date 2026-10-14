@@ -49,6 +49,10 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: >
+            Demasiados intentos desde la misma IP. Por defecto 30 por minuto
+            (`RateLimit:LoginPerMinute`), con un cupo propio. Sin cuerpo.
 
   /auth/logout:
     post:
@@ -87,8 +91,8 @@ paths:
     post:
       tags: [auth]
       summary: >
-        Emite una contraseña temporal y la envía por correo. Siempre
-        responde 200, exista o no el correo, esté o no sobre el límite —
+        Emite una contraseña temporal y la envía por correo. Responde 200
+        exista o no el correo, esté o no sobre el límite por correo —
         nunca revela si un correo está registrado. Si existe (y no está
         Desactivado), la temporal se guarda aparte (vence en 48 h) y NO
         reemplaza la contraseña actual ni cierra sesiones: el login
@@ -98,7 +102,7 @@ paths:
         /auth/change-password, /auth/logout o /auth/session hasta que la
         cambie; ver el middleware de Program.cs). Si entra con su
         contraseña de siempre, la temporal se descarta. Límite: 3
-        temporales por correo por hora, además del límite por IP.
+        temporales por correo por hora, además del límite por IP (429).
       security: []
       requestBody:
         required: true
@@ -109,6 +113,11 @@ paths:
       responses:
         '200':
           description: Solicitud aceptada (independientemente de si el correo existe).
+        '429':
+          description: >
+            Demasiados intentos desde la misma IP. Por defecto 10 por minuto
+            (`RateLimit:ForgotPasswordPerMinute`), con un cupo propio,
+            independiente del login. Sin cuerpo. No revela nada de la cuenta.
 
   /users:
     get:

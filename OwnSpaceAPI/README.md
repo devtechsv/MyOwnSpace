@@ -111,6 +111,8 @@ Fuera de desarrollo no se usa `appsettings.Development.json`: cada valor va como
 | `Auth__CookieDomain` | Opcional. Solo si frontend y API están en subdominios distintos: el dominio común, p. ej. `dominio.com` (ver [Despliegue](../README.md#despliegue)) |
 | `Resend__ApiKey`, `Resend__FromAddress` | Cuenta de Resend con el dominio verificado |
 | `Seed__AdminPassword` | Solo para el primer arranque contra una base vacía |
+| `ForwardedHeaders__KnownProxies__0` / `ForwardedHeaders__KnownNetworks__0` | Opcional, pero **necesario si la API queda detrás de un proxy que no corre en la misma máquina** (nginx en otro host, un balanceador o un hosting): la IP del proxy (p. ej. `10.0.0.5`) o su red en formato CIDR (p. ej. `10.0.0.0/24`). Sin esto la API ve la IP del proxy en todas las requests y todos los usuarios comparten un único cupo de intentos de login |
+| `RateLimit__LoginPerMinute`, `RateLimit__ForgotPasswordPerMinute`, `RateLimit__ChangePasswordPerMinute` | Opcionales. Intentos por minuto de login (por IP, por defecto `30`), "olvidé mi contraseña" (por IP, `10`) y cambio de contraseña (por usuario, `5`). Cada uno tiene su propio cupo; subirlos si muchas personas salen a internet con la misma IP |
 
 Otras consideraciones:
 

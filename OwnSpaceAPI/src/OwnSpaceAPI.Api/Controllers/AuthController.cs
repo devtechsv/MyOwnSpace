@@ -37,7 +37,7 @@ public class AuthController : ControllerBase
 
   [HttpPost("login")]
   [AllowAnonymous]
-  [EnableRateLimiting("auth")]
+  [EnableRateLimiting(RateLimitPolicies.Login)]
   public async Task<ActionResult<SessionResponse>> Login(LoginRequest request)
   {
     var user = await _authService.ValidateCredentialsAsync(request.Correo, request.Password);
@@ -87,7 +87,7 @@ public class AuthController : ControllerBase
 
   [HttpPost("forgot-password")]
   [AllowAnonymous]
-  [EnableRateLimiting("auth")]
+  [EnableRateLimiting(RateLimitPolicies.ForgotPassword)]
   public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
   {
     await _passwordResetService.RequestTemporaryPasswordAsync(request.Correo);
@@ -96,7 +96,7 @@ public class AuthController : ControllerBase
 
   [HttpPost("change-password")]
   [Authorize]
-  [EnableRateLimiting("auth")]
+  [EnableRateLimiting(RateLimitPolicies.ChangePassword)]
   public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
   {
     var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
