@@ -138,7 +138,7 @@ export function PtoCalendar({ reservas, onSelectDate }: Props) {
                 pendiente
                   ? 'h-10 rounded-lg text-sm font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
                   : reservado
-                    ? 'h-10 rounded-lg text-sm font-semibold bg-turquoise-blue-500 text-white'
+                    ? 'h-10 rounded-lg text-sm font-semibold bg-brand-500 text-white'
                     : 'h-10 rounded-lg text-sm text-foreground hover:bg-surface-field'
               }
             >

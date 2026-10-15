@@ -56,7 +56,7 @@ export function ResetPasswordConfirmModal({
       className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4'
     >
       <div ref={containerRef} className='w-full max-w-[380px] bg-surface border border-border rounded-2xl shadow-lg px-7 py-8 text-center'>
-        <div className='w-12 h-12 rounded-full bg-turquoise-blue-50 dark:bg-turquoise-blue-950/40 text-turquoise-blue-600 dark:text-turquoise-blue-400 flex items-center justify-center mx-auto mb-4'>
+        <div className='w-12 h-12 rounded-full bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto mb-4'>
           <svg
             width='20'
             height='20'

@@ -109,7 +109,7 @@ export function Sidebar() {
                 className={cx(
                   'flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-sm font-semibold',
                   isActive
-                    ? 'bg-turquoise-blue-50 dark:bg-turquoise-blue-950/30 text-turquoise-blue-600 dark:text-turquoise-blue-400'
+                    ? 'bg-brand-50 dark:bg-brand-950/30 text-brand-600 dark:text-brand-400'
                     : 'text-muted hover:text-foreground',
                 )}
               >
@@ -126,7 +126,7 @@ export function Sidebar() {
             className={cx(
               'flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-sm font-semibold',
               router.pathname === '/'
-                ? 'bg-turquoise-blue-50 dark:bg-turquoise-blue-950/30 text-turquoise-blue-600 dark:text-turquoise-blue-400'
+                ? 'bg-brand-50 dark:bg-brand-950/30 text-brand-600 dark:text-brand-400'
                 : 'text-muted hover:text-foreground',
             )}
           >
@@ -150,7 +150,7 @@ export function Sidebar() {
             className={cx(
               'flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-sm font-semibold',
               router.pathname === '/pto'
-                ? 'bg-turquoise-blue-50 dark:bg-turquoise-blue-950/30 text-turquoise-blue-600 dark:text-turquoise-blue-400'
+                ? 'bg-brand-50 dark:bg-brand-950/30 text-brand-600 dark:text-brand-400'
                 : 'text-muted hover:text-foreground',
             )}
           >

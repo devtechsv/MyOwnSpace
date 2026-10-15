@@ -88,10 +88,10 @@ describe('Sidebar', () => {
     renderSidebar(adminSession);
 
     expect(screen.getByRole('link', { name: /solicitudes/i })).toHaveClass(
-      'text-turquoise-blue-600',
+      'text-brand-600',
     );
     expect(screen.getByRole('link', { name: /usuarios/i })).not.toHaveClass(
-      'text-turquoise-blue-600',
+      'text-brand-600',
     );
   });
 });

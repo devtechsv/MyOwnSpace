@@ -73,7 +73,7 @@ const AdminRequestsPage: NextPage<Props> = () => {
                 onClick={() => setFiltro(tab.key)}
                 className={
                   isActive
-                    ? 'px-4 py-2 rounded-full bg-turquoise-blue-500 text-white text-sm font-semibold'
+                    ? 'px-4 py-2 rounded-full bg-brand-500 text-white text-sm font-semibold'
                     : 'px-4 py-2 rounded-full border border-border text-muted text-sm font-medium'
                 }
               >
@@ -89,7 +89,7 @@ const AdminRequestsPage: NextPage<Props> = () => {
             value={tipoFiltro}
             onChange={(e) => setTipoFiltro(e.target.value as AdminRequestsTipoFilter)}
             aria-label='Filtrar por tipo de solicitud'
-            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-brand-400 focus:ring-2 focus:ring-brand-400/40'
           >
             {TIPO_FILTER_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -103,14 +103,14 @@ const AdminRequestsPage: NextPage<Props> = () => {
             value={fechaFiltro}
             onChange={(e) => setFechaFiltro(e.target.value)}
             aria-label='Filtrar por fecha'
-            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+            className='px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-brand-400 focus:ring-2 focus:ring-brand-400/40'
           />
 
           <select
             value={empleadoFiltro}
             onChange={(e) => setEmpleadoFiltro(e.target.value)}
             aria-label='Filtrar por empleado'
-            className='w-64 px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40'
+            className='w-64 px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-brand-400 focus:ring-2 focus:ring-brand-400/40'
           >
             <option value=''>Todos los empleados</option>
             {empleados.map((e) => (

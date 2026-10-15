@@ -3,17 +3,35 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-turquoise-blue-50: #ecfeff;
-  --color-turquoise-blue-100: #cffbfe;
-  --color-turquoise-blue-200: #a6f5fb;
-  --color-turquoise-blue-300: #68eaf8;
-  --color-turquoise-blue-400: #3edbef;
-  --color-turquoise-blue-500: #07b9d3;
-  --color-turquoise-blue-600: #0993b1;
-  --color-turquoise-blue-700: #0f768f;
-  --color-turquoise-blue-800: #166074;
-  --color-turquoise-blue-900: #164f63;
-  --color-turquoise-blue-950: #083444;
+  /*
+   * Paleta institucional. 500 = color oficial (#637694 azul pizarra,
+   * #79708d malva); los claros mezclados con blanco, los oscuros con
+   * negro. Texto blanco sobre 500: 4.6:1 (AA). brand es el color
+   * principal (botones, foco, enlaces); mauve, el secundario.
+   */
+  --color-brand-50: #f3f4f6;
+  --color-brand-100: #e6e9ee;
+  --color-brand-200: #cdd3dd;
+  --color-brand-300: #aeb8c7;
+  --color-brand-400: #8897ae;
+  --color-brand-500: #637694;
+  --color-brand-600: #516179;
+  --color-brand-700: #3f4c5f;
+  --color-brand-800: #303947;
+  --color-brand-900: #222832;
+  --color-brand-950: #14181e;
+
+  --color-mauve-50: #f4f4f6;
+  --color-mauve-100: #eae8ed;
+  --color-mauve-200: #d4d1db;
+  --color-mauve-300: #b9b5c4;
+  --color-mauve-400: #9992a8;
+  --color-mauve-500: #79708d;
+  --color-mauve-600: #635c74;
+  --color-mauve-700: #4d485a;
+  --color-mauve-800: #3a3644;
+  --color-mauve-900: #292630;
+  --color-mauve-950: #18161c;
 }
 
 /*
@@ -67,35 +85,61 @@
 }
 
 /*
- * Valores de los tokens semánticos por tema (los usa @theme inline).
- * Tomados del mockup validado en Claude Design.
+ * Valores de los tokens semánticos por tema (los usa @theme inline),
+ * teñidos con la paleta institucional. Todo texto (foreground y muted)
+ * pasa AA (>= 4.5:1) sobre background, surface y surface-field.
  */
 :root {
-  --app-background: #f6f8fb;
+  --app-background: #f2f1f5;
   --app-surface: #ffffff;
-  --app-surface-field: #f8fafc;
-  --app-border: #e3e8ef;
-  --app-foreground: #0f172a;
-  --app-muted: #64748b;
+  --app-surface-field: #f7f7fa;
+  --app-border: #dddbe4;
+  --app-foreground: #1e2230;
+  --app-muted: #5a6276;
+
+  /* Textura del fondo (ver bg-textura): brillo malva arriba, degradado
+     diagonal malva → azul y grano. */
+  --app-degradado:
+    radial-gradient(ellipse 70% 55% at 35% 0%, color-mix(in srgb, var(--color-mauve-200) 60%, transparent), transparent 70%),
+    linear-gradient(160deg, var(--color-mauve-50), var(--color-brand-100));
+  --app-grano: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='.05'/%3E%3C/svg%3E");
 }
 
 .dark {
-  --app-background: #0b1220;
-  --app-surface: #111a2c;
-  --app-surface-field: #0e1626;
-  --app-border: #1f2a3d;
-  --app-foreground: #e6edf5;
-  --app-muted: #8fa1b8;
+  --app-background: #17161d;
+  --app-surface: #211f29;
+  --app-surface-field: #1b1a22;
+  --app-border: #33303d;
+  --app-foreground: #ecebf1;
+  --app-muted: #a8a4b6;
+
+  --app-degradado:
+    radial-gradient(ellipse 70% 55% at 35% 0%, color-mix(in srgb, var(--color-mauve-700) 45%, transparent), transparent 70%),
+    linear-gradient(160deg, #1c1a24, #161b24);
+  --app-grano: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='.09'/%3E%3C/svg%3E");
+}
+
+/*
+ * Fondo institucional: degradado malva → azul con grano. Fijo al viewport
+ * para que no se estire en páginas largas. Solo para el fondo de cada
+ * pantalla: tarjetas, tablas y campos siguen lisos (bg-surface…).
+ */
+@utility bg-textura {
+  background-color: var(--app-background);
+  background-image: var(--app-grano), var(--app-degradado);
+  background-attachment: fixed;
 }
 
 /*
  * Sin esto, el rebote de overscroll en móvil (o cualquier hueco fuera
  * de la app) muestra el blanco por defecto del navegador en vez del
- * fondo del tema — bg-background solo se aplica al div raíz de AppShell.
+ * fondo del tema — bg-textura solo se aplica al contenedor de cada pantalla.
  */
 html,
 body {
   background-color: var(--app-background);
+  background-image: var(--app-grano), var(--app-degradado);
+  background-attachment: fixed;
 }
 
 /*

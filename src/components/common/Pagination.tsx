@@ -54,7 +54,7 @@ export function Pagination({ page, totalPages, onPageChange }: Props) {
             aria-label={`Página ${n}`}
             className={
               n === page
-                ? 'w-8 h-8 rounded-full bg-turquoise-blue-500 text-white text-sm font-semibold'
+                ? 'w-8 h-8 rounded-full bg-brand-500 text-white text-sm font-semibold'
                 : 'w-8 h-8 rounded-full border border-border text-foreground text-sm'
             }
           >

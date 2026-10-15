@@ -18,7 +18,7 @@ const ACCION_OPTIONS: { value: AdminAuditAccionFilter; label: string }[] = [
 ];
 
 const CAMPO =
-  'px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-turquoise-blue-400 focus:ring-2 focus:ring-turquoise-blue-400/40';
+  'px-3.5 py-2 border border-border rounded-full bg-surface-field text-sm text-foreground appearance-none focus:outline-hidden focus:border-brand-400 focus:ring-2 focus:ring-brand-400/40';
 
 const AdminAuditPage: NextPage<Props> = () => {
   const {

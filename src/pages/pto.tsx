@@ -75,7 +75,7 @@ const PtoPage: NextPage<Props> = () => {
             </span>
           </section>
 
-          <section aria-label='Horas disponibles' className='p-4 rounded-xl border border-border bg-turquoise-blue-50 dark:bg-turquoise-blue-950/20 flex flex-col gap-2'>
+          <section aria-label='Horas disponibles' className='p-4 rounded-xl border border-border bg-brand-50 dark:bg-brand-950/20 flex flex-col gap-2'>
             <span className='text-xs font-semibold text-muted uppercase tracking-wide'>Disponibles</span>
             <span className='text-2xl font-bold text-foreground'>{balance.horasDisponibles}h</span>
             <span className='text-xs text-muted'>

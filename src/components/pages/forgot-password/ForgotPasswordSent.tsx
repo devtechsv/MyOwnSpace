@@ -10,11 +10,11 @@ const ForgotPasswordSent = () => {
       : 'tu correo';
 
   return (
-    <section className='min-h-screen relative bg-background px-5 grid place-content-center'>
+    <section className='min-h-screen relative bg-textura px-5 grid place-content-center'>
       <ThemeToggle className='absolute top-6 right-6' />
 
       <div className='w-full max-w-[400px] bg-surface border border-border rounded-2xl shadow-lg px-9 py-10 text-center'>
-        <div className='w-14 h-14 rounded-full bg-turquoise-blue-50 dark:bg-turquoise-blue-950/40 text-turquoise-blue-600 dark:text-turquoise-blue-400 flex items-center justify-center mx-auto mb-5'>
+        <div className='w-14 h-14 rounded-full bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto mb-5'>
           <svg
             width='24'
             height='24'
@@ -43,7 +43,7 @@ const ForgotPasswordSent = () => {
 
         <Link
           href='/login'
-          className='inline-flex items-center gap-2 text-turquoise-blue-600 hover:text-turquoise-blue-700 text-[13px] font-semibold'
+          className='inline-flex items-center gap-2 text-brand-600 hover:text-brand-700 text-[13px] font-semibold'
         >
           <svg
             width='15'

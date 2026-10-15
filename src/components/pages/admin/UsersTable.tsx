@@ -65,7 +65,7 @@ export function UsersTable({
                 <span className='text-sm font-medium text-foreground flex items-center gap-1.5'>
                   {user.nombre}
                   {isSelf && (
-                    <span className='text-[10px] leading-5 font-bold px-1.5 py-0.5 rounded-full bg-turquoise-blue-50 dark:bg-turquoise-blue-950/40 text-turquoise-blue-600 dark:text-turquoise-blue-400'>
+                    <span className='text-[10px] leading-5 font-bold px-1.5 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400'>
                       TÚ
                     </span>
                   )}

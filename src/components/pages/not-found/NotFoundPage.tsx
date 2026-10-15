@@ -5,7 +5,7 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 const NotFoundPage = () => {
   return (
-    <section className='min-h-screen relative bg-background px-5 grid place-content-center'>
+    <section className='min-h-screen relative bg-textura px-5 grid place-content-center'>
       <ThemeToggle className='absolute top-6 right-6' />
 
       <div className='w-full max-w-[420px] text-center'>

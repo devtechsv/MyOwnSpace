@@ -103,7 +103,7 @@ export function CreateUserModal({ isOpen, onClose, onCreated }: Props) {
           <label className='flex items-center gap-2.5 text-sm text-foreground cursor-pointer select-none'>
             <input
               type='checkbox'
-              className='w-4 h-4 accent-turquoise-blue-500'
+              className='w-4 h-4 accent-brand-500'
               {...register('generarAutomatica')}
             />
             Generar contraseña automáticamente
@@ -136,17 +136,17 @@ export function CreateUserModal({ isOpen, onClose, onCreated }: Props) {
             </>
           )}
 
-          <div className='flex gap-2.5 p-3.5 rounded-xl bg-turquoise-blue-50 dark:bg-turquoise-blue-950/20'>
+          <div className='flex gap-2.5 p-3.5 rounded-xl bg-brand-50 dark:bg-brand-950/20'>
             <svg
               width='16'
               height='16'
               viewBox='0 0 24 24'
               fill='none'
-              stroke='#0993b1'
+              stroke='currentColor'
               strokeWidth='2'
               strokeLinecap='round'
               strokeLinejoin='round'
-              className='shrink-0 mt-0.5'
+              className='shrink-0 mt-0.5 text-brand-600'
             >
               <circle cx='12' cy='12' r='10' />
               <line x1='12' y1='16' x2='12' y2='12' />
