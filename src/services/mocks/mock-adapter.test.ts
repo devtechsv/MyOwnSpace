@@ -1,4 +1,5 @@
 import {
+  mockAuditAdapter,
   mockAuthAdapter,
   mockRequestsAdapter,
   mockUsersAdapter,
@@ -301,6 +302,16 @@ describe('mockUsersAdapter', () => {
     const julio = list.items.find((u) => u.id === 'u1');
     expect(julio?.estado).toBe('Activo');
     expect(julio?.mustChangePassword).toBe(true);
+  });
+
+  it('resetPassword rechaza a un Desactivado como el backend: no lo reactiva ni lo audita', async () => {
+    await expect(mockUsersAdapter.resetPassword('u6')).rejects.toThrow(
+      'El usuario está desactivado. Actívalo antes de resetear su contraseña.',
+    );
+
+    const list = await mockUsersAdapter.list(1, 20);
+    expect(list.items.find((u) => u.id === 'u6')?.estado).toBe('Desactivado');
+    expect((await mockAuditAdapter.list({ page: 1, pageSize: 20 })).totalCount).toBe(0);
   });
 
   it('toggleStatus alterna entre Activo y Desactivado', async () => {

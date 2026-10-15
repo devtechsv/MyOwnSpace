@@ -428,6 +428,11 @@ export const mockUsersAdapter = {
     // Igual que el backend real: emite una temporal directamente, sin
     // paso intermedio por Pendiente.
     const target = findUserOrThrow(id);
+    // Igual que UsersService.ResetPasswordAsync: a un Desactivado no se le
+    // emite nada (409 en el backend) y no queda registro en la bitácora.
+    if (target.estado === 'Desactivado') {
+      throw new Error('El usuario está desactivado. Actívalo antes de resetear su contraseña.');
+    }
     target.estado = 'Activo';
     target.mustChangePassword = true;
     target.contrasenaAsignada = true;
