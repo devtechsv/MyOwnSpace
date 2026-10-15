@@ -10,7 +10,7 @@ const ForgotPasswordForm = () => {
     useForgotPasswordForm();
 
   return (
-    <section className='min-h-screen relative bg-background px-5 grid place-content-center'>
+    <section className='min-h-screen relative bg-textura px-5 grid place-content-center'>
       <ThemeToggle className='absolute top-6 right-6' />
 
       <div className='w-full max-w-[400px] bg-surface border border-border rounded-2xl shadow-lg px-9 py-10'>

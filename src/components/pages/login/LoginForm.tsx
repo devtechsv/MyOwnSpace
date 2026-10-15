@@ -19,7 +19,7 @@ const LoginForm = () => {
   } = useLoginForm();
 
   return (
-    <section className='min-h-screen relative bg-background px-5 grid place-content-center'>
+    <section className='min-h-screen relative bg-textura px-5 grid place-content-center'>
       <div className='absolute top-6 right-6 flex gap-2'>
         <FullscreenToggle />
         <ThemeToggle />
@@ -36,7 +36,7 @@ const LoginForm = () => {
 
         <h1 className='text-center text-2xl font-bold text-foreground'>
           Bienvenido a{' '}
-          <span className='text-turquoise-blue-400'>MyOwnSpace</span>
+          <span className='text-brand-400'>MyOwnSpace</span>
         </h1>
         <p className='text-center text-sm text-muted mt-1.5 mb-7'>
           Inicia sesión para continuar
@@ -101,7 +101,7 @@ const LoginForm = () => {
           <div className='flex justify-end -mt-2'>
             <Link
               href='/forgot-password'
-              className='text-[12.5px] font-semibold text-turquoise-blue-600 hover:text-turquoise-blue-700'
+              className='text-[12.5px] font-semibold text-brand-600 hover:text-brand-700'
             >
               ¿Olvidaste tu contraseña?
             </Link>

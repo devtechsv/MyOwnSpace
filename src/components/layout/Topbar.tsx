@@ -77,7 +77,7 @@ export function Topbar({ onMenuClick }: Props = {}) {
               aria-expanded={isMenuOpen}
               className='flex items-center gap-2.5'
             >
-              <span className='w-9 h-9 rounded-full bg-turquoise-blue-500 text-white flex items-center justify-center text-[13px] font-semibold'>
+              <span className='w-9 h-9 rounded-full bg-brand-500 text-white flex items-center justify-center text-[13px] font-semibold'>
                 {getInitials(session.nombre)}
               </span>
               <span className='hidden sm:flex flex-col items-start leading-tight'>

@@ -19,7 +19,7 @@ export function AppShell({ children, sidebar }: Props) {
   }, [isNavOpen]);
 
   return (
-    <div className='min-h-screen flex flex-col bg-background'>
+    <div className='min-h-screen flex flex-col bg-textura'>
       <Topbar onMenuClick={() => setIsNavOpen(true)} />
       <div className='flex-1 flex min-h-0'>
         <aside className='hidden lg:block w-60 shrink-0 bg-surface border-r border-border p-4'>

@@ -144,7 +144,7 @@ El proyecto no tiene test runner configurado todavía. Se propone:
 ## 6. Límites (boundaries)
 
 **Siempre:**
-- Igualar el sistema visual ya validado en el mockup (colores `turquoise-blue`, tipografía Inter, radios y espaciados de los tokens definidos).
+- Igualar el sistema visual ya validado en el mockup (paleta institucional: `brand` #637694 y `mauve` #79708d, fondo con textura; tipografía Inter, radios y espaciados de los tokens definidos).
 - Los componentes de UI consumen los servicios (`*.api.ts`), nunca a `axios` directo ni a los mocks directamente — así el día que exista el backend real, cambiar de mock a real es un cambio en un solo lugar (factory/flag en `services/`).
 - Todo texto de cara al usuario en español, igual que el mockup y `OwnSpace.md`.
 - Cualquier pantalla nueva no contemplada en el mockup se avisa antes de construirse.
