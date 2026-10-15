@@ -80,6 +80,9 @@ public enum AuditAction
     EstadoUsuarioCambiado,
     SolicitudAprobada,
     SolicitudDenegada,
+    InicioSesion,
+    InicioSesionFallido,
+    CierreSesion,
 }
 
 public enum AuditEntityType

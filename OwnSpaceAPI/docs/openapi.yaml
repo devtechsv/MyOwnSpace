@@ -47,7 +47,9 @@ paths:
   /auth/login:
     post:
       tags: [auth]
-      summary: Inicia sesión. Setea la cookie httpOnly `accessToken` (JWT).
+      summary: >
+        Inicia sesión. Setea la cookie httpOnly `accessToken` (JWT). Registra
+        InicioSesion o InicioSesionFallido en la bitácora.
       security: []
       requestBody:
         required: true
@@ -83,7 +85,7 @@ paths:
   /auth/logout:
     post:
       tags: [auth]
-      summary: Cierra sesión. Borra la cookie `accessToken`.
+      summary: Cierra sesión. Borra la cookie `accessToken`. Registra CierreSesion en la bitácora.
       responses:
         '204':
           description: Sesión cerrada.
@@ -539,10 +541,11 @@ paths:
     get:
       tags: [audit]
       summary: >
-        Bitácora de acciones de administradores (pantalla Auditoría), de la
-        más nueva a la más vieja. Solo lectura: no hay forma de editar ni
-        borrar entradas. Cada entrada se guarda en el mismo commit que la
-        acción que describe.
+        Bitácora de acciones de administradores y de inicios y cierres de
+        sesión (pantalla Auditoría), de la más nueva a la más vieja. Solo
+        lectura: no hay forma de editar ni borrar entradas. Cada entrada se
+        guarda en el mismo commit que la acción que describe, salvo un inicio
+        de sesión fallido, que no cambia nada y se guarda solo.
       security: [{ cookieAuth: [Administrador] }]
       parameters:
         - name: accion
@@ -649,20 +652,32 @@ components:
 
     AuditAction:
       type: string
-      enum: [UsuarioCreado, UsuarioEditado, ContrasenaReseteada, EstadoUsuarioCambiado, SolicitudAprobada, SolicitudDenegada]
+      enum: [UsuarioCreado, UsuarioEditado, ContrasenaReseteada, EstadoUsuarioCambiado, SolicitudAprobada, SolicitudDenegada, InicioSesion, InicioSesionFallido, CierreSesion]
 
     AuditLog:
       type: object
       required: [id, actorId, actorNombre, accion, entidadTipo, entidadId, createdAt]
       properties:
         id: { type: string, format: uuid }
-        actorId: { type: string, format: uuid }
+        actorId:
+          type: string
+          format: uuid
+          nullable: true
+          description: >
+            Null en un inicio de sesión fallido: quien lo intentó puede no ser
+            el dueño de la cuenta.
         actorNombre:
           type: string
-          description: Nombre del administrador al momento de la acción.
+          description: >
+            Nombre del actor al momento de la acción; "(desconocido)" en un
+            inicio de sesión fallido.
         accion: { $ref: '#/components/schemas/AuditAction' }
         entidadTipo: { type: string, enum: [Usuario, Solicitud] }
-        entidadId: { type: string, format: uuid }
+        entidadId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Null en un inicio de sesión fallido con un correo no registrado.
         entidadNombre:
           type: string
           nullable: true
@@ -674,7 +689,8 @@ components:
           nullable: true
           description: >
             Según la acción: correo y rol (creado), nombre, correo y rol
-            (editado), nuevo estado, o motivo del rechazo.
+            (editado), nuevo estado, motivo del rechazo, o motivo del inicio
+            de sesión fallido.
         createdAt: { type: string, format: date-time, description: En UTC. }
 
     PagedAuditLogs:

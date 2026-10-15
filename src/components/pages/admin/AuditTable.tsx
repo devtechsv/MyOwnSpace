@@ -13,6 +13,9 @@ export const ACCION_LABELS: Record<AuditAction, string> = {
   EstadoUsuarioCambiado: 'Cambió el estado de un usuario',
   SolicitudAprobada: 'Aprobó una solicitud',
   SolicitudDenegada: 'Denegó una solicitud',
+  InicioSesion: 'Inició sesión',
+  InicioSesionFallido: 'Intento de inicio de sesión fallido',
+  CierreSesion: 'Cerró sesión',
 };
 
 // Siempre en hora de El Salvador, aunque el navegador esté en otra zona:
@@ -33,6 +36,9 @@ export function formatFechaHora(isoUtc: string): string {
 }
 
 function sobre(entrada: AuditLog): string {
+  // Inicio de sesión fallido con un correo no registrado: no hay cuenta
+  // afectada (el motivo ya lo dice el detalle).
+  if (entrada.entidadId === null) return '—';
   if (entrada.entidadNombre) {
     return entrada.entidadTipo === 'Solicitud'
       ? `Solicitud de ${entrada.entidadNombre}`
@@ -43,8 +49,11 @@ function sobre(entrada: AuditLog): string {
 
 function detalle(entrada: AuditLog): string {
   if (!entrada.detalle) return '—';
-  // En una denegación, el detalle es el motivo tal cual lo escribió el admin.
-  return entrada.accion === 'SolicitudDenegada' ? `Motivo: ${entrada.detalle}` : entrada.detalle;
+  // En una denegación, el motivo tal cual lo escribió el admin; en un inicio
+  // de sesión fallido, por qué se rechazó.
+  return entrada.accion === 'SolicitudDenegada' || entrada.accion === 'InicioSesionFallido'
+    ? `Motivo: ${entrada.detalle}`
+    : entrada.detalle;
 }
 
 const ENCABEZADO = 'text-xs font-semibold text-muted uppercase tracking-wide';
@@ -68,7 +77,7 @@ export function AuditTable({ entradas, isLoading, error }: Props) {
     <div className='border border-border rounded-2xl overflow-hidden bg-surface'>
       <div className={`hidden md:grid ${COLUMNAS} px-5 py-3.5 bg-surface-field border-b border-border`}>
         <span className={ENCABEZADO}>Fecha y hora</span>
-        <span className={ENCABEZADO}>Administrador</span>
+        <span className={ENCABEZADO}>Usuario</span>
         <span className={ENCABEZADO}>Acción</span>
         <span className={ENCABEZADO}>Sobre</span>
         <span className={ENCABEZADO}>Detalle</span>

@@ -67,7 +67,7 @@ Aquí reclamas las horas de vacaciones que vas ganando y pides tus vacaciones.
 
 ## Si eres Administrador
 
-Además de tu propia sección de empleado, tienes tres pantallas más en el menú lateral: **Solicitudes**, **Usuarios** y **PTO**.
+Además de tu propia sección de empleado, tienes cuatro pantallas más en el menú lateral: **Solicitudes**, **Usuarios**, **PTO** y **Auditoría**.
 
 ### Solicitudes del equipo
 
@@ -89,6 +89,12 @@ Aquí administras las cuentas del equipo. Arriba vas a ver tres contadores: **To
 ### PTO del equipo
 
 Vista de solo lectura para planificar — muestra las vacaciones ya aprobadas de todo el equipo (las pendientes se deciden en "Solicitudes"). Puedes filtrar por mes y elegir un empleado de la lista (aparecen quienes tienen vacaciones en el mes elegido).
+
+### Auditoría
+
+Registro de solo lectura de lo que pasa en el sistema: lo que hacen los administradores (crear, editar, resetear contraseña, activar o desactivar usuarios, aprobar o denegar solicitudes) y los inicios y cierres de sesión de todos, incluidos los intentos fallidos. Cada fila muestra cuándo, quién, qué hizo, sobre quién y el detalle. Puedes filtrar por acción y por rango de fechas.
+
+En un intento fallido, "Usuario" aparece como **(desconocido)**, porque no se sabe quién lo intentó. El detalle dice el motivo (contraseña incorrecta, cuenta desactivada o correo no registrado). Al usuario siempre se le muestra el mismo mensaje genérico.
 
 ## Otras cosas útiles
 

@@ -1094,3 +1094,11 @@ Contraparte frontend del audit de seguridad de la sesión (detalle completo, inc
 **Verification:** `tsc` limpio, lint 0 errores, `npm test` **260/260** (sin tests nuevos — no hay test de `_document.tsx`), `npm run build` exitoso, verificación manual de headers en modo producción (arriba). Dev server detenido antes de buildear, reiniciado después.
 
 **Dependencies:** ninguna.
+
+## Post-cierre — Bitácora: inicios y cierres de sesión (2026-10-15)
+
+Contraparte frontend; detalle completo en `OwnSpaceAPI/tasks/todo.md`. Contrato (`actorId`/`entidadId` null, 3 acciones nuevas), mock (registra login, intento fallido y logout; `mockAuthAdapter.logout()` es síncrono porque `logout()` en modo mock no espera), `AuditTable` (columna "Usuario", "Motivo: …", "—" sin cuenta afectada), subtítulo de la pantalla y test de acceso de `/admin/audit` (`src/__tests__/pages/admin/audit.test.ts`).
+
+**Verification:** `tsc` limpio, lint 0 errores (los mismos 2 warnings de `watch()`), `npm test` **382/382**.
+
+**Dependencies:** ninguna.

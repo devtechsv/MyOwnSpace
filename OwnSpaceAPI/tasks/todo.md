@@ -895,3 +895,29 @@ A pedido del usuario, se cerraron los 3 pendientes reales detectados en la revis
 **Tests:** `RelojEnInstante` (instante exacto; `RelojFijo` es siempre mediodía UTC, que cae el mismo día en las dos zonas y por eso nunca lo detectó). Nuevos: `FechaLocalTests`, 31-dic 11:30 p. m. hora local todavía reclama lo del año, solicitud a las 7 p. m. que empieza hoy; los dos de servicio fallan con "hoy" en UTC. Frontend: `hoyIso` y pruebas que usaban la fecha UTC. `dotnet test` **154/154**; `npm test` **297/297**, también con `TZ=America/El_Salvador`.
 
 **Dependencies:** ninguna.
+
+## Post-cierre — Bitácora: inicios y cierres de sesión (2026-10-15)
+
+**Hallazgo:** la bitácora (pantalla Auditoría, PR #21) solo registraba acciones de administradores. No quedaba rastro de quién entraba ni de los intentos fallidos. La pantalla Auditoría tampoco estaba documentada.
+
+**Cambio:**
+- `AuditAction` gana `InicioSesion`, `InicioSesionFallido` y `CierreSesion` (enum + `CK_AuditLogs_Accion`). `ActorId` y `EntidadId` pasan a aceptar null: migración `AddAccesosAuditLog`, que no toca las filas existentes. Su `Down` borra primero las filas de acceso, porque con null no se puede volver a `NOT NULL`.
+- `AuthService` registra el login exitoso y el logout con `RegistrarAsync`, en el mismo commit que la operación. El login exitoso con la contraseña principal y sin temporal antes no escribía nada; ahora hace un `SaveChangesAsync`.
+- Intento fallido: `RegistrarInicioSesionFallidoAsync` guarda por su cuenta (no hay mutación con la que compartir el commit), sin actor (quien lo intentó puede no ser el dueño de la cuenta), con la cuenta afectada si el correo existe y el motivo en `Detalle` ("Correo no registrado.", "Cuenta en estado X.", "Contraseña incorrecta o vencida."). Nunca guarda el texto escrito como correo: podría ser una contraseña tecleada en el campo equivocado. Se registra exista o no el correo, así el tiempo de respuesta sigue sin distinguirlos. El mensaje al usuario no cambia.
+- Un correo con formato inválido recibe 400 en la validación del modelo, antes de llegar al servicio, y no se registra.
+- `openapi.yaml`, contrato de TypeScript y mock al día. Pantalla: la columna del actor pasa a "Usuario", un intento fallido muestra "Motivo: …" y "—" si no hay cuenta afectada.
+- Docs: `guia-tecnica.md` (sección AuditLog, que todavía decía "sin pantalla") y `manual-usuario.md` (sección Auditoría nueva).
+
+**Tests:** servicio (`AuthServiceTests`: un caso por evento, incluido que el correo escrito no se guarda; `AuditLogServiceTests`: entrada sin entidad), integración (login real que aparece en `GET /audit-logs`; `SinSesion_Responde401`), mock y `AuditTable`. Nuevo `src/__tests__/pages/admin/audit.test.ts`: `/admin/audit` redirige al login sin sesión, da 404 a un empleado y deja entrar a un administrador; falla si se quita `roles: ['Administrador']` de la página. `dotnet test` **233/233**; `npm test` **382/382**.
+
+**Verificación en vivo** (SQL Server local): migración aplicada, revertida y vuelta a aplicar. Intentos fallidos con contraseña incorrecta y con correo no registrado; login y logout de un admin y un empleado con cuentas temporales, revisados en la pantalla. Cuentas temporales y sus filas borradas al final.
+
+**Fuera de alcance (code review):**
+- Retención de la bitácora: con los logins, incluidos los intentos anónimos (limitados por IP y por minuto), crece mucho más rápido.
+- Índice `(Accion, CreatedAt)`: `ListarAsync` con `?accion=` hace un `COUNT` que recorre la tabla; hoy solo hay índice sobre `CreatedAt`. Va junto con la retención.
+- IP en los intentos fallidos: hoy no se distingue un ataque de un olvido de contraseña. Decisión de producto (privacidad) y requiere pasar la IP desde el controller.
+- Filtro por usuario en la pantalla.
+
+**Despliegue:** aplicar la migración **antes** del backend. Cada login escribe en `AuditLogs` en la misma transacción; sin la migración, el `CHECK` rechaza `InicioSesion` y todos los logins responden 500.
+
+**Dependencies:** ninguna.

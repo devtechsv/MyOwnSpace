@@ -42,7 +42,7 @@ const AdminAuditPage: NextPage<Props> = () => {
       <div className='mb-6'>
         <h1 className='text-xl font-bold text-foreground'>Auditoría</h1>
         <p className='text-sm text-muted mt-1'>
-          Registro de las acciones de los administradores. Solo lectura.
+          Acciones de los administradores e inicios y cierres de sesión. Solo lectura.
         </p>
       </div>
 

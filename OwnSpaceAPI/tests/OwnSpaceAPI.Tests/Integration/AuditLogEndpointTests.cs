@@ -71,6 +71,16 @@ public class AuditLogEndpointTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task SinSesion_Responde401()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+
+        var response = await client.GetAsync("/api/v1/audit-logs");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task ComoEmpleado_Responde404()
     {
         var empleado = await SeedUserAsync(UserRole.Empleado);
@@ -108,5 +118,24 @@ public class AuditLogEndpointTests : IClassFixture<CustomWebApplicationFactory>
         var response = await GetComoAsync(admin, "/api/v1/audit-logs?desde=2026-10-05&hasta=2026-10-04");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task LoginReal_ApareceEnLaBitacoraComoInicioSesion()
+    {
+        var admin = await SeedUserAsync(UserRole.Administrador);
+        var empleado = await SeedUserAsync(UserRole.Empleado, "Marta Gómez");
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { correo = empleado.Correo, password = Password });
+        login.EnsureSuccessStatusCode();
+
+        var response = await GetComoAsync(admin, "/api/v1/audit-logs?accion=InicioSesion&pageSize=100");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var item = Assert.Single(json.RootElement.GetProperty("items").EnumerateArray(),
+            i => i.GetProperty("actorId").GetGuid() == empleado.Id);
+        Assert.Equal("Marta Gómez", item.GetProperty("actorNombre").GetString());
+        Assert.Equal(empleado.Id, item.GetProperty("entidadId").GetGuid());
     }
 }

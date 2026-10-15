@@ -172,4 +172,22 @@ public class AuditLogServiceTests
         Assert.Equal(1, acotada.Page);
         Assert.Equal(100, acotada.PageSize);
     }
+
+    [Fact]
+    public async Task ListarAsync_EntradaSinEntidad_DevuelveEntidadNombreNull()
+    {
+        await using var db = CreateContext();
+        // Inicio de sesión fallido con un correo no registrado.
+        var entrada = Entrada(Local(1, 9), AuditAction.InicioSesionFallido);
+        entrada.ActorId = null;
+        entrada.EntidadId = null;
+        db.AuditLogs.Add(entrada);
+        await db.SaveChangesAsync();
+
+        var resultado = await new AuditLogService(db).ListarAsync(null, null, null, 1, 20);
+
+        var item = Assert.Single(resultado.Items);
+        Assert.Null(item.Log.EntidadId);
+        Assert.Null(item.EntidadNombre);
+    }
 }

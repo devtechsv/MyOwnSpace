@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OwnSpaceAPI.Api.Data;
 using OwnSpaceAPI.Api.Models.Entities;
 using OwnSpaceAPI.Api.Services;
+using OwnSpaceAPI.Api.Services.Audit;
 using OwnSpaceAPI.Api.Services.Auth;
 using OwnSpaceAPI.Api.Services.Exceptions;
 
@@ -42,7 +43,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
         var resultado = await service.ValidateCredentialsAsync("empleado@devtch.com", "Correcta123!");
 
         Assert.Equal(user.Id, resultado.Id);
@@ -57,7 +58,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
         var resultado = await service.ValidateCredentialsAsync("EMPLEADO@DEVTCH.COM", "Correcta123!");
 
         Assert.Equal(user.Id, resultado.Id);
@@ -72,7 +73,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
 
         await Assert.ThrowsAsync<UnauthorizedException>(
             () => service.ValidateCredentialsAsync("empleado@devtch.com", "Incorrecta456!"));
@@ -83,7 +84,7 @@ public class AuthServiceTests
     {
         var hasher = new PasswordHashingService();
         await using var db = CreateContext();
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
 
         await Assert.ThrowsAsync<UnauthorizedException>(
             () => service.ValidateCredentialsAsync("no-existe@devtch.com", "Cualquiera123!"));
@@ -99,7 +100,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
 
         await Assert.ThrowsAsync<UnauthorizedException>(
             () => service.ValidateCredentialsAsync("empleado@devtch.com", "Correcta123!"));
@@ -124,7 +125,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
 
         await Assert.ThrowsAsync<UnauthorizedException>(
             () => service.ValidateCredentialsAsync("pendiente@devtch.com", "CualquierCosa123!"));
@@ -141,7 +142,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
 
         await Assert.ThrowsAsync<UnauthorizedException>(
             () => service.ValidateCredentialsAsync("empleado@devtch.com", "Temporal123!"));
@@ -158,7 +159,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
         var resultado = await service.ValidateCredentialsAsync("empleado@devtch.com", "Temporal123!");
 
         Assert.Equal(user.Id, resultado.Id);
@@ -174,7 +175,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
         await service.ChangePasswordAsync(user.Id, "Correcta123!", "NuevaSegura456!");
 
         Assert.NotEqual(stampAnterior, user.SecurityStamp);
@@ -192,7 +193,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
         await service.ChangePasswordAsync(user.Id, "Temporal123!", "NuevaSegura456!");
 
         Assert.Null(user.TempPasswordExpiresAt);
@@ -207,7 +208,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
 
         await Assert.ThrowsAsync<UnauthorizedException>(
             () => service.ChangePasswordAsync(user.Id, "Incorrecta999!", "NuevaSegura456!"));
@@ -222,7 +223,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
 
         await Assert.ThrowsAsync<BadRequestException>(
             () => service.ChangePasswordAsync(user.Id, "Correcta123!", "Correcta123!"));
@@ -237,7 +238,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
 
         await Assert.ThrowsAsync<BadRequestException>(
             () => service.ChangePasswordAsync(user.Id, "Correcta123!", "corta1"));
@@ -263,7 +264,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
         var resultado = await service.ValidateCredentialsAsync("empleado@devtch.com", "Correcta123!");
 
         // Recordó su contraseña: entra sin cambio forzado y la temporal se descarta.
@@ -283,7 +284,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
         var resultado = await service.ValidateCredentialsAsync("empleado@devtch.com", "Temporal#2026x");
 
         Assert.True(resultado.MustChangePassword);
@@ -304,7 +305,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
 
         await Assert.ThrowsAsync<UnauthorizedException>(
             () => service.ValidateCredentialsAsync("empleado@devtch.com", "Temporal#2026x"));
@@ -322,7 +323,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
         var resultado = await service.ValidateCredentialsAsync("nuevo@devtch.com", "Temporal#2026x");
 
         Assert.True(resultado.MustChangePassword);
@@ -339,9 +340,104 @@ public class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var service = new AuthService(db, hasher);
+        var service = new AuthService(db, hasher, new AuditLogService(db));
         var resultado = await service.ChangePasswordAsync(user.Id, "Correcta123!", "NuevaSegura#2026");
 
         Assert.Null(resultado.TempPasswordHash);
+    }
+
+    [Fact]
+    public async Task ValidateCredentialsAsync_Exitoso_RegistraInicioSesion()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher, new AuditLogService(db));
+        await service.ValidateCredentialsAsync("empleado@devtch.com", "Correcta123!");
+
+        var entrada = Assert.Single(await db.AuditLogs.ToListAsync());
+        Assert.Equal(AuditAction.InicioSesion, entrada.Accion);
+        Assert.Equal(user.Id, entrada.ActorId);
+        Assert.Equal("Usuario de Prueba", entrada.ActorNombre);
+        Assert.Equal(user.Id, entrada.EntidadId);
+    }
+
+    [Fact]
+    public async Task ValidateCredentialsAsync_ContrasenaIncorrecta_RegistraFallidoSinActor()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher, new AuditLogService(db));
+        await Assert.ThrowsAsync<UnauthorizedException>(
+            () => service.ValidateCredentialsAsync("empleado@devtch.com", "Incorrecta456!"));
+
+        var entrada = Assert.Single(await db.AuditLogs.ToListAsync());
+        Assert.Equal(AuditAction.InicioSesionFallido, entrada.Accion);
+        Assert.Null(entrada.ActorId);
+        Assert.Equal("(desconocido)", entrada.ActorNombre);
+        Assert.Equal(user.Id, entrada.EntidadId);
+        Assert.Equal("Contraseña incorrecta o vencida.", entrada.Detalle);
+    }
+
+    [Fact]
+    public async Task ValidateCredentialsAsync_CorreoNoRegistrado_NoGuardaElTextoEscrito()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var service = new AuthService(db, hasher, new AuditLogService(db));
+
+        await Assert.ThrowsAsync<UnauthorizedException>(
+            () => service.ValidateCredentialsAsync("MiClave#Secreta1", "Cualquiera123!"));
+
+        var entrada = Assert.Single(await db.AuditLogs.ToListAsync());
+        Assert.Equal(AuditAction.InicioSesionFallido, entrada.Accion);
+        Assert.Null(entrada.ActorId);
+        Assert.Null(entrada.EntidadId);
+        Assert.Equal("Correo no registrado.", entrada.Detalle);
+        Assert.DoesNotContain("MiClave", entrada.ActorNombre + entrada.Detalle, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ValidateCredentialsAsync_CuentaDesactivada_RegistraElMotivo()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!");
+        user.Estado = UserStatus.Desactivado;
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher, new AuditLogService(db));
+        await Assert.ThrowsAsync<UnauthorizedException>(
+            () => service.ValidateCredentialsAsync("empleado@devtch.com", "Correcta123!"));
+
+        var entrada = Assert.Single(await db.AuditLogs.ToListAsync());
+        Assert.Equal(user.Id, entrada.EntidadId);
+        Assert.Equal("Cuenta en estado Desactivado.", entrada.Detalle);
+    }
+
+    [Fact]
+    public async Task LogoutAsync_RegistraCierreSesion()
+    {
+        var hasher = new PasswordHashingService();
+        await using var db = CreateContext();
+        var user = CrearUsuarioActivo(hasher, "empleado@devtch.com", "Correcta123!");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = new AuthService(db, hasher, new AuditLogService(db));
+        await service.LogoutAsync(user.Id);
+
+        var entrada = Assert.Single(await db.AuditLogs.ToListAsync());
+        Assert.Equal(AuditAction.CierreSesion, entrada.Accion);
+        Assert.Equal(user.Id, entrada.ActorId);
+        Assert.Equal(user.Id, entrada.EntidadId);
     }
 }
