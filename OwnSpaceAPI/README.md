@@ -125,6 +125,7 @@ Otras consideraciones:
 | Migración | Qué hace |
 |---|---|
 | `20261006142507_SeparateTempPassword` | Agrega 3 columnas a `Users` (`TempPasswordHash`, `ForgotPasswordWindowStart`, `ForgotPasswordCount`). No modifica datos existentes. Desde esta versión, "Olvidé mi contraseña" ya no invalida la contraseña actual y las vacaciones de un solo día quedan pendientes de aprobación. |
+| `20261015142225_AddAccesosAuditLog` | `AuditLogs.ActorId` y `EntidadId` pasan a aceptar `NULL` y el `CHECK` de `Accion` admite los eventos de acceso. No modifica filas existentes. **Aplícala antes de desplegar el backend:** desde esta versión cada login escribe en la bitácora, y sin la migración todos los logins responden 500. |
 
 ## Comandos
 

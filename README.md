@@ -8,6 +8,7 @@ Este repo contiene el **frontend** (Next.js 16 + TypeScript, Pages Router) y, en
 
 - [`docs/manual-usuario.md`](docs/manual-usuario.md) — cómo usar la aplicación, para el usuario final (sin nada técnico).
 - [`docs/guia-tecnica.md`](docs/guia-tecnica.md) — referencia de endpoints (CRUD) y guía de dónde tocar el código para mantener o extender cada entidad.
+- [`docs/traspaso.md`](docs/traspaso.md) — estado del proyecto, reglas, advertencias de despliegue y pendientes, para quien lo continúe.
 
 ## Requisitos
 
