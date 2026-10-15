@@ -9,6 +9,7 @@ public interface IAuthService
   // que confirmar cuál de los dos motivos fue (SPEC.md §9).
   Task<User> ValidateCredentialsAsync(string correo, string password);
   Task<User?> GetActiveUserAsync(Guid id);
-  Task InvalidateSessionsAsync(Guid userId);
+  // Invalida todas las sesiones del usuario y registra CierreSesion.
+  Task LogoutAsync(Guid userId);
   Task<User> ChangePasswordAsync(Guid userId, string passwordActual, string passwordNueva);
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OwnSpaceAPI.Api.Data;
 using OwnSpaceAPI.Api.Models.Entities;
+using OwnSpaceAPI.Api.Services.Audit;
 using OwnSpaceAPI.Api.Services.Exceptions;
 
 namespace OwnSpaceAPI.Api.Services.Auth;
@@ -23,11 +24,13 @@ public sealed class AuthService : IAuthService
 
     private readonly AppDbContext _db;
     private readonly IPasswordHashingService _passwordHasher;
+    private readonly IAuditLogService _auditLog;
 
-    public AuthService(AppDbContext db, IPasswordHashingService passwordHasher)
+    public AuthService(AppDbContext db, IPasswordHashingService passwordHasher, IAuditLogService auditLog)
     {
         _db = db;
         _passwordHasher = passwordHasher;
+        _auditLog = auditLog;
     }
 
     public async Task<User> ValidateCredentialsAsync(string correo, string password)
@@ -63,6 +66,16 @@ public sealed class AuthService : IAuthService
 
         if (user is null || user.Estado != UserStatus.Activo || (!principalValida && !temporalValida))
         {
+            // Se registra exista o no el correo: así el tiempo de respuesta
+            // sigue sin distinguir los dos casos. El motivo solo lo ve el
+            // administrador; el usuario recibe siempre el mismo mensaje.
+            var motivo = user switch
+            {
+                null => "Correo no registrado.",
+                { Estado: not UserStatus.Activo } => $"Cuenta en estado {user.Estado}.",
+                _ => "Contraseña incorrecta o vencida.",
+            };
+            await _auditLog.RegistrarInicioSesionFallidoAsync(user?.Id, motivo);
             throw new UnauthorizedException(CredencialesInvalidasMensaje);
         }
 
@@ -77,19 +90,21 @@ public sealed class AuthService : IAuthService
                     user.TempPasswordExpiresAt = null;
                 }
                 user.UpdatedAt = ahora;
-                await _db.SaveChangesAsync();
             }
-            return user;
+        }
+        else
+        {
+            // Entró con la temporal: recién ahora reemplaza a la contraseña
+            // anterior y cierra las demás sesiones. TempPasswordExpiresAt se
+            // conserva: sigue venciendo en la misma fecha si no la cambia.
+            user.PasswordHash = user.TempPasswordHash;
+            user.TempPasswordHash = null;
+            user.MustChangePassword = true;
+            user.SecurityStamp = Guid.NewGuid().ToString("N");
+            user.UpdatedAt = ahora;
         }
 
-        // Entró con la temporal: recién ahora reemplaza a la contraseña
-        // anterior y cierra las demás sesiones. TempPasswordExpiresAt se
-        // conserva: sigue venciendo en la misma fecha si no la cambia.
-        user.PasswordHash = user.TempPasswordHash;
-        user.TempPasswordHash = null;
-        user.MustChangePassword = true;
-        user.SecurityStamp = Guid.NewGuid().ToString("N");
-        user.UpdatedAt = ahora;
+        await _auditLog.RegistrarAsync(user.Id, AuditAction.InicioSesion, AuditEntityType.Usuario, user.Id);
         await _db.SaveChangesAsync();
 
         return user;
@@ -101,7 +116,7 @@ public sealed class AuthService : IAuthService
         return user is not null && user.Estado == UserStatus.Activo ? user : null;
     }
 
-    public async Task InvalidateSessionsAsync(Guid userId)
+    public async Task LogoutAsync(Guid userId)
     {
         var user = await _db.Users.FindAsync(userId);
         if (user is null)
@@ -111,6 +126,7 @@ public sealed class AuthService : IAuthService
 
         user.SecurityStamp = Guid.NewGuid().ToString("N");
         user.UpdatedAt = DateTime.UtcNow;
+        await _auditLog.RegistrarAsync(userId, AuditAction.CierreSesion, AuditEntityType.Usuario, userId);
         await _db.SaveChangesAsync();
     }
 

@@ -79,7 +79,7 @@ public class AuthController : ControllerBase
     // Regenera el securityStamp: cualquier otra sesión/token vivo de
     // este usuario queda inválido de inmediato, no solo la cookie de
     // este navegador.
-    await _authService.InvalidateSessionsAsync(userId);
+    await _authService.LogoutAsync(userId);
 
     DeleteAccessTokenCookie();
     return NoContent();

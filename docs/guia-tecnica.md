@@ -22,7 +22,7 @@ Todos bajo `/api/v1`. "Rol" es el único requisito de autorización — todos re
 |---|---|---|---|
 | Iniciar sesión | `POST /auth/login` | público | `AuthService.ValidateCredentialsAsync` |
 | Sesión actual (renueva) | `GET /auth/session` | cualquiera | `AuthService.GetActiveUserAsync` |
-| Cerrar sesión | `POST /auth/logout` | cualquiera | `AuthService.InvalidateSessionsAsync` |
+| Cerrar sesión | `POST /auth/logout` | cualquiera | `AuthService.LogoutAsync` |
 | Olvidé mi contraseña | `POST /auth/forgot-password` | público | `PasswordResetService.RequestTemporaryPasswordAsync` |
 | Cambiar mi contraseña | `POST /auth/change-password` | cualquiera | `AuthService.ChangePasswordAsync` |
 
@@ -80,9 +80,9 @@ Tanto la solicitud de un día (`POST /pto/requests`, hasta 8 h) como las vacacio
 
 | Operación | Método y ruta | Rol | Servicio |
 |---|---|---|---|
-| **R**ead (paginado) | `GET /audit-logs?page=&pageSize=` | Administrador | `AuditLogService.ListarAsync` |
+| **R**ead (paginado) | `GET /audit-logs?accion=&desde=&hasta=&page=&pageSize=` | Administrador | `AuditLogService.ListarAsync` |
 
-Sin endpoint de escritura pública — se escribe internamente (`AuditLogService.RegistrarAsync`) desde los propios servicios de negocio, nunca desde un controller directamente.
+Sin endpoint de escritura pública — se escribe internamente (`AuditLogService.RegistrarAsync`) desde los propios servicios de negocio, nunca desde un controller directamente. Además de las acciones de administradores, registra los inicios de sesión, los intentos fallidos y los cierres de sesión (desde `AuthService`).
 
 ## Cómo agregar algo nuevo, por entidad
 
@@ -118,13 +118,13 @@ Para agregar un `Tipo` de solicitud nuevo: enum `RequestType` (`Models/Entities/
 ### AuditLog
 
 - **Modelo:** `Models/Entities/AuditLog.cs`; acciones/tipos de entidad cerrados en los enums `AuditAction`/`AuditEntityType` (`Models/Entities/Enums.cs`)
-- **Servicio:** `Services/Audit/AuditLogService.cs` (+ interfaz `IAuditLogService`) — `RegistrarAsync` no hace `SaveChangesAsync` propio a propósito, así la entrada de auditoría se persiste en el mismo commit que la acción que describe
+- **Servicio:** `Services/Audit/AuditLogService.cs` (+ interfaz `IAuditLogService`) — `RegistrarAsync` no hace `SaveChangesAsync` propio a propósito, así la entrada de auditoría se persiste en el mismo commit que la acción que describe. La excepción es `RegistrarInicioSesionFallidoAsync`, que sí guarda por su cuenta (un login fallido no cambia nada con lo que compartir el commit), sin actor (`ActorId` null) y sin guardar nunca el texto escrito como correo (podría ser una contraseña tecleada en el campo equivocado)
 - **Endpoint de lectura:** `Controllers/AuditLogController.cs`
-- **Sin pantalla en el frontend todavía** — hoy solo se consulta vía `GET /audit-logs` (Swagger o un cliente HTTP)
+- **Frontend — contrato:** `src/contracts/interfaces/audit.ts`
+- **Frontend — adapters:** `src/services/audit/audit.http-adapter.ts` / `mockAuditAdapter` (el mock también registra login, intento fallido y logout)
+- **Frontend — pantalla:** `src/pages/admin/audit.tsx`, hook `src/components/pages/admin/useAdminAudit.ts`, tabla `src/components/pages/admin/AuditTable.tsx` (los textos de cada acción están en `ACCION_LABELS`)
 
-Para instrumentar una acción privilegiada nueva: agregar el valor al enum `AuditAction` (y al `CHECK` constraint de `AppDbContext`) y llamar a `_auditLog.RegistrarAsync(actorId, accion, entidadTipo, entidadId, detalle)` **antes** del `SaveChangesAsync` de esa operación (no después — ver el comentario en `UsersService.CreateAsync` para el porqué).
-
-Para construir la pantalla de admin que falta: un hook tipo `useAuditLog.ts` (mismo patrón de paginación que `useAdminUsers`/`useAdminRequests`) contra `GET /audit-logs`, más una tabla simple (fecha, actor, acción, detalle).
+Para instrumentar una acción nueva: agregar el valor al enum `AuditAction` y al `CHECK` constraint de `AppDbContext` → migración → tipo `AuditAction` del frontend → `ACCION_LABELS` → el mock, y llamar a `_auditLog.RegistrarAsync(actorId, accion, entidadTipo, entidadId, detalle)` **antes** del `SaveChangesAsync` de esa operación (no después — ver el comentario en `UsersService.CreateAsync` para el porqué).
 
 ## Convenciones a respetar al tocar cualquier entidad
 

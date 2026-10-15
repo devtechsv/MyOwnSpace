@@ -23,6 +23,9 @@ beforeEach(async () => {
   // Las acciones de usuarios toman al administrador de la sesión, como el
   // backend del JWT.
   await authApi.login({ correo: 'julio.perez@devtch.com', password: 'cualquiera' });
+  // Ese login dejó su propia entrada; cada test empieza con la bitácora
+  // vacía. Los fixtures conservan los ids, así que la sesión sigue valiendo.
+  resetMockState();
 });
 
 afterEach(() => {
@@ -134,5 +137,57 @@ describe('mockAuditAdapter', () => {
 
     expect(segunda.totalCount).toBe(3);
     expect(segunda.items.map((a) => a.entidadId)).toEqual(['u3']);
+  });
+
+  it('registra el inicio de sesión con el usuario como actor y como afectado', async () => {
+    await authApi.login({ correo: 'ana.martinez@devtch.com', password: 'cualquiera' });
+
+    const [entrada] = (await mockAuditAdapter.list(TODO)).items;
+
+    expect(entrada).toMatchObject({
+      accion: 'InicioSesion',
+      actorId: 'u3',
+      actorNombre: 'Ana Martínez',
+      entidadId: 'u3',
+      entidadNombre: 'Ana Martínez',
+    });
+  });
+
+  it('un correo no registrado se registra sin actor, sin afectado y sin el texto escrito', async () => {
+    await expect(authApi.login({ correo: 'MiClave#Secreta1', password: 'x' })).rejects.toThrow();
+
+    const { items } = await mockAuditAdapter.list(TODO);
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      accion: 'InicioSesionFallido',
+      actorId: null,
+      actorNombre: '(desconocido)',
+      entidadId: null,
+      entidadNombre: null,
+      detalle: 'Correo no registrado.',
+    });
+    expect(JSON.stringify(items[0])).not.toContain('MiClave');
+  });
+
+  it('una cuenta desactivada se registra con el motivo', async () => {
+    await expect(authApi.login({ correo: 'marta.gomez@devtch.com', password: 'x' })).rejects.toThrow();
+
+    const [entrada] = (await mockAuditAdapter.list(TODO)).items;
+
+    expect(entrada).toMatchObject({
+      accion: 'InicioSesionFallido',
+      actorId: null,
+      entidadId: 'u6',
+      detalle: 'Cuenta en estado Desactivado.',
+    });
+  });
+
+  it('el cierre de sesión se registra con el usuario de la sesión', async () => {
+    await authApi.logout();
+
+    const [entrada] = (await mockAuditAdapter.list(TODO)).items;
+
+    expect(entrada).toMatchObject({ accion: 'CierreSesion', actorId: 'u1', entidadId: 'u1' });
   });
 });

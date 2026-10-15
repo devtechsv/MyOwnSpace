@@ -41,6 +41,7 @@ async function logout(): Promise<void> {
     await httpAuthAdapter.logout();
     return;
   }
+  mockAuthAdapter.logout();
   deleteCookie(SESSION_COOKIE, { path: '/' });
 }
 

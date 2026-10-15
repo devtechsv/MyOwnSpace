@@ -10,6 +10,7 @@ public sealed class AuditLogService : IAuditLogService
 {
     private const int MaxPageSize = 100;
     private const string ActorDesconocido = "(usuario eliminado)";
+    private const string ActorAnonimo = "(desconocido)";
 
     private readonly AppDbContext _db;
 
@@ -28,7 +29,7 @@ public sealed class AuditLogService : IAuditLogService
         // de negocio (UsersService/RequestsService) igual que antes,
         // solo con actorId, es más simple que agregar un parámetro más
         // en cada método. El costo es una consulta extra, indexada por
-        // PK, y solo en acciones de admin (no son hot path).
+        // PK, en acciones de admin y en cada inicio/cierre de sesión.
         var actorNombre = await _db.Users
             .Where(u => u.Id == actorId)
             .Select(u => u.Nombre)
@@ -45,6 +46,22 @@ public sealed class AuditLogService : IAuditLogService
             Detalle = detalle,
             CreatedAt = DateTime.UtcNow,
         });
+    }
+
+    public async Task RegistrarInicioSesionFallidoAsync(Guid? usuarioId, string motivo)
+    {
+        _db.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            ActorId = null,
+            ActorNombre = ActorAnonimo,
+            Accion = AuditAction.InicioSesionFallido,
+            EntidadTipo = AuditEntityType.Usuario,
+            EntidadId = usuarioId,
+            Detalle = motivo,
+            CreatedAt = DateTime.UtcNow,
+        });
+        await _db.SaveChangesAsync();
     }
 
     public async Task<PagedResult<AuditLogConEntidad>> ListarAsync(
@@ -84,7 +101,7 @@ public sealed class AuditLogService : IAuditLogService
 
         var nombres = await NombresDeEntidadesAsync(items);
         var conEntidad = items
-            .Select(a => new AuditLogConEntidad(a, nombres.GetValueOrDefault((a.EntidadTipo, a.EntidadId))))
+            .Select(a => new AuditLogConEntidad(a, a.EntidadId is Guid id ? nombres.GetValueOrDefault((a.EntidadTipo, id)) : null))
             .ToList();
 
         return new PagedResult<AuditLogConEntidad>(conEntidad, totalCount, paginaSegura, tamañoSeguro);
@@ -122,5 +139,5 @@ public sealed class AuditLogService : IAuditLogService
     }
 
     private static List<Guid> IdsDe(List<AuditLog> items, AuditEntityType tipo) =>
-        items.Where(a => a.EntidadTipo == tipo).Select(a => a.EntidadId).Distinct().ToList();
+        items.Where(a => a.EntidadTipo == tipo && a.EntidadId is not null).Select(a => a.EntidadId!.Value).Distinct().ToList();
 }

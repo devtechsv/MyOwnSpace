@@ -57,6 +57,31 @@ describe('AuditTable', () => {
     expect(segunda.getByText('Usuario eliminado')).toBeInTheDocument();
   });
 
+  it('accesos: inicio de sesión, intento fallido sobre una cuenta y con un correo no registrado', () => {
+    render(
+      <AuditTable
+        entradas={[
+          { ...base, id: 'a1', accion: 'InicioSesion', actorNombre: 'Ana Martínez', entidadTipo: 'Usuario', entidadNombre: 'Ana Martínez', detalle: null },
+          { ...base, id: 'a2', accion: 'InicioSesionFallido', actorId: null, actorNombre: '(desconocido)', entidadTipo: 'Usuario', entidadId: 'u3', entidadNombre: 'Ana Martínez', detalle: 'Contraseña incorrecta o vencida.' },
+          { ...base, id: 'a3', accion: 'InicioSesionFallido', actorId: null, actorNombre: '(desconocido)', entidadTipo: 'Usuario', entidadId: null, entidadNombre: null, detalle: 'Correo no registrado.' },
+        ]}
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    expect(screen.getByText('Usuario')).toBeInTheDocument();
+    const [inicio, sobreCuenta, sinCuenta] = screen.getAllByTestId('fila-desktop').map((f) => within(f));
+    expect(inicio.getByText('Inició sesión')).toBeInTheDocument();
+    expect(sobreCuenta.getByText('(desconocido)')).toBeInTheDocument();
+    expect(sobreCuenta.getByText('Ana Martínez')).toBeInTheDocument();
+    expect(sobreCuenta.getByText('Motivo: Contraseña incorrecta o vencida.')).toBeInTheDocument();
+    expect(sinCuenta.getByText('Intento de inicio de sesión fallido')).toBeInTheDocument();
+    expect(sinCuenta.getByText('—')).toBeInTheDocument();
+    expect(sinCuenta.queryByText('Usuario eliminado')).not.toBeInTheDocument();
+    expect(sinCuenta.getByText('Motivo: Correo no registrado.')).toBeInTheDocument();
+  });
+
   it('estados de carga, error y vacío', () => {
     const { rerender } = render(<AuditTable entradas={[]} isLoading error={null} />);
     expect(screen.getByText('Cargando auditoría…')).toBeInTheDocument();

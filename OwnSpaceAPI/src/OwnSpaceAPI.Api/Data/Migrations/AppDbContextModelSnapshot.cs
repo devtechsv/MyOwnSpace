@@ -33,7 +33,7 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
-                    b.Property<Guid>("ActorId")
+                    b.Property<Guid?>("ActorId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ActorNombre")
@@ -48,7 +48,7 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<Guid>("EntidadId")
+                    b.Property<Guid?>("EntidadId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("EntidadTipo")
@@ -64,7 +64,7 @@ namespace OwnSpaceAPI.Api.Data.Migrations
 
                     b.ToTable("AuditLogs", t =>
                         {
-                            t.HasCheckConstraint("CK_AuditLogs_Accion", "[Accion] IN ('UsuarioCreado', 'UsuarioEditado', 'ContrasenaReseteada', 'EstadoUsuarioCambiado', 'SolicitudAprobada', 'SolicitudDenegada')");
+                            t.HasCheckConstraint("CK_AuditLogs_Accion", "[Accion] IN ('UsuarioCreado', 'UsuarioEditado', 'ContrasenaReseteada', 'EstadoUsuarioCambiado', 'SolicitudAprobada', 'SolicitudDenegada', 'InicioSesion', 'InicioSesionFallido', 'CierreSesion')");
 
                             t.HasCheckConstraint("CK_AuditLogs_EntidadTipo", "[EntidadTipo] IN ('Usuario', 'Solicitud')");
                         });
@@ -83,6 +83,7 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Estado")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
@@ -251,8 +252,7 @@ namespace OwnSpaceAPI.Api.Data.Migrations
                     b.HasOne("OwnSpaceAPI.Api.Models.Entities.User", "Actor")
                         .WithMany()
                         .HasForeignKey("ActorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Actor");
                 });

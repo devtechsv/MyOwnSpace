@@ -129,7 +129,7 @@ public class AppDbContext : DbContext
 
       entity.ToTable(t => t.HasCheckConstraint(
         "CK_AuditLogs_Accion",
-        "[Accion] IN ('UsuarioCreado', 'UsuarioEditado', 'ContrasenaReseteada', 'EstadoUsuarioCambiado', 'SolicitudAprobada', 'SolicitudDenegada')"));
+        "[Accion] IN ('UsuarioCreado', 'UsuarioEditado', 'ContrasenaReseteada', 'EstadoUsuarioCambiado', 'SolicitudAprobada', 'SolicitudDenegada', 'InicioSesion', 'InicioSesionFallido', 'CierreSesion')"));
       entity.ToTable(t => t.HasCheckConstraint(
         "CK_AuditLogs_EntidadTipo",
         "[EntidadTipo] IN ('Usuario', 'Solicitud')"));

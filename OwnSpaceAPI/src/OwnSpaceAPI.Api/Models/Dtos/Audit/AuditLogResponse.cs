@@ -5,11 +5,11 @@ namespace OwnSpaceAPI.Api.Models.Dtos.Audit;
 
 public record AuditLogResponse(
     Guid Id,
-    Guid ActorId,
+    Guid? ActorId,
     string ActorNombre,
     AuditAction Accion,
     AuditEntityType EntidadTipo,
-    Guid EntidadId,
+    Guid? EntidadId,
     string? Detalle,
     DateTime CreatedAt,
     // Nombre del usuario afectado o del empleado dueño de la solicitud;

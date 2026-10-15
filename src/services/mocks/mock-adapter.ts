@@ -80,17 +80,19 @@ function actorDeLaSesion(): string | undefined {
 // Igual que AuditLogService.RegistrarAsync: guarda el nombre del actor de
 // ese momento. Se llama solo cuando la acción ya se aplicó.
 function registrarAuditoria(
-  actorId: string | undefined,
+  actorId: string | null | undefined,
   accion: AuditAction,
   entidadTipo: AuditEntityType,
-  entidadId: string,
+  entidadId: string | null,
   detalle?: string,
 ): void {
   auditLogs = [
     {
       id: `a${auditLogs.length + 1}`,
-      actorId: actorId ?? '',
-      actorNombre: users.find((u) => u.id === actorId)?.nombre ?? '(usuario eliminado)',
+      actorId: actorId ?? null,
+      actorNombre: actorId
+        ? (users.find((u) => u.id === actorId)?.nombre ?? '(usuario eliminado)')
+        : '(desconocido)',
       accion,
       entidadTipo,
       entidadId,
@@ -185,8 +187,16 @@ export const mockAuthAdapter = {
       // mensaje, igual que hará la API real: nunca se confirma si un
       // correo existe ni por qué falló (Desactivado y Pendiente
       // rechazan igual que en el backend).
+      registrarAuditoria(
+        null,
+        'InicioSesionFallido',
+        'Usuario',
+        user?.id ?? null,
+        user ? `Cuenta en estado ${user.estado}.` : 'Correo no registrado.',
+      );
       throw new Error('Credenciales inválidas');
     }
+    registrarAuditoria(user.id, 'InicioSesion', 'Usuario', user.id);
     const session: Session = {
       userId: user.id,
       nombre: user.nombre,
@@ -195,6 +205,16 @@ export const mockAuthAdapter = {
       mustChangePassword: user.mustChangePassword ?? false,
     };
     return delay(session);
+  },
+
+  // Igual que AuthService.LogoutAsync: registra CierreSesion con el usuario
+  // de la sesión. Síncrono a propósito: se llama justo antes de borrar la
+  // cookie, y logout() en modo mock no espera nada.
+  logout(): void {
+    const userId = actorDeLaSesion();
+    if (userId) {
+      registrarAuditoria(userId, 'CierreSesion', 'Usuario', userId);
+    }
   },
 
   async forgotPassword(payload: ForgotPasswordPayload): Promise<void> {
@@ -624,9 +644,11 @@ export const mockAuditAdapter = {
     const items = filtrados.slice(start, start + pageSize).map((a) => ({
       ...a,
       entidadNombre:
-        a.entidadTipo === 'Usuario'
-          ? (users.find((u) => u.id === a.entidadId)?.nombre ?? null)
-          : (withEmployeeNombre(findRequestOrThrow(a.entidadId)).employeeNombre ?? null),
+        a.entidadId === null
+          ? null
+          : a.entidadTipo === 'Usuario'
+            ? (users.find((u) => u.id === a.entidadId)?.nombre ?? null)
+            : (withEmployeeNombre(findRequestOrThrow(a.entidadId)).employeeNombre ?? null),
     }));
     return delay(clone({ items, totalCount: filtrados.length, page, pageSize }));
   },
